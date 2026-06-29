@@ -36,6 +36,48 @@ def page_setup():
     except Exception as e:
         st.sidebar.error(f"API Offline: {e}")
 
+    # Database connection info
+    _render_db_status()
+
+
+def _render_db_status():
+    """Fetch and display database connection details in the sidebar."""
+    from src.web.api_client import api_get
+
+    st.sidebar.divider()
+    st.sidebar.subheader("🗄️ Database Connections")
+
+    db_status = api_get("/api/db-status")
+    if not db_status:
+        st.sidebar.warning("Could not fetch DB status")
+        return
+
+    # Interface DB
+    iface = db_status.get("interface_db", {})
+    with st.sidebar.container():
+        st.sidebar.markdown("**Interface DB**")
+        st.sidebar.caption(f"Server: `{iface.get('server', 'N/A')}`")
+        st.sidebar.caption(f"Database: `{iface.get('database', 'N/A')}`")
+        if iface.get("connected"):
+            st.sidebar.markdown("Status: :green[Connected ✓]")
+        else:
+            st.sidebar.markdown("Status: :red[Disconnected ✗]")
+            if iface.get("error"):
+                st.sidebar.caption(f"Error: {iface['error']}")
+
+    # Carity DB
+    carity = db_status.get("carity_db", {})
+    with st.sidebar.container():
+        st.sidebar.markdown("**Carity DB**")
+        st.sidebar.caption(f"Server: `{carity.get('server', 'N/A')}`")
+        st.sidebar.caption(f"Database: `{carity.get('database', 'N/A')}`")
+        if carity.get("connected"):
+            st.sidebar.markdown("Status: :green[Connected ✓]")
+        else:
+            st.sidebar.markdown("Status: :red[Disconnected ✗]")
+            if carity.get("error"):
+                st.sidebar.caption(f"Error: {carity['error']}")
+
 
 def render_sidebar():
     """Render the sidebar content (QA Settings)."""
