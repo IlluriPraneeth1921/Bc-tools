@@ -25,7 +25,7 @@
 3. Active ICA assignment exists with valid Medicaid Provider ID
 4. Active FEA assignment exists with valid dates spanning enrollment period
 5. Enrollment effective dates: Start = 2026-07-01, End = NULL (sent as 22991231)
-6. Active ISP exists
+6. Completed ISP exists with start/end dates
 7. **Specific condition triggering SE:** A non-critical field has a validation warning
    (e.g., RecertificationDueDate is in the past but not blocking)
 8. MMIS returns ResponseStatus = "SE" with warning-level error segment(s)
@@ -150,7 +150,7 @@ The following Carity database tables and columns must be in the specified state 
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2025-01-01 | → RecertificationCompletionDate (may be past) |
 | `EffectiveDateRangeEndDate` | e.g., **2025-12-31** | **⚠️ In the past — triggers MMIS warning 9137** |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 > **⚠️ SE Trigger:** The ISP end date is in the past (2025-12-31), making RecertificationDueDate invalid. MMIS returns a field-level warning (ErrorType "04") but still processes the enrollment (SE, not FL).
 

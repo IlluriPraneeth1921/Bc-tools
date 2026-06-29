@@ -100,7 +100,7 @@ The following Carity database tables and columns must be in the specified state 
 
 ### 6–9. (Phone, ICA, FEA, ISP)
 
-Same structure as TC-012/TC-021 — phone, ICA assignment with Medicaid Provider ID, FEA assignment with Medicaid Provider ID, and active ISP with start/end dates.
+Same structure as TC-012/TC-021 — phone, ICA assignment with Medicaid Provider ID, FEA assignment with Medicaid Provider ID, and completed ISP with start/end dates.
 
 ### 10. Existing Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 
@@ -488,7 +488,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | **DateEnrlEff** (Txn 3 / S520) | New BC suspension end (2026-09-15, no offset) |
 | **DateEnrlEnd** (Txn 3 / S520) | Enrollment end = NULL → "22991231" |
 | **WorkerID** | `PersonModule.PersonStaffMemberAssignment` → WHERE role LIKE 'ICA - IRIS Consultant%' AND active → `AssignedStaffMemberKey` → `{Initial}.{LastName}` truncated to 8 chars |
-| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (active ISP) |
+| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (completed ISP) |
 
 ---
 

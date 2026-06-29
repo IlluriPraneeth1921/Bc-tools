@@ -25,7 +25,7 @@
 3. **Residential address is INVALID:** City is missing/empty (triggers error 9110)
 4. **FEA assignment dates are INVALID:** FEA end date does NOT span enrollment period (triggers error 9156)
 5. Enrollment effective dates: Start = 2026-01-01, End = NULL (sent as 22991231)
-6. Active ISP exists
+6. Completed ISP exists with start/end dates
 7. This is a NEGATIVE test — MMIS will return MULTIPLE error segments (0..unbounded per ICD)
 
 ---
@@ -147,7 +147,7 @@ The following Carity database tables and columns must be in the specified state 
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 10. New Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 

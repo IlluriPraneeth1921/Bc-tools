@@ -112,7 +112,7 @@ The following Carity database tables and columns must be in the specified state 
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 7. Existing SDPC Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 
@@ -476,7 +476,7 @@ ORDER BY Timestamp DESC
 | **DateSDPCEffective** (Txn 3 / S520) | `ProgramEnrollmentSuspension.DateRangeEndDate` (no offset) |
 | **DateSDPCEnd** (Txn 3 / S520) | Original enrollment end date ("22991231") |
 | **WorkerID** (all 3 txns) | `PersonModule.PersonStaffMemberAssignment` → WHERE role = '**SDPC Nurse**' AND `IsPrimary` = 1 AND active → derive ID (**15 chars**) |
-| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (active ISP) |
+| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (completed ISP) |
 | **Address fields** | **NOT APPLICABLE** — SDPC does not send address |
 | **WaiverFEA / FEA fields** | **NOT APPLICABLE** — SDPC does not use FEA |
 | **StartReasonCode / StopReasonCode** | **NOT APPLICABLE** — SDPC suspension does not use reason codes |

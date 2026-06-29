@@ -25,7 +25,7 @@
 5. **Two** phone numbers available: a primary phone (used for Address Node) and a secondary phone of a different type (used for Additional Address Node's `AdditionalNumPhone`). Fallback priority if no primary: Home → Cell → Work.
 6. Active ICA assignment exists with a valid Medicaid Provider ID (PersonLocationAssignment type="ICA", active)
 7. Active FEA assignment exists with valid dates spanning the full enrollment period (PersonLocationAssignment type="FEA", active)
-8. Active ISP (PersonCenteredPlan) exists with start/end dates
+8. Completed ISP (PersonCenteredPlan) exists with start/end dates
 9. No prior MMIS enrollment exists for this participant in IRIS program
 10. No pending conflicts or unresolved sync transactions
 
@@ -168,7 +168,7 @@ The following Carity database tables and columns must be populated before test e
 | `PersonCenteredPlanKey` | {GUID} | PK |
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate (same as DateEnrlEff) |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 10. Program Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 
@@ -496,6 +496,6 @@ These chains show how Blue Compass resolves each request field from the Carity d
 | **DateEnrlEff** | `ProgramEnrollmentModule.ProgramEnrollment.EnrollmentDateRangeStartDate` |
 | **DateEnrlEnd** | `ProgramEnrollmentModule.ProgramEnrollment.EnrollmentDateRangeEndDate` (NULL → "22991231") |
 | **WorkerID** | `PersonModule.PersonStaffMemberAssignment` → WHERE `AssignmentTypeSystemRoleDisplayName` LIKE 'ICA - IRIS Consultant%' AND active → `AssignedStaffMemberKey` → `OrganizationModule.StaffMember` → `{Initial}.{LastName}` truncated to 8 chars |
-| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (active ISP) |
+| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (completed ISP) |
 | **RecertificationCompletionDate** | Same as DateEnrlEff (`ProgramEnrollment.EnrollmentDateRangeStartDate`) |
 | **CountyofResponsibility** | `PersonModule.PersonAttributes` → WHERE `TypeDisplayName` = 'County of Responsibility' → `ValueDisplayName` → translate to 2-digit MMIS code |

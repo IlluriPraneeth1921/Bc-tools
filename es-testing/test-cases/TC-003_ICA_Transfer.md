@@ -196,7 +196,7 @@ This record is created when the user performs the ICA transfer in Blue Compass (
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 13. Worker Assignment — `PersonModule.PersonStaffMemberAssignment`
 

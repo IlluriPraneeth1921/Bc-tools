@@ -113,7 +113,7 @@ The following Carity database tables and columns must be in the specified state 
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 7. New SDPC Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 
@@ -463,7 +463,7 @@ WHERE ProgramEnrollmentExtensionKey = '{ProgramEnrollmentExtensionKey}'
 | **DateSDPCEffective** | `ProgramEnrollmentModule.ProgramEnrollment.EnrollmentDateRangeStartDate` (formatted CCYYMMDD) |
 | **DateSDPCEnd** | `ProgramEnrollmentModule.ProgramEnrollment.EnrollmentDateRangeEndDate` → NULL = "22991231" |
 | **WorkerID** | `PersonModule.PersonStaffMemberAssignment` → WHERE role = '**SDPC Nurse**' AND `IsPrimary` = 1 AND active → `AssignedStaffMemberKey` → derive ID (truncated to **15 chars**) |
-| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (active ISP) |
+| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (completed ISP) |
 | **RecertificationCompletionDate** | Same as DateSDPCEffective |
 | **Address fields** | **NOT APPLICABLE** — SDPC does not send address |
 | **WaiverFEA / FEA fields** | **NOT APPLICABLE** — SDPC does not use FEA |

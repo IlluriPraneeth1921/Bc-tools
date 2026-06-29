@@ -24,7 +24,7 @@
 4. Active residential and mailing addresses exist
 5. Active ICA assignment with valid Medicaid Provider ID
 6. Active FEA assignment with valid dates spanning enrollment
-7. Active ISP with start/end dates
+7. Completed ISP with start/end dates
 8. The Medicaid ID mismatch is not known to BC until MMIS response is received
 
 ---
@@ -152,7 +152,7 @@ The following Carity database tables and columns must be populated before test e
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate (same as DateEnrlEff) |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 10. Program Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 

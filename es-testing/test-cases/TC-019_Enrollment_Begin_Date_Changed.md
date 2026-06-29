@@ -151,7 +151,7 @@ The following Carity database tables and columns must be in the specified state 
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 10. Existing Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 
@@ -461,7 +461,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | **StartReasonCode** (both txns) | Fixed value **"2L"** per BR-D01-022 |
 | **StopReasonCode** (Txn 1) | Fixed value **"2B"** (Begin Date Changed) per BR-D01-022 |
 | **WorkerID** | `PersonModule.PersonStaffMemberAssignment` → WHERE role LIKE 'ICA - IRIS Consultant%' AND active → derive ID (8 chars) |
-| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (active ISP) |
+| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (completed ISP) |
 | **RecertificationCompletionDate** | Same as DateEnrlEff (per transaction) |
 
 ---

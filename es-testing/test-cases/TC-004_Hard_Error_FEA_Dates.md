@@ -29,7 +29,7 @@
    - Enrollment Start Date = 1/1/2026
    - Enrollment End Date = null (sent as 12/31/2299)
 6. **Mismatch:** FEA end date (6/30/2026) does NOT span the full enrollment period (end date 12/31/2299)
-7. Active ISP exists with start/end dates
+7. Completed ISP exists with start/end dates
 
 ---
 
@@ -168,7 +168,7 @@ The following Carity database tables and columns must be populated before test e
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | e.g., 2026-01-01 | → RecertificationCompletionDate (same as DateEnrlEff) |
 | `EffectiveDateRangeEndDate` | e.g., 2026-12-31 | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 11. Worker Assignment — `PersonModule.PersonStaffMemberAssignment`
 

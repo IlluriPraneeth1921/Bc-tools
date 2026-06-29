@@ -154,7 +154,7 @@ The following Carity database tables and columns must be in the specified state 
 |--------|----------------|-------|
 | `EffectiveDateRangeStartDate` | {date} | → RecertificationCompletionDate (same as DateEnrlEff) |
 | `EffectiveDateRangeEndDate` | {date} | → RecertificationDueDate |
-| Status | Active | Must be active ISP |
+| Status | Completed | ISP must be in Completed state; does not need to be Active. ISP dates may be future. |
 
 ### 10. Program Enrollment — `ProgramEnrollmentModule.ProgramEnrollment`
 
@@ -563,7 +563,7 @@ These chains show how Blue Compass resolves each request field from the Carity d
 | **DateEnrlEff** | `ProgramEnrollmentModule.ProgramEnrollment.EnrollmentDateRangeStartDate` |
 | **DateEnrlEnd** | `ProgramEnrollmentModule.ProgramEnrollment.EnrollmentDateRangeEndDate` (NULL → "22991231") |
 | **WorkerID** | `PersonModule.PersonStaffMemberAssignment` → WHERE `AssignmentTypeSystemRoleDisplayName` LIKE 'ICA - IRIS Consultant%' AND active → `AssignedStaffMemberKey` → `OrganizationModule.StaffMember` → `{Initial}.{LastName}` truncated to 8 chars |
-| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (active ISP) |
+| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (completed ISP) |
 | **RecertificationCompletionDate** | Same as DateEnrlEff |
 | **CountyofResponsibility** | `PersonModule.PersonAttributes` → WHERE `TypeDisplayName` = 'County of Responsibility' → `ValueDisplayName` → translate to 2-digit MMIS code |
 | {Scenario-specific fields} | {lookup path for fields unique to this test case} |
