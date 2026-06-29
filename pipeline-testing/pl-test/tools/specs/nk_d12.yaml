@@ -1,0 +1,171 @@
+meta:
+  interface_type: nk_d12
+  display_name: "nk-D12: FSIA Adult Functional Screen File"
+  description: "NK DHS FSIA Adult Functional Screen Assessment file"
+  version: "1.0"
+  source_system: NK-MMIS
+  file_extension: ".txt"
+
+format:
+  type: fixed-width
+  delimiter: " "
+  has_header_record: true
+  has_trailer_record: false
+  line_ending: CRLF
+  encoding: UTF-8
+
+entity:
+  id_field: medicaid_id
+  id_length: 10
+  test_prefix: "0000000"
+  id_description: "Medicaid Member ID"
+
+record_types:
+  - code: HDR
+    name: Header
+    min_occurrence: 1
+    max_occurrence: "1"
+    per_entity: false
+    position: first_line
+  - code: DTL
+    name: Detail
+    min_occurrence: 1
+    max_occurrence: unlimited
+    per_entity: true
+
+fields:
+  header:
+    - name: record_type
+      length: 3
+      type: string
+      fixed_value: HDR
+    - name: creation_date
+      length: 8
+      type: date
+      format: YYYYMMDD
+    - name: creation_time
+      length: 6
+      type: string
+    - name: detail_record_count
+      length: 6
+      type: numeric
+      zero_padded: true
+
+  detail:
+    - name: medicaid_id
+      length: 10
+      type: identifier
+      required: true
+      description: "Medicaid member ID"
+      db_column: MedicaidId
+    - name: first_name
+      length: 20
+      type: string
+      required: true
+      db_column: FirstName
+    - name: last_name
+      length: 20
+      type: string
+      required: true
+      db_column: LastName
+    - name: middle_name
+      length: 15
+      type: string
+      db_column: MiddleName
+    - name: appl_pref_live_cd
+      length: 3
+      type: code
+      code_table: pref_live_codes
+      db_column: ApplPrefLiveCd
+    - name: gard_pref_live_cd
+      length: 3
+      type: code
+      db_column: GardPrefLiveCd
+    - name: bath_help_cd
+      length: 3
+      type: code
+      code_table: adl_help_codes
+      db_column: BathHelpCd
+    - name: empl_stat_cd
+      length: 3
+      type: code
+      code_table: empl_stat_codes
+      db_column: EmplStatCd
+    - name: elg_calc_dt
+      length: 8
+      type: date
+      format: YYYYMMDD
+      required: true
+      db_column: ElgCalcDt
+
+code_tables:
+  pref_live_codes:
+    name: pref_live_codes
+    values:
+      "024": "Community Based Residential Facility"
+      "025": "Adult Family Home"
+      "026": "Own Home/Apartment"
+      "027": "Relative's Home"
+      "028": "Nursing Facility"
+  adl_help_codes:
+    name: adl_help_codes
+    values:
+      "000": "Independent"
+      "001": "Needs Some Help"
+      "002": "Needs Full Help"
+  empl_stat_codes:
+    name: empl_stat_codes
+    values:
+      "000": "Not Applicable"
+      "001": "Employed"
+      "002": "Seeking Employment"
+      "003": "Unemployed"
+
+business_rules:
+  - id: BR-D12-ADL
+    description: "Personal care needed if any ADL help code is 001 or 002"
+    affects_fields: [bath_help_cd]
+    logic: "code in (001, 002) → PersonalCare = Yes"
+    type: composite
+
+db_targets:
+  stage1:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: CustomerInterfaceModule
+    tables:
+      - name: FsiaRaw
+        filter_column: MedicaidId
+  stage2:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: CustomerInterfaceModule
+    tables:
+      - name: FsiaRaw
+        columns:
+          medicaid_id: MedicaidId
+          first_name: FirstName
+          last_name: LastName
+          middle_name: MiddleName
+          bath_help_cd: BathHelpCd
+          empl_stat_cd: EmplStatCd
+          elg_calc_dt: ElgCalcDt
+        filter_column: MedicaidId
+  stage3:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: CustomFormModule
+    tables:
+      - name: SimpleSingleSelectFieldAnswer
+        filter_column: FieldAnswerBaseKey
+  stage4:
+    database: "WiDHS.Qc.Carity.ToolTestig"
+    schema: CustomFormModule
+    tables:
+      - name: SimpleSingleSelectFieldAnswer
+        filter_column: FieldAnswerBaseKey
+
+naming:
+  file_prefix: NK_FSIA_FILE_EXTRACT
+  environment_suffix: "_T"
+  extension: ".txt"
+
+test_scenarios:
+  volume_size: 50

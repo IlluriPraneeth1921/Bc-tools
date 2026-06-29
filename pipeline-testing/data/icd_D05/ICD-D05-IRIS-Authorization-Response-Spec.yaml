@@ -1,0 +1,443 @@
+# =============================================================================
+# ICD-D05 IRIS Authorization Response File Interface Specification
+# Source: WI DHS MES CMM-ICD-D05 IRIS Authorization File v5.0 (Response File tab)
+# Direction: Inbound (MMIS -> Blue Compass)
+# =============================================================================
+
+meta:
+  interface_type: "icd_d05_response"
+  display_name: "IRIS Authorization Response File"
+  description: "Inbound MMIS response with validation outcomes for IRIS Authorization requests"
+  version: "5.0"
+  source_system: "MMIS"
+  file_extension: ".log"
+
+entity:
+  id_field: "authorization_number"
+  id_length: 30
+  test_prefix: "42690"
+  id_description: "Authorization Number echoed back from the request file"
+
+format:
+  type: "pipe-delimited"
+  delimiter: "|"
+  has_header_record: false
+  has_trailer_record: false
+  line_ending: "CRLF"
+  encoding: "UTF-8"
+  quote_char: null
+
+record_types:
+  - code: "DTL"
+    name: "Detail Record"
+    min_occurrence: 0
+    max_occurrence: "unlimited"
+    per_entity: true
+    position: "body"
+
+naming:
+  file_prefix: "DMS-CMM-WI_EVV"
+  environment_suffix: "_T"
+  extension: ".log"
+
+fields:
+  DTL:
+    - name: "reported_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Authorized effective date for the service code"
+      format: "YYYYMMDD"
+    - name: "payer_identifier"
+      length: 8
+      type: "string"
+      required: true
+      description: "Payer Identifier echoed back from request file"
+    - name: "authorization_number"
+      length: 30
+      type: "identifier"
+      required: true
+      description: "Authorization Number echoed back from request"
+    - name: "billing_provider_id"
+      length: 10
+      type: "string"
+      required: true
+      description: "Billing Provider agency ID (MCD ID or NPI)"
+    - name: "member_id"
+      length: 10
+      type: "string"
+      required: true
+      description: "Member Medicaid ID Number"
+    - name: "service_code"
+      length: 5
+      type: "string"
+      required: true
+      description: "Service/procedure code"
+    - name: "modifier_1"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 1"
+    - name: "modifier_2"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 2"
+    - name: "modifier_3"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 3"
+    - name: "modifier_4"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 4"
+    - name: "error_description"
+      length: 255
+      type: "string"
+      required: false
+      description: "Error description returned by MMIS (e.g., Billing Provider ID missing or invalid)"
+      db_column: "ResponseErrorNote"
+    - name: "authorized_effective_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Authorized effective date for the service code"
+      format: "YYYYMMDD"
+    - name: "authorized_end_date"
+      length: 8
+      type: "date"
+      required: false
+      description: "Authorized end date for the service code"
+      format: "YYYYMMDD"
+    - name: "authorization_type"
+      length: 1
+      type: "code"
+      required: true
+      description: "Authorization type: 0=New, 1=Update, 2=Deleted"
+      code_table: "auth_type"
+    - name: "participant_dob"
+      length: 8
+      type: "date"
+      required: true
+      description: "Participant date of birth"
+      format: "YYYYMMDD"
+    - name: "participant_ssn"
+      length: 9
+      type: "numeric"
+      required: true
+      description: "Participant SSN (no dashes)"
+    - name: "participant_name"
+      length: 255
+      type: "string"
+      required: true
+      description: "Participant name in 'Last, First' format"
+    - name: "rendering_provider_id"
+      length: 10
+      type: "string"
+      required: false
+      description: "Rendering Provider ID - only for PHW providers"
+    - name: "rendering_qualifier_id"
+      length: 2
+      type: "code"
+      required: false
+      description: "Rendering provider ID qualifier"
+      code_table: "qualifier_id"
+    - name: "rendering_provider_npi"
+      length: 10
+      type: "string"
+      required: false
+      description: "Rendering Provider NPI"
+    - name: "billing_qualifier_id"
+      length: 2
+      type: "code"
+      required: true
+      description: "Billing provider ID qualifier"
+      code_table: "qualifier_id"
+    - name: "billing_provider_npi"
+      length: 10
+      type: "string"
+      required: true
+      description: "Billing Provider NPI"
+    - name: "service_code_qualifier"
+      length: 7
+      type: "code"
+      required: true
+      description: "Service Type Code"
+      code_table: "service_code_qualifier"
+    - name: "service_description"
+      length: 255
+      type: "string"
+      required: true
+      description: "Service Name"
+    - name: "total_dollar_amount"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Total Dollar Amount (2 decimal places)"
+    - name: "total_units"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Total Units (2 decimal places)"
+    - name: "unit_rate"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Unit Rate (2 decimal places)"
+    - name: "unit_type"
+      length: 50
+      type: "code"
+      required: true
+      description: "Unit Type"
+      code_table: "unit_type"
+    - name: "frequency"
+      length: 50
+      type: "code"
+      required: true
+      description: "Authorization frequency"
+      code_table: "frequency"
+    - name: "units_by_frequency"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Units by Frequency (2 decimal places)"
+    - name: "created_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Authorization creation date"
+      format: "YYYYMMDD"
+    - name: "updated_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Authorization update date"
+      format: "YYYYMMDD"
+    - name: "participant_status"
+      length: 50
+      type: "string"
+      required: true
+      description: "Participant IRIS enrollment status"
+    - name: "retroactive_auth_reason_code"
+      length: 1
+      type: "code"
+      required: false
+      description: "Retroactive Authorization Reason Code"
+      code_table: "reason_code"
+    - name: "units_change_reason_code"
+      length: 1
+      type: "code"
+      required: false
+      description: "Units Change Reason Code"
+      code_table: "reason_code"
+
+# =============================================================================
+# CODE TABLES
+# =============================================================================
+code_tables:
+  auth_type:
+    name: "auth_type"
+    description: "Authorization Type"
+    values:
+      "0": "New - auth updated date = created date"
+      "1": "Update - auth previously sent"
+      "2": "Deleted - auth reported has been deleted"
+
+  qualifier_id:
+    name: "qualifier_id"
+    description: "Provider ID Qualifier"
+    values:
+      "24": "EIN"
+      "34": "SSN"
+      "44": "Medicaid Provider ID (MAID/Enumeration ID)"
+
+  service_code_qualifier:
+    name: "service_code_qualifier"
+    description: "Service Code Qualifier"
+    values:
+      "Revenue": "Revenue Code"
+      "CPT": "CPT Code"
+      "HCPCS": "HCPCS Code"
+
+  unit_type:
+    name: "unit_type"
+    description: "Unit Type"
+    values:
+      "Hour": "Hour"
+      "Day": "Day"
+      "Night": "Night"
+      "Month": "Month"
+      "Each": "Each"
+      "Mile": "Mile"
+
+  frequency:
+    name: "frequency"
+    description: "Authorization Frequency"
+    values:
+      "Weekly": "Weekly"
+      "Monthly": "Monthly"
+      "Each": "Each"
+      "Annually": "Annually"
+
+  reason_code:
+    name: "reason_code"
+    description: "Retroactive/Units Change Reason Code"
+    values:
+      "1": "Justified Correction"
+      "2": "IC Error"
+      "3": "Budget Mismanagement"
+
+# =============================================================================
+# BUSINESS RULES
+# =============================================================================
+business_rules:
+  - id: "BR-005-018"
+    description: "Error Report generated from response file errors"
+    affects_fields: ["error_description"]
+    logic: "An Error Report will be generated for all errors returned in the Response File. Each error description appears as a row associated with the Authorization Reference Number."
+    type: "transformation"
+
+  - id: "BR-005-024"
+    description: "Response file only includes authorizations with errors"
+    affects_fields: ["error_description"]
+    logic: "Response File only includes error descriptions for each auth that has errors. If no errors, a response file is returned indicating no errors."
+    type: "filter"
+
+  - id: "BR-005-025"
+    description: "Authorization number must match existing Blue Compass record"
+    affects_fields: ["authorization_number"]
+    logic: "If the authorization number returned does not match an existing record in Blue Compass, generate error RV-005-001."
+    type: "filter"
+
+  - id: "BR-005-026"
+    description: "Clear previous errors before processing new response"
+    affects_fields: ["error_description"]
+    logic: "When processing a response, previous errors for the service lines should have been cleared when the auth was re-sent."
+    type: "transformation"
+
+# =============================================================================
+# CROSS-FIELD DEPENDENCIES
+# =============================================================================
+cross_field_dependencies:
+  - condition: "Authorization Number in response must match an existing Blue Compass Service Authorization Number"
+    fields: ["authorization_number"]
+
+  - condition: "Error Description populated only when there are validation errors from MMIS"
+    fields: ["error_description", "authorization_number"]
+
+# =============================================================================
+# DB TARGETS
+# =============================================================================
+db_targets:
+  stage1:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables:
+      - name: "IrisAuthorizationResponse"
+        record_type: "DTL"
+        columns:
+          reported_date: "ReportedDate"
+          payer_identifier: "PayerIdentifier"
+          authorization_number: "AuthorizationNumber"
+          billing_provider_id: "BillingProviderId"
+          member_id: "MemberId"
+          service_code: "ServiceCode"
+          modifier_1: "Modifier1"
+          modifier_2: "Modifier2"
+          modifier_3: "Modifier3"
+          modifier_4: "Modifier4"
+          error_description: "ErrorDescription"
+          authorized_effective_date: "AuthorizedEffectiveDate"
+          authorized_end_date: "AuthorizedEndDate"
+          authorization_type: "AuthorizationType"
+          participant_dob: "ParticipantDob"
+          participant_ssn: "ParticipantSsn"
+          participant_name: "ParticipantName"
+          rendering_provider_id: "RenderingProviderId"
+          rendering_qualifier_id: "RenderingQualifierId"
+          rendering_provider_npi: "RenderingProviderNpi"
+          billing_qualifier_id: "BillingQualifierId"
+          billing_provider_npi: "BillingProviderNpi"
+          service_code_qualifier: "ServiceCodeQualifier"
+          service_description: "ServiceDescription"
+          total_dollar_amount: "TotalDollarAmount"
+          total_units: "TotalUnits"
+          unit_rate: "UnitRate"
+          unit_type: "UnitType"
+          frequency: "Frequency"
+          units_by_frequency: "UnitsByFrequency"
+          created_date: "CreatedDate"
+          updated_date: "UpdatedDate"
+          participant_status: "ParticipantStatus"
+          retroactive_auth_reason_code: "RetroactiveAuthReasonCode"
+          units_change_reason_code: "UnitsChangeReasonCode"
+        filter_column: "AuthorizationNumber"
+    mapping: "one_row_per_record"
+  stage2:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables: []
+    mapping: "one_row_per_record"
+  stage3:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables: []
+    mapping: "one_row_per_record"
+  stage4:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables: []
+    mapping: "one_row_per_record"
+
+# =============================================================================
+# ADDITIONAL TABLE UPDATES (on successful response processing)
+# =============================================================================
+# When a response is processed successfully (no error), update:
+#   ServiceAuthorizationModule.ServiceLine.ResponseOutcomeDisplayName = "Processed in Total"
+#   ServiceAuthorizationModule.ServiceLine.ResponseOutcomeIdentifier = 23700001
+#   ServiceAuthorizationModule.ServiceLine.ResponseOutcomeCodeSystemIdentifier = 1
+# When error_description is populated:
+#   ServiceAuthorizationModule.ServiceLine.ResponseErrorNote = <error_description value>
+
+# =============================================================================
+# TEST SCENARIOS
+# =============================================================================
+test_scenarios:
+  standard:
+    - "baseline"
+    - "max_lengths"
+    - "min_empty"
+    - "boundary_dates"
+    - "all_codes"
+    - "special_chars"
+    - "large_volume"
+    - "composite_rules"
+  extended:
+    - "cross_field"
+  mutations:
+    - code: "UPD01"
+      name: "ERROR_ADDED"
+      description: "New error description returned for an authorization"
+      fields_affected: ["error_description", "authorization_number"]
+    - code: "UPD02"
+      name: "ERROR_CLEARED"
+      description: "Previously errored authorization now returns without error"
+      fields_affected: ["error_description", "authorization_number"]
+    - code: "UPD03"
+      name: "NEW_AUTH_RESPONSE"
+      description: "Response for a newly submitted authorization"
+      fields_affected: ["authorization_number", "authorization_type"]
+    - code: "UPD04"
+      name: "MULTIPLE_ERRORS"
+      description: "Multiple authorizations return with errors in same file"
+      fields_affected: ["error_description", "authorization_number"]
+  deletions:
+    - code: "DEL01"
+      name: "AUTH_NOT_IN_RESPONSE"
+      description: "Authorization previously in response no longer appears (successfully processed)"
+    - code: "DEL02"
+      name: "EMPTY_RESPONSE"
+      description: "Response file indicates no errors (empty or minimal content)"
+  volume_size: 50

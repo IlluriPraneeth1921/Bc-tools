@@ -1,0 +1,684 @@
+# =============================================================================
+# ICD-D05 IRIS Authorization File Interface Specification
+# Source: WI DHS MES CMM-ICD-D05 IRIS Authorization File v5.0
+# =============================================================================
+
+meta:
+  interface_type: "icd_d05"
+  display_name: "IRIS Authorization Request File"
+  description: "Outbound Service Authorization records from Blue Compass to Wisconsin MMIS via SFTP daily"
+  version: "5.0"
+  source_system: "Blue Compass"
+  file_extension: ".txt"
+
+entity:
+  id_field: "authorization_number"
+  id_length: 30
+  test_prefix: "42690"
+  id_description: "Authorization Number (Service Authorization Number from Blue Compass)"
+
+format:
+  type: "pipe-delimited"
+  delimiter: "|"
+  has_header_record: true
+  has_trailer_record: true
+  line_ending: "CRLF"
+  encoding: "UTF-8"
+  quote_char: null
+
+record_types:
+  - code: "HDR"
+    name: "Header Record"
+    min_occurrence: 1
+    max_occurrence: "1"
+    per_entity: false
+    position: "first_line"
+  - code: "DTL"
+    name: "Detail Record"
+    min_occurrence: 0
+    max_occurrence: "unlimited"
+    per_entity: true
+    position: "body"
+  - code: "TLR"
+    name: "Trailer Record"
+    min_occurrence: 1
+    max_occurrence: "1"
+    per_entity: false
+    position: "last_line"
+
+naming:
+  file_prefix: "CMM-DMS-WI_EVV"
+  environment_suffix: "_T"
+  extension: ".txt"
+
+fields:
+  HDR:
+    - name: "record_type"
+      length: 3
+      type: "string"
+      required: true
+      description: "Record type identifier - always HDR"
+      fixed_value: "HDR"
+    - name: "control_number"
+      length: 20
+      type: "string"
+      required: true
+      description: "Unique file identifier: 8-digit Payer ID + Creation Date (CCYYMMDD) + Creation Time (HHMM)"
+    - name: "payer_identifier"
+      length: 8
+      type: "string"
+      required: true
+      description: "Unique identifier for the FEA program payer assigned by DHS"
+    - name: "creation_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "File creation date"
+      format: "YYYYMMDD"
+    - name: "creation_time"
+      length: 6
+      type: "string"
+      required: true
+      description: "File creation time in 24HR format (HHMMSS)"
+
+  DTL:
+    - name: "record_type"
+      length: 3
+      type: "string"
+      required: true
+      description: "Record type identifier - always DTL"
+      fixed_value: "DTL"
+    - name: "record_number"
+      length: 10
+      type: "numeric"
+      required: true
+      description: "Sequential record number starting at 1, unique in file"
+    - name: "member_id"
+      length: 10
+      type: "identifier"
+      required: true
+      description: "Member Medicaid ID Number (MCI)"
+    - name: "billing_provider_id"
+      length: 10
+      type: "string"
+      required: true
+      description: "Billing Provider Medicaid Provider ID (MAID/Enumeration ID)"
+    - name: "authorization_number"
+      length: 30
+      type: "string"
+      required: true
+      description: "Authorization Number assigned by Blue Compass"
+    - name: "authorization_status"
+      length: 1
+      type: "code"
+      required: true
+      description: "Status of the authorization"
+      code_table: "auth_status"
+    - name: "service_code"
+      length: 5
+      type: "string"
+      required: true
+      description: "Procedure/service code (e.g., T1019, T1020, S5125)"
+    - name: "modifier_1"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 1"
+    - name: "modifier_2"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 2"
+    - name: "modifier_3"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 3"
+    - name: "modifier_4"
+      length: 2
+      type: "string"
+      required: false
+      description: "Modifier 4"
+    - name: "authorized_effective_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Authorized effective date for the service code"
+      format: "YYYYMMDD"
+    - name: "authorized_end_date"
+      length: 8
+      type: "date"
+      required: false
+      description: "Authorized end date for the service code"
+      format: "YYYYMMDD"
+    - name: "authorization_type"
+      length: 1
+      type: "code"
+      required: true
+      description: "Authorization type: 0=New, 1=Update, 2=Deleted/Voided"
+      code_table: "auth_type"
+    - name: "participant_dob"
+      length: 8
+      type: "date"
+      required: true
+      description: "Participant date of birth"
+      format: "YYYYMMDD"
+    - name: "participant_ssn"
+      length: 9
+      type: "numeric"
+      required: true
+      description: "Participant SSN (no dashes)"
+    - name: "participant_name"
+      length: 255
+      type: "string"
+      required: true
+      description: "Participant name in 'Last, First' format"
+    - name: "rendering_provider_id"
+      length: 10
+      type: "string"
+      required: false
+      description: "Rendering Provider Medicaid ID - only for PHW providers"
+    - name: "rendering_qualifier_id"
+      length: 2
+      type: "code"
+      required: false
+      description: "Rendering provider ID qualifier"
+      code_table: "qualifier_id"
+    - name: "rendering_provider_npi"
+      length: 10
+      type: "string"
+      required: false
+      description: "Rendering Provider NPI - only for PHW providers, blank if none"
+    - name: "billing_provider_id_dup"
+      length: 9
+      type: "string"
+      required: false
+      description: "Duplicate billing provider field - not populated"
+    - name: "billing_qualifier_id"
+      length: 2
+      type: "code"
+      required: true
+      description: "Billing provider ID qualifier - always 44 (Medicaid Provider ID)"
+      code_table: "qualifier_id"
+    - name: "billing_provider_npi"
+      length: 10
+      type: "string"
+      required: false
+      description: "Billing Provider NPI"
+    - name: "service_code_qualifier"
+      length: 7
+      type: "code"
+      required: true
+      description: "Service Type Code"
+      code_table: "service_code_qualifier"
+    - name: "service_description"
+      length: 255
+      type: "string"
+      required: true
+      description: "Service Name"
+    - name: "total_dollar_amount"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Total Dollar Amount (2 decimal places)"
+    - name: "total_units"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Total Units (2 decimal places)"
+    - name: "unit_rate"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Unit Rate (2 decimal places)"
+    - name: "unit_type"
+      length: 50
+      type: "code"
+      required: true
+      description: "Unit Type"
+      code_table: "unit_type"
+    - name: "frequency"
+      length: 50
+      type: "code"
+      required: true
+      description: "Authorization frequency"
+      code_table: "frequency"
+    - name: "units_by_frequency"
+      length: 50
+      type: "numeric"
+      required: true
+      description: "Units by Frequency - Total Units divided by Frequency (2 decimal places)"
+    - name: "created_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Authorization creation date - does not change"
+      format: "YYYYMMDD"
+    - name: "updated_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Authorization update date - changes when updated"
+      format: "YYYYMMDD"
+    - name: "participant_status"
+      length: 50
+      type: "string"
+      required: true
+      description: "IRIS program enrollment status (Enrolled, Voluntary Disenrollment, etc.)"
+    - name: "retroactive_auth_reason_code"
+      length: 1
+      type: "code"
+      required: false
+      description: "Retroactive Authorization Reason Code - Not Used in v5.0"
+      code_table: "reason_code"
+    - name: "units_change_reason_code"
+      length: 1
+      type: "code"
+      required: false
+      description: "Units Change Reason Code - Not Used in v5.0"
+      code_table: "reason_code"
+
+  TLR:
+    - name: "record_type"
+      length: 3
+      type: "string"
+      required: true
+      description: "Record type identifier - always TLR"
+      fixed_value: "TLR"
+    - name: "detail_record_count"
+      length: 10
+      type: "numeric"
+      required: true
+      description: "Count of detail records between Header and Trailer"
+      zero_padded: true
+    - name: "control_number"
+      length: 20
+      type: "string"
+      required: true
+      description: "Must match the Control Number in the Header Record"
+
+# =============================================================================
+# CODE TABLES
+# =============================================================================
+code_tables:
+  auth_status:
+    name: "auth_status"
+    description: "Authorization Status"
+    values:
+      "A": "Active (Approved)"
+      "V": "Voided or Deleted (Canceled)"
+
+  auth_type:
+    name: "auth_type"
+    description: "Authorization Type"
+    values:
+      "0": "New - Approved auth not sent before"
+      "1": "Update - Approved auth sent before"
+      "2": "Deleted - Previously approved auth deleted or service line cancelled"
+
+  qualifier_id:
+    name: "qualifier_id"
+    description: "Provider ID Qualifier"
+    values:
+      "24": "EIN"
+      "34": "SSN"
+      "44": "Medicaid Provider ID (MAID/Enumeration ID)"
+
+  service_code_qualifier:
+    name: "service_code_qualifier"
+    description: "Service Code Qualifier (Service Type Code)"
+    values:
+      "Revenue": "Revenue Code"
+      "CPT": "CPT Code"
+      "HCPCS": "HCPCS Code"
+
+  unit_type:
+    name: "unit_type"
+    description: "Unit Type"
+    values:
+      "Hour": "Hour"
+      "Day": "Day"
+      "Night": "Night"
+      "Month": "Month"
+      "Each": "Each"
+      "Mile": "Mile"
+      "Minute": "Minute"
+
+  frequency:
+    name: "frequency"
+    description: "Authorization Frequency"
+    values:
+      "Weekly": "Weekly"
+      "Monthly": "Monthly"
+      "Each": "Each"
+      "Annually": "Annually"
+
+  reason_code:
+    name: "reason_code"
+    description: "Retroactive/Units Change Reason Code"
+    values:
+      "1": "Justified Correction"
+      "2": "IC Error"
+      "3": "Budget Mismanagement"
+
+# =============================================================================
+# BUSINESS RULES
+# =============================================================================
+business_rules:
+  - id: "BR-005-001"
+    description: "Generate separate request file per FEA (currently 3 FEAs)"
+    affects_fields: ["payer_identifier"]
+    logic: "Generate a separate IRIS Authorization Request File for each FEA. Currently 3 daily request files to MMIS and 3 daily response files from MMIS."
+    type: "transformation"
+
+  - id: "BR-005-002"
+    description: "Only include auths with status 'Pending Processing'"
+    affects_fields: ["member_id", "authorization_status"]
+    logic: "Only the most recent (created or updated) version of the authorization with status 'Pending Processing' should be included."
+    type: "filter"
+
+  - id: "BR-005-003"
+    description: "Only approved or cancelled (voided) auths"
+    affects_fields: ["authorization_status"]
+    logic: "File should only contain approved (A) or cancelled/voided (V) authorizations. Errors resent as voided."
+    type: "filter"
+
+  - id: "BR-005-004"
+    description: "Include auths with IRIS funding sources"
+    affects_fields: ["member_id"]
+    logic: "Include newly created/updated authorization records with funding source of 'IRIS Waiver', 'IRIS SDPC', or 'IRIS One-Time Expense Authorizations'."
+    type: "filter"
+
+  - id: "BR-005-005"
+    description: "Resend updated auths with same Authorization Number"
+    affects_fields: ["authorization_number"]
+    logic: "If an approved auth is updated, resend with updated values in next file generation. Authorization Number must remain the same."
+    type: "transformation"
+
+  - id: "BR-005-006"
+    description: "Resend all auths when provider number changes"
+    affects_fields: ["billing_provider_id", "rendering_provider_id"]
+    logic: "When MMIS Provider Number is updated, all active authorizations for that provider are flagged and re-sent."
+    type: "transformation"
+
+  - id: "BR-005-007"
+    description: "Correct number of delimited fields per record"
+    affects_fields: []
+    logic: "Each record must have correct number of pipe-delimited fields. Null fields represented with no data between delimiters."
+    type: "transformation"
+
+  - id: "BR-005-008"
+    description: "Spaces are significant"
+    affects_fields: []
+    logic: "All contents should be accounted for. Spaces are considered part of a field."
+    type: "transformation"
+
+  - id: "BR-005-009"
+    description: "No trailing pipe on last field"
+    affects_fields: []
+    logic: "The last field in each record must not be followed by a pipe delimiter."
+    type: "transformation"
+
+  - id: "BR-005-010"
+    description: "No column header rows in file"
+    affects_fields: []
+    logic: "Only data records formatted as Header, Detail, or Trailer are allowed. Extra rows to list column/field names are not allowed."
+    type: "filter"
+
+  - id: "BR-005-011"
+    description: "File contains Header, Detail, and Trailer record types"
+    affects_fields: ["record_type"]
+    logic: "Each file contains three distinct record types: Header, Detail, and Trailer."
+    type: "transformation"
+
+  - id: "BR-005-012"
+    description: "Exactly one Header record as first record"
+    affects_fields: ["record_type"]
+    logic: "File must contain exactly one Header record and it must be the first record."
+    type: "transformation"
+
+  - id: "BR-005-013"
+    description: "Exactly one Trailer record as last record"
+    affects_fields: ["record_type"]
+    logic: "File must contain exactly one Trailer record and it must be the last record."
+    type: "transformation"
+
+  - id: "BR-005-014"
+    description: "Detail record count must reconcile"
+    affects_fields: ["detail_record_count"]
+    logic: "Number of detail records must match Trailer Detail Record Count. Value of '0' allowed if no detail records."
+    type: "transformation"
+
+  - id: "BR-005-015"
+    description: "Only printable ASCII characters"
+    affects_fields: []
+    logic: "Only printable ASCII allowed. Codes 0-31 prohibited except CR/LF at line end. HTML reserved characters prohibited."
+    type: "filter"
+
+  - id: "BR-005-016"
+    description: "No quoting of fields"
+    affects_fields: []
+    logic: "Fields should not be surrounded by quotes. Number and string types presented in same manner."
+    type: "transformation"
+
+  - id: "BR-005-017"
+    description: "No line feeds or carriage returns in fields"
+    affects_fields: []
+    logic: "Fields should not contain line feeds or carriage returns."
+    type: "filter"
+
+  - id: "BR-005-018"
+    description: "Error report generated from response file"
+    affects_fields: []
+    logic: "Error Report generated for all errors returned in Response File. Each error associated with appropriate Authorization Reference Number."
+    type: "transformation"
+
+  - id: "BR-005-019"
+    description: "Multiple DTL rows can share same authorization number"
+    affects_fields: ["authorization_number", "record_number"]
+    logic: "Each auth number represents one service. Multiple Detail Records with same auth number allowed for additional providers. Each row has unique Record Number."
+    type: "transformation"
+
+  - id: "BR-005-020"
+    description: "Both EVV and Non-EVV service codes supported"
+    affects_fields: ["service_code"]
+    logic: "Detail records can contain EVV service codes or Non-EVV service codes."
+    type: "transformation"
+
+  - id: "BR-005-021"
+    description: "Blue Compass issues Authorization Numbers"
+    affects_fields: ["authorization_number"]
+    logic: "Blue Compass is the issuer of Authorization Numbers. 8-digit sequential numbers starting from 4269xxxx."
+    type: "transformation"
+
+  - id: "BR-005-022"
+    description: "Rendering Provider only for PHWs"
+    affects_fields: ["rendering_provider_id", "rendering_qualifier_id"]
+    logic: "Rendering Provider details only sent for PHWs (not organization providers). Only MMIS Provider Number sent."
+    type: "filter"
+
+  - id: "BR-005-023"
+    description: "Rendering Provider NPI can be blank"
+    affects_fields: ["rendering_provider_npi"]
+    logic: "Due to most PHWs not having NPI values, Rendering Provider NPI can be sent blank."
+    type: "transformation"
+
+  - id: "BR-005-024"
+    description: "Response file only includes errors"
+    affects_fields: []
+    logic: "Response file only includes error descriptions for auths that have errors. No-error response indicates success."
+    type: "filter"
+
+  - id: "BR-005-025"
+    description: "Response auth number must match existing record"
+    affects_fields: ["authorization_number"]
+    logic: "If response auth number does not match existing Blue Compass record, generate error RV-005-001."
+    type: "filter"
+
+  - id: "BR-005-026"
+    description: "Clear previous errors before resending"
+    affects_fields: []
+    logic: "When sending an authorization, clear out errors from previous MMIS response files for the service lines."
+    type: "transformation"
+
+  - id: "BR-005-027"
+    description: "Update status to 'Processed' after sending"
+    affects_fields: ["authorization_status"]
+    logic: "When an authorization in 'Pending Processing' status is sent to MMIS, update the status to 'Processed'."
+    type: "transformation"
+
+  - id: "BR-005-028"
+    description: "Additional provider DTL records"
+    affects_fields: ["rendering_provider_id", "rendering_qualifier_id", "rendering_provider_npi", "record_number"]
+    logic: >
+      When a service authorization has records in ServiceAuthorizationOtherProviders,
+      generate one additional DTL record per additional provider. Same Authorization Number,
+      identical fields except Rendering Provider ID/Qualifier/NPI populated from additional
+      provider's Location record. Record Number must be unique across all DTL records.
+    type: "composite"
+
+# =============================================================================
+# CROSS-FIELD DEPENDENCIES
+# =============================================================================
+cross_field_dependencies:
+  - condition: "Control Number in Header must match Control Number in Trailer"
+    fields: ["control_number"]
+
+  - condition: "Authorization Type derived from auth status and history: 0=New, 1=Update, 2=Deleted"
+    fields: ["authorization_type", "authorization_status", "created_date", "updated_date"]
+
+  - condition: "Rendering Provider fields only populated for PHW providers"
+    fields: ["rendering_provider_id", "rendering_qualifier_id", "rendering_provider_npi"]
+
+  - condition: "Billing Qualifier ID always 44 when Billing Provider ID is Medicaid Provider ID"
+    fields: ["billing_provider_id", "billing_qualifier_id"]
+
+  - condition: "Multiple DTL records with same auth number for additional providers (BR-005-028)"
+    fields: ["authorization_number", "record_number", "rendering_provider_id"]
+
+  - condition: "Detail Record Count in Trailer must equal actual count of DTL records"
+    fields: ["detail_record_count", "record_number"]
+
+# =============================================================================
+# DB TARGETS
+# =============================================================================
+db_targets:
+  stage1:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables:
+      - name: "IrisAuthorizationRequest"
+        record_type: "DTL"
+        columns:
+          record_type: "RecordType"
+          record_number: "RecordNumber"
+          member_id: "MemberId"
+          billing_provider_id: "BillingProviderId"
+          authorization_number: "AuthorizationNumber"
+          authorization_status: "AuthorizationStatus"
+          service_code: "ServiceCode"
+          modifier_1: "Modifier1"
+          modifier_2: "Modifier2"
+          modifier_3: "Modifier3"
+          modifier_4: "Modifier4"
+          authorized_effective_date: "AuthorizedEffectiveDate"
+          authorized_end_date: "AuthorizedEndDate"
+          authorization_type: "AuthorizationType"
+          participant_dob: "ParticipantDob"
+          participant_ssn: "ParticipantSsn"
+          participant_name: "ParticipantName"
+          rendering_provider_id: "RenderingProviderId"
+          rendering_qualifier_id: "RenderingQualifierId"
+          rendering_provider_npi: "RenderingProviderNpi"
+          billing_provider_id_dup: "BillingProviderIdDup"
+          billing_qualifier_id: "BillingQualifierId"
+          billing_provider_npi: "BillingProviderNpi"
+          service_code_qualifier: "ServiceCodeQualifier"
+          service_description: "ServiceDescription"
+          total_dollar_amount: "TotalDollarAmount"
+          total_units: "TotalUnits"
+          unit_rate: "UnitRate"
+          unit_type: "UnitType"
+          frequency: "Frequency"
+          units_by_frequency: "UnitsByFrequency"
+          created_date: "CreatedDate"
+          updated_date: "UpdatedDate"
+          participant_status: "ParticipantStatus"
+          retroactive_auth_reason_code: "RetroactiveAuthReasonCode"
+          units_change_reason_code: "UnitsChangeReasonCode"
+        filter_column: "AuthorizationNumber"
+    mapping: "one_row_per_record"
+  stage2:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables: []
+    mapping: "one_row_per_record"
+  stage3:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables: []
+    mapping: "one_row_per_record"
+  stage4:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    tables: []
+    mapping: "one_row_per_record"
+
+# =============================================================================
+# TEST SCENARIOS
+# =============================================================================
+test_scenarios:
+  standard:
+    - "baseline"
+    - "max_lengths"
+    - "min_empty"
+    - "boundary_dates"
+    - "all_codes"
+    - "special_chars"
+    - "large_volume"
+    - "composite_rules"
+  extended:
+    - "cross_field"
+  mutations:
+    - code: "UPD01"
+      name: "AUTH_STATUS_CHANGE"
+      description: "Authorization status changes from Active to Voided"
+      fields_affected: ["authorization_status", "authorization_type"]
+    - code: "UPD02"
+      name: "PROVIDER_CHANGE"
+      description: "Billing or rendering provider ID changes"
+      fields_affected: ["billing_provider_id", "rendering_provider_id", "billing_qualifier_id", "rendering_qualifier_id"]
+    - code: "UPD03"
+      name: "UNITS_CHANGE"
+      description: "Changes to units, rate, or dollar amount"
+      fields_affected: ["total_units", "unit_rate", "total_dollar_amount", "units_by_frequency"]
+    - code: "UPD04"
+      name: "DATE_CHANGE"
+      description: "Changes to effective or end date"
+      fields_affected: ["authorized_effective_date", "authorized_end_date", "updated_date"]
+    - code: "UPD05"
+      name: "SERVICE_CODE_CHANGE"
+      description: "Changes to service code or modifiers"
+      fields_affected: ["service_code", "modifier_1", "modifier_2", "modifier_3", "modifier_4", "service_code_qualifier"]
+    - code: "UPD06"
+      name: "NEW_AUTHORIZATIONS"
+      description: "New authorizations added to the file"
+      fields_affected: ["authorization_number", "authorization_type"]
+    - code: "UPD07"
+      name: "ADDITIONAL_PROVIDERS"
+      description: "Additional provider DTL records added per BR-005-028"
+      fields_affected: ["authorization_number", "record_number", "rendering_provider_id", "rendering_qualifier_id", "rendering_provider_npi"]
+  deletions:
+    - code: "DEL01"
+      name: "AUTH_VOIDED"
+      description: "Authorization voided/deleted (status V, type 2)"
+    - code: "DEL02"
+      name: "SERVICE_LINE_CANCELLED"
+      description: "Individual service line cancelled within an authorization"
+    - code: "DEL03"
+      name: "MULTIPLE_VOIDED"
+      description: "Multiple authorizations voided in same file"
+    - code: "DEL04"
+      name: "ADDITIONAL_PROVIDER_REMOVED"
+      description: "Additional provider DTL record removed"
+  volume_size: 50

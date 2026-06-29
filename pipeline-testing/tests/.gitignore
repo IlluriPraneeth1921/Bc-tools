@@ -1,0 +1,19 @@
+# Node modules
+node_modules/
+
+# Test results (generated during test runs)
+results/
+reports/html/
+reports/junit-results.xml
+reports/results.json
+
+# Auth state (contains session cookies)
+.auth/
+
+# Environment file with secrets
+.env
+
+# Keep generated coverage reports (committed for visibility)
+# !reports/coverage-report.txt
+# !reports/coverage-report.json
+# !reports/test-matrix.md

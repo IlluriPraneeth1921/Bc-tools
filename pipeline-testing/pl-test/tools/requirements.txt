@@ -1,0 +1,11 @@
+# Test Data Generator — Dependencies
+# These are in addition to pl-test's main requirements.txt
+
+# YAML handling
+pyyaml>=6.0
+
+# Templates (for scaffold generation, CLI-only)
+jinja2>=3.1.0
+
+# Core (shared with pl-test)
+pydantic>=2.9.0

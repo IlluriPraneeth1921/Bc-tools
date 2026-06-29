@@ -1,0 +1,17 @@
+{
+  "stage": "qc",
+  "serviceName": "validation-helper",
+  "customer": "widhs",
+
+  "vpcId": "vpc-08528a0502a0f3891",
+  "availabilityZones": ["us-east-1a", "us-east-1b"],
+  "privateSubnetIds": ["subnet-048fe8ca0c8aea9b3", "subnet-0b4666247f81b7f36"],
+  "s3BucketName": "widhs-v3-04065-pl-tester",
+  "s3TestFilePrefix": "test-files/",
+  "dbServer": "mcs-mst-carity-v1-04065-appdb.cw1uwwm8ou9t.us-east-1.rds.amazonaws.com",
+  "interfaceDbName": "WiDHS.Qc.Interface.Carity.ToolTesting",
+  "carityDbName": "WiDHS.Qc.Carity.ToolTestig",
+  "dbUsername": "WiDHS-Qc-Carity-WebLambdaUser",
+  "mcdIdPrefix": "000000000",
+  "rdsSecurityGroupIds": ["sg-06f7983a7a3b4b385", "sg-0afa76dad58771ec1"]
+}

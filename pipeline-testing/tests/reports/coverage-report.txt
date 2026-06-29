@@ -1,0 +1,138 @@
+═══════════════════════════════════════════════════════════════
+  PIPELINE TESTING — COVERAGE REPORT (Skeleton)
+  Generated: 2026-06-24T13:41:21.204Z
+  Source: Test file scan (no execution results available)
+═══════════════════════════════════════════════════════════════
+
+  REGISTERED TEST CASES
+  ─────────────────────
+  Total Test IDs:  117
+  ATCs:            58
+  UJTs:            11
+  API Tests:       48
+
+  ALL TEST IDs
+  ────────────
+    API-CLN-001
+    API-CLN-002
+    API-CLN-003
+    API-CLN-004
+    API-CLN-005
+    API-CLN-006
+    API-CLN-007
+    API-CLN-008
+    API-CLN-009
+    API-CLN-010
+    API-CLN-011
+    API-CLN-012
+    API-CMP-001
+    API-CMP-002
+    API-CMP-003
+    API-CMP-004
+    API-CMP-005
+    API-CMP-006
+    API-CMP-007
+    API-CMP-008
+    API-CMP-009
+    API-CMP-010
+    API-FIL-001
+    API-FIL-002
+    API-FIL-003
+    API-FIL-004
+    API-FIL-005
+    API-FIL-006
+    API-FIL-007
+    API-FIL-008
+    API-FIL-009
+    API-FIL-010
+    API-FIL-011
+    API-FIL-012
+    API-HLT-001
+    API-HLT-002
+    API-HLT-003
+    API-HLT-004
+    API-TRN-001
+    API-TRN-002
+    API-TRN-003
+    API-TRN-004
+    API-TRN-005
+    API-TRN-006
+    API-TRN-007
+    API-TRN-008
+    API-TRN-009
+    API-TRN-010
+    ATC-AUTH-001
+    ATC-AUTH-002
+    ATC-AUTH-003
+    ATC-AUTH-004
+    ATC-AUTH-005
+    ATC-AUTH-006
+    ATC-AUTH-007
+    ATC-CLN-001
+    ATC-CLN-002
+    ATC-CLN-003
+    ATC-CLN-004
+    ATC-CLN-005
+    ATC-CLN-006
+    ATC-CLN-007
+    ATC-CLN-008
+    ATC-CLN-009
+    ATC-CLN-010
+    ATC-CMP-001
+    ATC-CMP-002
+    ATC-CMP-003
+    ATC-CMP-004
+    ATC-CMP-005
+    ATC-CMP-006
+    ATC-CMP-007
+    ATC-CMP-008
+    ATC-CMP-009
+    ATC-CMP-010
+    ATC-FIL-001
+    ATC-FIL-002
+    ATC-FIL-003
+    ATC-FIL-004
+    ATC-FIL-005
+    ATC-FIL-006
+    ATC-FIL-007
+    ATC-FIL-008
+    ATC-FIL-009
+    ATC-FIL-010
+    ATC-NAV-001
+    ATC-NAV-002
+    ATC-NAV-003
+    ATC-NAV-004
+    ATC-NAV-005
+    ATC-NAV-006
+    ATC-NAV-007
+    ATC-NAV-008
+    ATC-NAV-009
+    ATC-NAV-010
+    ATC-NAV-508
+    ATC-TRN-001
+    ATC-TRN-002
+    ATC-TRN-003
+    ATC-TRN-004
+    ATC-TRN-005
+    ATC-TRN-006
+    ATC-TRN-007
+    ATC-TRN-008
+    ATC-TRN-009
+    ATC-TRN-010
+    UJT-CLN-001
+    UJT-CLN-002
+    UJT-CLN-003
+    UJT-CMP-001
+    UJT-CMP-002
+    UJT-CMP-003
+    UJT-FIL-001
+    UJT-FIL-002
+    UJT-FIL-003
+    UJT-PIP-001
+    UJT-PIP-002
+
+═══════════════════════════════════════════════════════════════
+  Run tests to get execution coverage:
+    npx playwright test --config=playwright.config.ts
+    node scripts/coverage-report.js
+═══════════════════════════════════════════════════════════════

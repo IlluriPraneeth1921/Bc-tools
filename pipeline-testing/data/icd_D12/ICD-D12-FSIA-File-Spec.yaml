@@ -1,0 +1,1070 @@
+# =============================================================================
+# ICD-D12 FSIA Adult Functional Screen Interface Specification
+# Source: WI DHS MES CMM-ICD-D12 FSIA File v2.0
+# =============================================================================
+
+meta:
+  interface_type: "icd_d12"
+  display_name: "FSIA Adult Functional Screen File"
+  description: "Inbound FSIA Adult Functional Screen Data to Blue Compass via SFTP daily"
+  version: "2.0"
+  source_system: "FSIA"
+  file_extension: ".txt"
+
+entity:
+  id_field: "medicaid_id"
+  id_length: 10
+  test_prefix: "9999999"
+  id_description: "Medicaid ID (MCI ID from LTC_APPL table)"
+
+format:
+  type: "fixed-width"
+  delimiter: " "
+  has_header_record: true
+  has_trailer_record: false
+  line_ending: "CRLF"
+  encoding: "UTF-8"
+  quote_char: null
+
+record_types:
+  - code: "HDR"
+    name: "Header Record"
+    min_occurrence: 1
+    max_occurrence: "1"
+    per_entity: false
+    position: "first_line"
+  - code: "DTL"
+    name: "Detail Record"
+    min_occurrence: 0
+    max_occurrence: "unlimited"
+    per_entity: true
+    position: "body"
+
+naming:
+  file_prefix: "WI_FSIA_FILE_EXTRACT"
+  environment_suffix: "_T"
+  extension: ".txt"
+
+fields:
+  HDR:
+    - name: "header_identifier"
+      length: 3
+      type: "string"
+      required: true
+      description: "Record Identifier - always HDR"
+      fixed_value: "HDR"
+    - name: "creation_date"
+      length: 8
+      type: "date"
+      required: true
+      description: "Date file was generated"
+      format: "YYYYMMDD"
+    - name: "creation_time"
+      length: 6
+      type: "string"
+      required: true
+      description: "Time file was generated (HHMMSS)"
+      format: "HHMMSS"
+    - name: "detail_record_count"
+      length: 6
+      type: "numeric"
+      required: true
+      description: "Number of detail records in the file"
+      zero_padded: true
+
+  DTL:
+    # --- Person Identification ---
+    - name: "medicaid_id"
+      length: 10
+      type: "identifier"
+      required: true
+      description: "Unique identifier of the member (MCI ID from LTC_APPL table)"
+    - name: "first_name"
+      length: 20
+      type: "string"
+      required: true
+      description: "First name of the member"
+    - name: "last_name"
+      length: 20
+      type: "string"
+      required: false
+      description: "Last name of the member"
+    - name: "middle_name"
+      length: 15
+      type: "string"
+      required: true
+      description: "Middle name of the member. Space if not present."
+    # --- Living Situation ---
+    - name: "appl_pref_live_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Applicant preference for living arrangements"
+      code_table: "pref_live"
+    - name: "gard_pref_live_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Guardian/Family preference for living arrangements"
+      code_table: "gard_pref_live"
+    # --- ADLs (Activities of Daily Living) ---
+    - name: "bath_help_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Bathing Help code - level of assistance for bathing"
+      code_table: "adl_help"
+    - name: "bath_adpv_eqp_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Bathing Adaptive equipment Code"
+      code_table: "bath_adpv_eqp"
+    - name: "dres_help_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Dressing Help code - level of assistance for dressing"
+      code_table: "adl_help"
+    - name: "eat_help_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Eating Help code - level of assistance for eating"
+      code_table: "adl_help"
+    - name: "mbl_help_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Mobility Help code - level of assistance for moving"
+      code_table: "adl_help"
+    - name: "mbl_adpv_eqp_cd"
+      length: 9
+      type: "code"
+      required: false
+      description: "Mobility Adaptive equipment Code (multi-code, 3 positions of 3 chars)"
+      code_table: "mbl_adpv_eqp"
+    - name: "tlt_help_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Toileting Help code - level of assistance for toileting"
+      code_table: "adl_help"
+    - name: "tlt_adpv_eqp_cd"
+      length: 15
+      type: "code"
+      required: false
+      description: "Toileting Adaptive equipment Code (multi-code, 5 positions of 3 chars)"
+      code_table: "tlt_adpv_eqp"
+    - name: "xfer_help_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Transferring Help code - level of assistance for transferring"
+      code_table: "adl_help"
+    - name: "xfer_adpv_eqp_cd"
+      length: 12
+      type: "code"
+      required: false
+      description: "Transferring Adaptive equipment Code (multi-code, 4 positions of 3 chars)"
+      code_table: "xfer_adpv_eqp"
+    # --- IADLs (Instrumental Activities of Daily Living) ---
+    - name: "meal_prep_help_lvl_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Meal Preparation Help Level Code"
+      code_table: "meal_prep_help"
+    - name: "med_mgt_help_lvl_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Medication Management Help Level Code"
+      code_table: "med_mgt_help"
+    - name: "mony_mgt_help_lvl_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Money Management Help Level Code"
+      code_table: "mony_mgt_help"
+    - name: "ldry_chor_help_lvl_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Laundry/Chores Help Level Code"
+      code_table: "ldry_chor_help"
+    - name: "phn_use_abty_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Telephone Ability to use"
+      code_table: "phn_use_abty"
+    - name: "phn_acs_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Telephone Access to phone"
+      code_table: "phn_acs"
+    - name: "trnsp_drv_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Transportation Driving Code"
+      code_table: "trnsp_drv"
+    # --- Additional Supports ---
+    - name: "onght_care_spvs_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Overnight Care or Supervision Information"
+      code_table: "onght_care_spvs"
+    - name: "empl_stat_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Current Employment Status"
+      code_table: "empl_stat"
+    - name: "wkshp_empl_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Workshop employment flag (Y/N)"
+    - name: "indv_int_work_cmny_cd"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Working in community flag (Y/N)"
+    - name: "cmny_empl_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Community Employment Flag (Y/N)"
+    - name: "voc_empl_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Vocational Employment Flag (Y/N)"
+    - name: "home_empl_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Home Employment Flag (Y/N)"
+    - name: "empl_asst_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Need for Assistance to Work"
+      code_table: "empl_asst"
+    # --- Health Related Services ---
+    - name: "bhv_itrvn_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Behaviors Requiring Interventions"
+      code_table: "hlth_srvc_no_indep"
+    - name: "exrc_rng_motn_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Exercises/Range of Motion"
+      code_table: "hlth_srvc"
+    - name: "med_fld_flush_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "IV Medications, Fluids or IV Line Flushes"
+      code_table: "hlth_srvc"
+    - name: "med_adm_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Medication Administration (not IV)"
+      code_table: "hlth_srvc"
+    - name: "pain_med_mgt_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Medication Management - Set-up and/or Monitoring"
+      code_table: "hlth_srvc"
+    - name: "osty_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Ostomy-Related Skilled Services"
+      code_table: "hlth_srvc"
+    - name: "chr_bed_posn_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Positioning in Bed or Chair Every 2-3 Hours"
+      code_table: "chr_bed_posn"
+    - name: "oxy_rspir_trtm_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Oxygen and/or Respiratory Treatments"
+      code_table: "hlth_srvc"
+    - name: "in_home_dlys_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Dialysis"
+      code_table: "hlth_srvc"
+    - name: "tot_prnt_ntrt_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "TPN (Total Parenteral Nutrition)"
+      code_table: "hlth_srvc"
+    - name: "xfsn_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Transfusions"
+      code_table: "hlth_srvc"
+    - name: "trchos_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Tracheostomy Care"
+      code_table: "hlth_srvc"
+    - name: "tube_feed_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Tube Feedings"
+      code_table: "hlth_srvc"
+    - name: "ulcr_stg_2_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Ulcer - Stage 2"
+      code_table: "hlth_srvc"
+    - name: "ulcr_stg_3_4_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Ulcer - Stage 3 or 4"
+      code_table: "hlth_srvc"
+    - name: "urin_cath_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Urinary Catheter-Related Skilled Tasks"
+      code_table: "hlth_srvc"
+    - name: "othr_wnd_care_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Other Wound Cares"
+      code_table: "hlth_srvc"
+    - name: "vent_itrvn_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Ventilator-Related Interventions"
+      code_table: "hlth_srvc"
+    - name: "nurs_ases_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Requires Nursing Assessment and Interventions"
+      code_table: "hlth_srvc_no_indep"
+    - name: "othr_srvc_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Other Health Service"
+      code_table: "hlth_srvc"
+    - name: "othr_srvc_txt"
+      length: 75
+      type: "string"
+      required: false
+      description: "Other Service Text - free text describing conditions"
+      special_chars_allowed: true
+    - name: "skl_thrp_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Skilled Therapy - PT, OT, SLP"
+      code_table: "skl_thrp"
+    # --- Communication and Cognition ---
+    - name: "comm_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Communication ability code"
+      code_table: "comm"
+    - name: "mem_ipar_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Memory Loss - Impairment Flag (Y/N/Space)"
+    - name: "shrt_term_mem_loss_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Memory Loss - Short Term Flag (Y/N/Space)"
+    - name: "uabl_to_rmbr_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Memory Loss - Unable to remember Flag (Y/N/Space)"
+    - name: "long_term_mem_loss_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Memory Loss - Long Term Flag (Y/N/Space)"
+    - name: "uabl_dter_txt"
+      length: 75
+      type: "string"
+      required: false
+      description: "Unable to determine text - not captured from interface"
+      special_chars_allowed: true
+    - name: "dly_dcsn_make_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Cognition for Daily Decision Making"
+      code_table: "dly_dcsn_make"
+    - name: "phy_rsist_care_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Physically Resistive to Care"
+      code_table: "phy_rsist_care"
+    # --- Behaviors and Mental Health ---
+    - name: "wndr_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Wandering Code"
+      code_table: "wndr"
+    - name: "self_injr_bhv_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Self-Injurious Behaviors"
+      code_table: "self_injr_bhv"
+    - name: "ofns_bhv_to_othr_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Offensive or Violent Behavior to Others"
+      code_table: "ofns_bhv"
+    - name: "mntl_hlth_need_cd"
+      length: 3
+      type: "code"
+      required: false
+      description: "Mental Health Needs"
+      code_table: "mntl_hlth_need"
+    - name: "sbtnc_abus_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Substance Use Disorder - Abuse Flag (Y/N/Space)"
+    - name: "sbtnc_abus_cur_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Substance Use Disorder - Current Abuse Flag (Y/N/Space)"
+    - name: "sbtnc_abus_past_flg"
+      length: 1
+      type: "flag"
+      required: false
+      description: "Substance Use Disorder - Past Abuse Flag (Y/N/Space)"
+    # --- Target Groups and Eligibility ---
+    - name: "elg_calc_dt"
+      length: 8
+      type: "date"
+      required: true
+      description: "Eligibility Determined On date"
+      format: "YYYYMMDD"
+
+# =============================================================================
+# CODE TABLES
+# =============================================================================
+code_tables:
+  pref_live:
+    name: "pref_live"
+    description: "Applicant preference for living arrangements"
+    values:
+      "024": "Stay at current residence"
+      "025": "Move to their own home or apartment"
+      "026": "Move to someone else's home or apartment"
+      "027": "Move to an apartment with onsite services"
+      "028": "Move to a group residential setting"
+      "029": "Move to a health care facility or institution"
+      "030": "No Permanent Residence"
+      "031": "Unsure or unable to determine"
+
+  gard_pref_live:
+    name: "gard_pref_live"
+    description: "Guardian/Family preference for living arrangements"
+    values:
+      "000": "Not Applicable"
+      "001": "Stay at current residence"
+      "002": "Move to their own home or apartment"
+      "003": "Move to an apartment with onsite services"
+      "004": "Move to a group residential care setting"
+      "005": "Move to a health care facility or institution"
+      "007": "No consensus among multiple parties"
+      "008": "Move to someone else's home or apartment"
+      "009": "No response or no preference from guardian or family"
+
+  adl_help:
+    name: "adl_help"
+    description: "ADL Help level codes"
+    values:
+      "000": "Independent in completing the activity safely"
+      "001": "Help needed - helper need NOT be present"
+      "002": "Help needed - helper MUST be present"
+
+  bath_adpv_eqp:
+    name: "bath_adpv_eqp"
+    description: "Bathing Adaptive Equipment"
+    values:
+      "005": "Uses Adaptive Equipment"
+
+  mbl_adpv_eqp:
+    name: "mbl_adpv_eqp"
+    description: "Mobility Adaptive Equipment"
+    values:
+      "002": "Uses Wheelchair or Scooter in Home"
+      "003": "Has Prosthesis"
+      "007": "Uses Cane, Crutches, or Walker in Home"
+
+  tlt_adpv_eqp:
+    name: "tlt_adpv_eqp"
+    description: "Toileting Adaptive Equipment"
+    values:
+      "002": "Has Ostomy"
+      "003": "Uses Urinary Catheter"
+      "004": "Receives Regular Bowel Program"
+      "005": "Has incontinence less than daily but at least once per week"
+      "006": "Has incontinence daily"
+      "008": "Uses Grab Bar, Commode, or Other Adaptive Equipment"
+
+  xfer_adpv_eqp:
+    name: "xfer_adpv_eqp"
+    description: "Transferring Adaptive Equipment"
+    values:
+      "001": "Uses Mechanical Lift (not a lift chair)"
+      "002": "Uses Grab Bar(s)"
+      "003": "Uses Transfer Board"
+      "004": "Uses Trapeze"
+
+  meal_prep_help:
+    name: "meal_prep_help"
+    description: "Meal Preparation Help Level"
+    values:
+      "000": "Independent"
+      "001": "Needs help weekly or less"
+      "002": "Needs help 2-7 times/week"
+      "003": "Needs help with every meal"
+
+  med_mgt_help:
+    name: "med_mgt_help"
+    description: "Medication Management Help Level"
+    values:
+      "001": "NA - Has no medications"
+      "002": "Independent"
+      "003": "Needs help 1-2 days a week or less"
+      "005": "Needs help at least 1x/day 3-7 days a week - can direct"
+      "006": "Needs help at least 1x/day 3-7 days a week - cannot direct"
+
+  mony_mgt_help:
+    name: "mony_mgt_help"
+    description: "Money Management Help Level"
+    values:
+      "000": "Independent"
+      "001": "Can only complete small transactions"
+      "002": "Needs help from another person with all transactions"
+
+  ldry_chor_help:
+    name: "ldry_chor_help"
+    description: "Laundry/Chores Help Level"
+    values:
+      "000": "Independent"
+      "001": "Needs help weekly or less"
+      "002": "Needs help more than once a week"
+
+  phn_use_abty:
+    name: "phn_use_abty"
+    description: "Telephone Use Ability"
+    values:
+      "001": "Independent - has cognitive and physical abilities"
+      "002": "Lacks cognitive or physical abilities to use phone"
+
+  phn_acs:
+    name: "phn_acs"
+    description: "Telephone Access"
+    values:
+      "001": "Currently has working telephone or access"
+      "002": "Has no phone and no access to phone"
+
+  trnsp_drv:
+    name: "trnsp_drv"
+    description: "Transportation Driving Code"
+    values:
+      "001": "Drives regular vehicle"
+      "002": "Drives adapted vehicle"
+      "003": "Drives regular vehicle with serious safety concerns"
+      "004": "Drives adapted vehicle with serious safety concerns"
+      "005": "Cannot drive due to physical/psychiatric/cognitive impairment"
+      "006": "Does not drive due to other reasons"
+
+  onght_care_spvs:
+    name: "onght_care_spvs"
+    description: "Overnight Care Supervision"
+    values:
+      "000": "No"
+      "001": "Yes - caregiver can get at least 6 hours uninterrupted sleep"
+      "002": "Yes - caregiver cannot get at least 6 hours uninterrupted sleep"
+
+  empl_stat:
+    name: "empl_stat"
+    description: "Employment Status"
+    values:
+      "001": "Retired"
+      "002": "Not working (No paid work)"
+      "003": "Working full-time (30+ hours/week)"
+      "004": "Working part-time (fewer than 30 hours/week)"
+
+  empl_asst:
+    name: "empl_asst"
+    description: "Employment Assistance Level"
+    values:
+      "000": "Independent"
+      "001": "Needs help weekly or less"
+      "002": "Needs help every day but not continuous presence"
+      "003": "Needs continuous presence of another person"
+      "004": "Not applicable"
+
+  hlth_srvc:
+    name: "hlth_srvc"
+    description: "Health Related Services frequency (with Independent)"
+    values:
+      "000": "Independ"
+      "001": "1-3/ Month"
+      "002": "Weekly"
+      "003": "2-6/ Week"
+      "004": "1-2/ Day"
+      "005": "3-4/ Day"
+      "006": "5+/ Day"
+
+  hlth_srvc_no_indep:
+    name: "hlth_srvc_no_indep"
+    description: "Health Related Services frequency (no Independent option)"
+    values:
+      "001": "1-3/ Month"
+      "002": "Weekly"
+      "003": "2-6/ Week"
+      "004": "1-2/ Day"
+      "005": "3-4/ Day"
+      "006": "5+/ Day"
+
+  chr_bed_posn:
+    name: "chr_bed_posn"
+    description: "Chair Bed Positioning (only high-frequency)"
+    values:
+      "005": "3-4/ Day"
+      "006": "5+/ Day"
+
+  skl_thrp:
+    name: "skl_thrp"
+    description: "Skilled Therapy frequency"
+    values:
+      "001": "1-4 sessions/week"
+      "002": "5+ sessions/week"
+
+  comm:
+    name: "comm"
+    description: "Communication ability"
+    values:
+      "000": "Can fully communicate with no or minor impairment"
+      "001": "Can fully communicate with assistive device"
+      "002": "Can communicate ONLY BASIC needs"
+      "003": "No effective communication"
+
+  dly_dcsn_make:
+    name: "dly_dcsn_make"
+    description: "Cognition for Daily Decision Making"
+    values:
+      "000": "Makes decisions consistent with own lifestyle/values/goals"
+      "001": "Makes safe familiar/routine decisions but not in new situations"
+      "002": "Needs help with reminding, planning, or adjusting routine"
+      "003": "Needs help from another person most or all of the time"
+
+  phy_rsist_care:
+    name: "phy_rsist_care"
+    description: "Physically Resistive to Care"
+    values:
+      "000": "No"
+      "001": "Yes, physically resistive due to cognitive impairment"
+
+  wndr:
+    name: "wndr"
+    description: "Wandering Code"
+    values:
+      "000": "Does not wander"
+      "001": "Daytime wandering, but sleeps nights"
+      "002": "Wanders during the night, or during both day and night"
+
+  self_injr_bhv:
+    name: "self_injr_bhv"
+    description: "Self-Injurious Behaviors"
+    values:
+      "000": "No injurious behaviors demonstrated"
+      "001": "Some self-injurious behaviors require interventions weekly or less"
+      "002": "Self-injurious behaviors require interventions 2-6 times/week or 1-2 times/day"
+      "003": "Self-injurious behaviors require intensive 1-on-1 interventions more than twice each day"
+
+  ofns_bhv:
+    name: "ofns_bhv"
+    description: "Offensive or Violent Behavior to Others"
+    values:
+      "000": "No offensive or violent behaviors demonstrated"
+      "001": "Some offensive or violent behaviors require occasional interventions weekly or less"
+      "002": "Offensive or violent behaviors require interventions 2-6 times/week or 1-2 times/day"
+      "003": "Offensive or violent behaviors require intensive 1-on-1 interventions more than twice each day"
+
+  mntl_hlth_need:
+    name: "mntl_hlth_need"
+    description: "Mental Health Needs"
+    values:
+      "000": "No mental health problems or needs evident"
+      "001": "No current diagnosis - person may be at risk"
+      "002": "Person has a current diagnosis of mental illness"
+
+# =============================================================================
+# BUSINESS RULES
+# =============================================================================
+business_rules:
+  - id: "BR-D12-001"
+    description: "No existing LTC form instance -> create new in 'In Progress' status"
+    affects_fields: []
+    logic: "If no LTC Needs Assessment custom form instance exists for the case, create new in 'In Progress' and populate with FSIA data."
+    type: "transformation"
+
+  - id: "BR-D12-002"
+    description: "Existing 'In Progress' instance -> update with FSIA data"
+    affects_fields: []
+    logic: "If an 'In Progress' instance exists, overwrite all FSIA-populated fields. Non-mapped fields are not modified."
+    type: "transformation"
+
+  - id: "BR-D12-003"
+    description: "All instances Completed/Reopened -> create new 'In Progress'"
+    affects_fields: []
+    logic: "If all existing instances are 'Completed' or 'Reopened' (none 'In Progress'), create new 'In Progress' instance. Completed/Reopened instances not modified."
+    type: "transformation"
+
+  - id: "BR-D12-004"
+    description: "Both 'In Progress' and 'Completed'/'Reopened' exist -> update 'In Progress'"
+    affects_fields: []
+    logic: "If both In Progress and Completed/Reopened exist, apply BR-D12-002 (update In Progress). Do not create new."
+    type: "transformation"
+
+  - id: "BR-D12-005"
+    description: "Match inbound record to person by Medicaid ID"
+    affects_fields: ["medicaid_id"]
+    logic: "Each record must match an existing person by Medicaid ID. Person must have an active case."
+    type: "filter"
+
+  - id: "BR-D12-006"
+    description: "No active case -> skip record and report error"
+    affects_fields: ["medicaid_id"]
+    logic: "If Medicaid ID matches person but no active case, skip and report 'No active case.'"
+    type: "filter"
+
+  - id: "BR-D12-007"
+    description: "No matching person -> skip record and report error"
+    affects_fields: ["medicaid_id"]
+    logic: "If Medicaid ID does not match any person, skip and report 'No matching person.' Expected for non-IRIS enrollees."
+    type: "filter"
+
+  - id: "BR-D12-008"
+    description: "Multiple active cases -> use IRIS enrollment case"
+    affects_fields: ["medicaid_id"]
+    logic: "If multiple active cases, use case with active IRIS program enrollment. If ambiguous, report 'Multiple active cases — unable to determine target case.'"
+    type: "filter"
+
+  - id: "BR-D12-009"
+    description: "Build PersonEmployment.Note by concatenating employment flags"
+    affects_fields: ["wkshp_empl_flg", "indv_int_work_cmny_cd", "home_empl_flg", "empl_asst_cd"]
+    logic: >
+      Concatenate non-empty values separated by semicolon:
+      (1) WKSHP_EMPL_FLG=Y -> 'Workshop Employment'
+      (2) INDV_INT_WORK_CMNY_CD=Y -> 'Interest in Working in Community'
+      (3) HOME_EMPL_FLG=Y -> 'Home Employment'
+      (4) EMPL_ASST_CD: always append with prefix 'Need for Assistance to Work: <label>'
+      If all N and no EMPL_ASST_CD line, set Note to null.
+    type: "composite"
+
+  - id: "BR-D12-010"
+    description: "Generate error report after each file"
+    affects_fields: []
+    logic: "Error report contains row for each record failing a required business rule, with Medicaid ID and error description."
+    type: "filter"
+
+  - id: "BR-D12-011"
+    description: "Go-live one-time transfer of 12 months of screens"
+    affects_fields: []
+    logic: "Initial file processed with same logic as daily files."
+    type: "transformation"
+
+  - id: "BR-D12-012"
+    description: "Empty file (zero detail records) is valid"
+    affects_fields: ["detail_record_count"]
+    logic: "Header-only file with count=0 processed without error. No form instances created/updated."
+    type: "filter"
+
+  - id: "BR-D12-013"
+    description: "Failed batch -> screens included in next day's file"
+    affects_fields: []
+    logic: "Blue Compass handles receiving screens from prior days when FSIA batch fails."
+    type: "transformation"
+
+# =============================================================================
+# CROSS-FIELD DEPENDENCIES
+# =============================================================================
+cross_field_dependencies:
+  - condition: "Personal Care Services Yes/No is determined by multiple ADL help fields"
+    fields: ["bath_help_cd", "dres_help_cd", "eat_help_cd", "mbl_help_cd", "tlt_help_cd", "xfer_help_cd"]
+
+  - condition: "DME Yes/No is determined by multiple adaptive equipment fields"
+    fields: ["bath_adpv_eqp_cd", "mbl_adpv_eqp_cd", "tlt_adpv_eqp_cd", "xfer_adpv_eqp_cd"]
+
+  - condition: "Supportive Home Care Yes/No is determined by IADL, communication, and cognition fields"
+    fields: ["meal_prep_help_lvl_cd", "ldry_chor_help_lvl_cd", "phn_use_abty_cd", "phn_acs_cd", "comm_cd", "mem_ipar_flg", "shrt_term_mem_loss_flg", "uabl_to_rmbr_flg", "long_term_mem_loss_flg", "dly_dcsn_make_cd", "phy_rsist_care_cd"]
+
+  - condition: "Health Related Services Yes/No is determined by all health service fields"
+    fields: ["bhv_itrvn_cd", "exrc_rng_motn_cd", "med_fld_flush_cd", "med_adm_cd", "pain_med_mgt_cd", "osty_cd", "chr_bed_posn_cd", "oxy_rspir_trtm_cd", "in_home_dlys_cd", "tot_prnt_ntrt_cd", "xfsn_cd", "trchos_cd", "tube_feed_cd", "ulcr_stg_2_cd", "ulcr_stg_3_4_cd", "urin_cath_cd", "othr_wnd_care_cd", "vent_itrvn_cd", "nurs_ases_cd", "othr_srvc_cd", "skl_thrp_cd"]
+
+  - condition: "Behavior Support Yes/No is determined by wandering, self-injury, and offensive behavior fields"
+    fields: ["wndr_cd", "self_injr_bhv_cd", "ofns_bhv_to_othr_cd"]
+
+  - condition: "PersonEmployment.Note is built from multiple employment flags and assistance code"
+    fields: ["wkshp_empl_flg", "indv_int_work_cmny_cd", "home_empl_flg", "empl_asst_cd"]
+
+# =============================================================================
+# DB TARGETS
+# =============================================================================
+db_targets:
+  stage1:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    description: "Raw lines loaded 1:1 from source file. One row per line (HDR + DTL)."
+    tables:
+      - name: "LongTermCareFunctionalScreenFormRaw"
+        record_type: "ALL"  # Both HDR and DTL lines stored
+        columns:
+          _raw_line: "RawText"
+        filter_column: "InterfaceBatchKey"
+        filter_type: "batch_key"  # Filter by batch GUID, not entity ID prefix
+    mapping: "one_row_per_line"
+
+  stage2:
+    database: "WiDHS.Qc.Interface.Carity.ToolTesting"
+    schema: "CustomerInterfaceModule"
+    description: "Parsed detail records. One row per DTL record with fields split into typed columns."
+    tables:
+      - name: "LongTermCareFunctionalScreenForm"
+        record_type: "DTL"
+        primary_key: "LongTermCareFunctionalScreenFormKey"
+        columns:
+          medicaid_id: "MemberId"
+          first_name: "FirstName"
+          last_name: "LastName"
+          middle_name: "MiddleName"
+          appl_pref_live_cd: "ApplicantPrefersToLiveCode"
+          gard_pref_live_cd: "GuardianPreferenceForLivingCode"
+          bath_help_cd: "BathingHelpCode"
+          bath_adpv_eqp_cd: "BathingAdaptiveEquipmentCode"
+          dres_help_cd: "DressingHelpCode"
+          eat_help_cd: "EatingHelpCode"
+          mbl_help_cd: "MobilityHelpCode"
+          mbl_adpv_eqp_cd: "MobilityAdaptiveEquipmentCode"
+          tlt_help_cd: "ToiletingHelpCode"
+          tlt_adpv_eqp_cd: "ToiletingAdaptiveEquipmentCode"
+          xfer_help_cd: "TransferringHelpCode"
+          xfer_adpv_eqp_cd: "TransferringAdaptiveEquipmentCode"
+          meal_prep_help_lvl_cd: "MealPreparationHelpLevelCode"
+          med_mgt_help_lvl_cd: "MedicationManagementHelpLevelCode"
+          mony_mgt_help_lvl_cd: "MoneyManagementHelpLevelCode"
+          ldry_chor_help_lvl_cd: "LaundryChoresHelpLevelCode"
+          phn_use_abty_cd: "TelephoneUseAbilityCode"
+          phn_acs_cd: "TelephoneAccessCode"
+          trnsp_drv_cd: "TransportationDrivingCode"
+          onght_care_spvs_cd: "OvernightCareSupervisionCode"
+          empl_stat_cd: "EmploymentStatusCode"
+          wkshp_empl_flg: "WorkshopEmploymentFlag"
+          indv_int_work_cmny_cd: "IndividualInterestInWorkingInCommunityCode"
+          cmny_empl_flg: "CommunityEmploymentFlag"
+          voc_empl_flg: "VocationalEmploymentFlag"
+          home_empl_flg: "HomeEmploymentFlag"
+          empl_asst_cd: "EmploymentAssistanceCode"
+          bhv_itrvn_cd: "BehaviorsRequiringInterventionsCode"
+          exrc_rng_motn_cd: "ExercisesRangeOfMotionCode"
+          med_fld_flush_cd: "MedicationsFluidFlushCode"
+          med_adm_cd: "MedicationAdministrationCode"
+          pain_med_mgt_cd: "PainMedicationManagementCode"
+          osty_cd: "OstomyCode"
+          chr_bed_posn_cd: "ChairBedPositioningCode"
+          oxy_rspir_trtm_cd: "OxygenRespiratoryTreatmentCode"
+          in_home_dlys_cd: "InHomeDialysisCode"
+          tot_prnt_ntrt_cd: "TotalParenteralNutritionCode"
+          xfsn_cd: "TransfusionCode"
+          trchos_cd: "TracheostomyCode"
+          tube_feed_cd: "TubeFeedingCode"
+          ulcr_stg_2_cd: "UlcerStageTwoCode"
+          ulcr_stg_3_4_cd: "UlcerStageThreeFourCode"
+          urin_cath_cd: "UrinaryCatheterCode"
+          othr_wnd_care_cd: "OtherWoundCareCode"
+          vent_itrvn_cd: "VentilatorInterventionCode"
+          nurs_ases_cd: "NursingAssessmentCode"
+          othr_srvc_cd: "OtherServiceCode"
+          othr_srvc_txt: "OtherServiceText"
+          skl_thrp_cd: "SkilledTherapyCode"
+          comm_cd: "CommunicationCode"
+          mem_ipar_flg: "MemoryImpairmentFlag"
+          shrt_term_mem_loss_flg: "ShortTermMemoryLossFlag"
+          uabl_to_rmbr_flg: "UnableToRememberFlag"
+          long_term_mem_loss_flg: "LongTermMemoryLossFlag"
+          uabl_dter_txt: "UnableToDetermineText"
+          dly_dcsn_make_cd: "DailyDecisionMakingCode"
+          phy_rsist_care_cd: "PhysicallyResistiveToCareCode"
+          wndr_cd: "WanderingCode"
+          self_injr_bhv_cd: "SelfInjuriousBehaviorCode"
+          ofns_bhv_to_othr_cd: "OffensiveBehaviorToOthersCode"
+          mntl_hlth_need_cd: "MentalHealthNeedCode"
+          sbtnc_abus_flg: "SubstanceAbuseFlag"
+          sbtnc_abus_cur_flg: "SubstanceAbuseCurrentFlag"
+          sbtnc_abus_past_flg: "SubstanceAbusePastFlag"
+          elg_calc_dt: "EligibilityCalculatedDate"
+        # System-managed columns (not from source file, populated by pipeline)
+        system_columns:
+          - "LongTermCareFunctionalScreenFormKey"  # PK (GUID)
+          - "PersonKey"            # Resolved by person matching (BR-D12-005)
+          - "HasErrors"            # Set by pipeline validation
+          - "IsReadyToProcess"     # Set by pipeline after validation
+          - "CustomFormInstanceKey" # Set after Stage 3 form creation
+          - "InterfaceBatchKey"    # Batch identifier for this file load
+          - "LastSynchronizationTimestamp"  # Pipeline processing timestamp
+        filter_column: "MemberId"
+    mapping: "one_row_per_record"
+
+  stage3:
+    database: "N/A"
+    schema: "N/A"
+    description: "SKIPPED — ICD-D12 data flows directly from Stage 2 to Stage 4. There is no intermediate transformation stage in the Interface DB."
+    tables: []
+    mapping: "skipped"
+    notes: "Stage 3 is not applicable for ICD-D12. The pipeline transforms Stage 2 parsed data directly into Carity DB CustomFormModule tables (Stage 4)."
+
+  stage4:
+    database: "WiDHS.Qc.Carity.ToolTesting"
+    schema: "CustomFormModule"
+    description: "Final transformed data in Carity DB. Creates/updates LTC Needs Assessment custom form instances and populates field answers from FSIA data."
+    custom_form_definition_key: "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+    custom_form_definition_version: 55
+    tables:
+      - name: "CustomFormInstance"
+        description: "One instance per member per file load. Linked to CustomFormDefinition via CustomFormDefinitionKey."
+        primary_key: "CustomFormInstanceKey"
+        columns:
+          _form_definition: "CustomFormDefinitionKey"  # 964B0DFB-ED99-4F5A-8449-B43C013B9062
+          _version: "Version"  # 55
+        filter_column: "CustomFormDefinitionKey"
+        filter_type: "guid"
+      - name: "CaseCustomFormInstance"
+        description: "Links custom form instance to a case. One record per form instance."
+        primary_key: "CaseCustomFormInstanceKey"
+        columns:
+          _form_instance: "CustomFormInstanceKey"
+          _case: "CaseKey"
+        filter_column: "CustomFormInstanceKey"
+        filter_type: "fk_to_CustomFormInstance"
+      - name: "FieldAnswerBase"
+        description: "One record per field answer. Links to CustomFormInstance and CustomFormElementDefinitionBase."
+        primary_key: "FieldAnswerBaseKey"
+        columns:
+          _form_instance: "CustomFormInstanceKey"
+          _element_def: "CustomFormElementDefinitionBaseKey"
+          _index: "IndexNumber"
+        filter_column: "CustomFormInstanceKey"
+        filter_type: "fk_to_CustomFormInstance"
+      - name: "SimpleSingleSelectFieldAnswer"
+        description: "Yes/No dropdown answers for composite business rule fields (PersonalCare, SupportiveHomeCare, MedAdmin, MoneyMgt, Transportation, DME, PrefLive, OvernightCare)."
+        primary_key: "FieldAnswerBaseKey"
+        columns:
+          _answer_base: "FieldAnswerBaseKey"
+          _option_code: "OptionCode"
+          _option_display: "OptionDisplayName"
+        filter_column: "FieldAnswerBaseKey"
+        filter_type: "fk_to_FieldAnswerBase"
+      - name: "DateFieldAnswer"
+        description: "Date field answers (ElgCalcDt → eligibility date)."
+        primary_key: "FieldAnswerBaseKey"
+        columns:
+          _answer_base: "FieldAnswerBaseKey"
+          elg_calc_dt: "DateTime"
+        filter_column: "FieldAnswerBaseKey"
+        filter_type: "fk_to_FieldAnswerBase"
+    mapping: "one_form_instance_per_member"
+    notes: "Stage 4 uses CustomFormDefinitionKey 964B0DFB-ED99-4F5A-8449-B43C013B9062 (Version 55). Business rules determine composite Yes/No field values. PersonEmployment records are also created in PersonModule."
+
+# =============================================================================
+# TEST SCENARIOS
+# =============================================================================
+test_scenarios:
+  standard:
+    - "baseline"
+    - "max_lengths"
+    - "min_empty"
+    - "boundary_dates"
+    - "all_codes"
+    - "special_chars"
+    - "large_volume"
+    - "composite_rules"
+  extended:
+    - "cross_field"
+  mutations:
+    - code: "UPD01"
+      name: "ADL_CHANGES"
+      description: "Changes to ADL help levels and adaptive equipment"
+      fields_affected: ["bath_help_cd", "dres_help_cd", "eat_help_cd", "mbl_help_cd", "tlt_help_cd", "xfer_help_cd", "bath_adpv_eqp_cd", "mbl_adpv_eqp_cd", "tlt_adpv_eqp_cd", "xfer_adpv_eqp_cd"]
+    - code: "UPD02"
+      name: "EMPLOYMENT_CHANGES"
+      description: "Changes to employment status and flags"
+      fields_affected: ["empl_stat_cd", "wkshp_empl_flg", "indv_int_work_cmny_cd", "cmny_empl_flg", "voc_empl_flg", "home_empl_flg", "empl_asst_cd"]
+    - code: "UPD03"
+      name: "HEALTH_SERVICES"
+      description: "Changes to health related service codes"
+      fields_affected: ["bhv_itrvn_cd", "exrc_rng_motn_cd", "med_fld_flush_cd", "med_adm_cd", "pain_med_mgt_cd", "osty_cd", "chr_bed_posn_cd", "oxy_rspir_trtm_cd", "in_home_dlys_cd", "tot_prnt_ntrt_cd", "xfsn_cd", "trchos_cd", "tube_feed_cd", "ulcr_stg_2_cd", "ulcr_stg_3_4_cd", "urin_cath_cd", "othr_wnd_care_cd", "vent_itrvn_cd", "nurs_ases_cd", "othr_srvc_cd", "skl_thrp_cd"]
+    - code: "UPD04"
+      name: "COGNITION_CHANGES"
+      description: "Changes to communication, memory, and cognition fields"
+      fields_affected: ["comm_cd", "mem_ipar_flg", "shrt_term_mem_loss_flg", "uabl_to_rmbr_flg", "long_term_mem_loss_flg", "dly_dcsn_make_cd", "phy_rsist_care_cd"]
+    - code: "UPD05"
+      name: "ELIGIBILITY_DATE"
+      description: "Change to eligibility determination date"
+      fields_affected: ["elg_calc_dt"]
+    - code: "UPD06"
+      name: "NEW_MEMBERS"
+      description: "New members added to the file"
+      fields_affected: ["medicaid_id"]
+  deletions:
+    - code: "DEL01"
+      name: "MEMBER_REMOVED"
+      description: "Member no longer appears in file (not applicable per spec but tested for robustness)"
+    - code: "DEL02"
+      name: "SERVICES_CLEARED"
+      description: "All health service codes reset to independent/blank"
+    - code: "DEL03"
+      name: "MULTIPLE_REMOVED"
+      description: "Multiple members removed from file"
+    - code: "DEL04"
+      name: "ADL_INDEPENDENCE"
+      description: "All ADL codes reset to 000 (independent)"
+  volume_size: 50

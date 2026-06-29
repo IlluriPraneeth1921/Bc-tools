@@ -1,0 +1,1019 @@
+{
+  "MedicaidProviderRaw": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "RecordType",
+        "data_type": "char",
+        "max_length": 2,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "Column3",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "Column4",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "Column5",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "Column6",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 6,
+        "default": null
+      },
+      {
+        "name": "Column7",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 7,
+        "default": null
+      },
+      {
+        "name": "Column8",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 8,
+        "default": null
+      },
+      {
+        "name": "Column9",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 9,
+        "default": null
+      },
+      {
+        "name": "Column10",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 10,
+        "default": null
+      },
+      {
+        "name": "Column11",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 11,
+        "default": null
+      },
+      {
+        "name": "Column12",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 12,
+        "default": null
+      },
+      {
+        "name": "Column13",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 13,
+        "default": null
+      },
+      {
+        "name": "Column14",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 14,
+        "default": null
+      },
+      {
+        "name": "Column15",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 15,
+        "default": null
+      },
+      {
+        "name": "Column16",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 16,
+        "default": null
+      },
+      {
+        "name": "Column17",
+        "data_type": "nvarchar",
+        "max_length": 4000,
+        "nullable": true,
+        "ordinal": 17,
+        "default": null
+      },
+      {
+        "name": "HasErrors",
+        "data_type": "bit",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 18,
+        "default": "((0))"
+      },
+      {
+        "name": "InterfaceBatchKey",
+        "data_type": "uniqueidentifier",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 19,
+        "default": null
+      }
+    ],
+    "column_count": 19
+  },
+  "MedicaidProviderMain": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "ProviderFullName",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "ProviderNameType",
+        "data_type": "nvarchar",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "OrganizationTypeCode",
+        "data_type": "nvarchar",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "OrganizationTypeDescription",
+        "data_type": "nvarchar",
+        "max_length": 25,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "BillingIndicator",
+        "data_type": "nvarchar",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 6,
+        "default": null
+      },
+      {
+        "name": "RevalidationDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 7,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 8,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 8
+  },
+  "MedicaidProviderAddress": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "AddressTypeCode",
+        "data_type": "char",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "NameTypeCode",
+        "data_type": "char",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "NameAddressSpecific",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "StreetAddress1",
+        "data_type": "varchar",
+        "max_length": 30,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "StreetAddress2",
+        "data_type": "varchar",
+        "max_length": 30,
+        "nullable": true,
+        "ordinal": 6,
+        "default": null
+      },
+      {
+        "name": "City",
+        "data_type": "varchar",
+        "max_length": 30,
+        "nullable": true,
+        "ordinal": 7,
+        "default": null
+      },
+      {
+        "name": "State",
+        "data_type": "varchar",
+        "max_length": 2,
+        "nullable": true,
+        "ordinal": 8,
+        "default": null
+      },
+      {
+        "name": "ZipCode",
+        "data_type": "char",
+        "max_length": 5,
+        "nullable": true,
+        "ordinal": 9,
+        "default": null
+      },
+      {
+        "name": "ZipCodeExtension",
+        "data_type": "char",
+        "max_length": 4,
+        "nullable": true,
+        "ordinal": 10,
+        "default": null
+      },
+      {
+        "name": "PracticeLocationCountyCode",
+        "data_type": "varchar",
+        "max_length": 10,
+        "nullable": true,
+        "ordinal": 11,
+        "default": null
+      },
+      {
+        "name": "EmailAddress",
+        "data_type": "varchar",
+        "max_length": 256,
+        "nullable": true,
+        "ordinal": 12,
+        "default": null
+      },
+      {
+        "name": "PhoneNumberMemberUse",
+        "data_type": "varchar",
+        "max_length": 10,
+        "nullable": true,
+        "ordinal": 13,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 14,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 14
+  },
+  "MedicaidProviderContact": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "ContactPerson",
+        "data_type": "varchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "PhoneNumberContactPerson",
+        "data_type": "varchar",
+        "max_length": 10,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "PhoneNumberExtensionContactPerson",
+        "data_type": "varchar",
+        "max_length": 4,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 5,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 5
+  },
+  "MedicaidProviderTin": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "TaxIdNumber",
+        "data_type": "char",
+        "max_length": 9,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "TaxIdType",
+        "data_type": "char",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "TinEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "TinEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 6,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 6
+  },
+  "MedicaidProviderContract": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "ProviderContractCode",
+        "data_type": "varchar",
+        "max_length": 5,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "ContractEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "ContractEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "ContractEnrollmentStatusCode",
+        "data_type": "char",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 6,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 6
+  },
+  "MedicaidProviderTypeAndSpecialty": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "ProviderType",
+        "data_type": "char",
+        "max_length": 2,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "ProviderTypeDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "ProviderSpecialtyCode",
+        "data_type": "char",
+        "max_length": 3,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "ProviderSpecialtyDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "ProviderTypeAndSpecialtyEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 6,
+        "default": null
+      },
+      {
+        "name": "ProviderTypeAndSpecialtyEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 7,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 8,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 8
+  },
+  "MedicaidProviderNpi": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "Npi",
+        "data_type": "char",
+        "max_length": 15,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "NpiEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "NpiEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "NpiTypeDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 6,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 6
+  },
+  "MedicaidProviderTaxonomy": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "Taxonomy",
+        "data_type": "nvarchar",
+        "max_length": 10,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "TaxonomyEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "TaxonomyEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 5,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 5
+  },
+  "MedicaidProviderAcaPaymentHold": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "AcaPaymentHoldEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "AcaPaymentHoldEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "AcaPaymentHoldIndicator",
+        "data_type": "nchar",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 5,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 5
+  },
+  "MedicaidProviderWaiverProgram": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "WaiverProgramCode",
+        "data_type": "nvarchar",
+        "max_length": 5,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "WaiverProgramDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "WaiverProgramEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "WaiverProgramEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 6,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 6
+  },
+  "MedicaidProviderWaiverService": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "WaiverServiceCode",
+        "data_type": "nvarchar",
+        "max_length": 6,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "WaiverServiceDescription",
+        "data_type": "nvarchar",
+        "max_length": 250,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "WaiverServiceEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "WaiverServiceEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "WaiverServiceStatusCode",
+        "data_type": "char",
+        "max_length": 1,
+        "nullable": true,
+        "ordinal": 6,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 7,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 7
+  },
+  "MedicaidProviderCountyAndTribeServed": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "CountyCode",
+        "data_type": "nvarchar",
+        "max_length": 10,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 3,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 3
+  },
+  "MedicaidProviderLicense": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "LicenseNumber",
+        "data_type": "nvarchar",
+        "max_length": 10,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "LicenseEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "LicenseEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "LicensureBoardCode",
+        "data_type": "nvarchar",
+        "max_length": 3,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "LicensureBoardDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 6,
+        "default": null
+      },
+      {
+        "name": "LicenseClassificationDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 7,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 8,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 8
+  },
+  "MedicaidProviderCertificationAndCredentials": {
+    "schema": "CustomerInterfaceModule",
+    "database": "WiDHS.Qc.Interface.Carity.ToolTesting",
+    "columns": [
+      {
+        "name": "MedicaidProviderNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": false,
+        "ordinal": 1,
+        "default": null
+      },
+      {
+        "name": "CertificationNumber",
+        "data_type": "nvarchar",
+        "max_length": 15,
+        "nullable": true,
+        "ordinal": 2,
+        "default": null
+      },
+      {
+        "name": "CertificationEffectiveDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 3,
+        "default": null
+      },
+      {
+        "name": "CertificationEndDate",
+        "data_type": "date",
+        "max_length": null,
+        "nullable": true,
+        "ordinal": 4,
+        "default": null
+      },
+      {
+        "name": "CertificationTypeCode",
+        "data_type": "nvarchar",
+        "max_length": 2,
+        "nullable": true,
+        "ordinal": 5,
+        "default": null
+      },
+      {
+        "name": "CertificationTypeDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 6,
+        "default": null
+      },
+      {
+        "name": "SpecialProgramCertificationDescription",
+        "data_type": "nvarchar",
+        "max_length": 50,
+        "nullable": true,
+        "ordinal": 7,
+        "default": null
+      },
+      {
+        "name": "LastSynchronizationTimestamp",
+        "data_type": "datetime2",
+        "max_length": null,
+        "nullable": false,
+        "ordinal": 8,
+        "default": "(getutcdate())"
+      }
+    ],
+    "column_count": 8
+  }
+}

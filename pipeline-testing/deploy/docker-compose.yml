@@ -1,0 +1,57 @@
+# pl-test: Local development docker-compose
+# Build context is the workspace root (one level up from deploy/)
+# Run from workspace root: docker-compose -f deploy/docker-compose.yml up --build
+
+services:
+  binfmt-setup:
+    image: tonistiigi/binfmt
+    privileged: true
+    command: --install arm64
+    restart: "no"
+
+  pl-test:
+    depends_on:
+      binfmt-setup:
+        condition: service_completed_successfully
+    build:
+      context: ..
+      dockerfile: deploy/Dockerfile
+      platforms:
+        - linux/arm64
+    env_file:
+      - .env
+    ports:
+      - "8000:8000"   # FastAPI
+      - "8501:8501"   # Streamlit
+    environment:
+      # Database connection (SQL auth for Linux container)
+      - DB_SERVER=${DB_SERVER:-mcs-mst-carity-v1-04065-appdb.cw1uwwm8ou9t.us-east-1.rds.amazonaws.com}
+      - INTERFACE_DB_NAME=${INTERFACE_DB_NAME:-WiDHS.Qc.Interface.Carity.ToolTesting}
+      - CARITY_DB_NAME=${CARITY_DB_NAME:-WiDHS.Qc.Carity.ToolTestig}
+      - DB_USE_TRUSTED_CONNECTION=false
+      - DB_USERNAME=${DB_USERNAME}
+      - DB_PASSWORD=${DB_PASSWORD}
+      # Data isolation
+      - MCD_ID_PREFIX=${MCD_ID_PREFIX:-000000000}
+      # Web UI auth
+      - PL_TEST_USERNAME=${PL_TEST_USERNAME:-admin}
+      - PL_TEST_PASSWORD=${PL_TEST_PASSWORD:-pltest2026}
+      # API URL (internal — Streamlit talks to FastAPI within same container)
+      - PL_TEST_API_URL=http://localhost:8000
+      # S3 configuration
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME:-widhs-v3-04065-pl-tester}
+      - S3_TEST_FILE_PREFIX=${S3_TEST_FILE_PREFIX:-test-files/}
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      # AWS credentials (from host)
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+    volumes:
+      - ~/.aws:/root/.aws:ro
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 15s
+    restart: unless-stopped

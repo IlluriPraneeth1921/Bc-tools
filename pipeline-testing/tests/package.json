@@ -1,0 +1,27 @@
+{
+  "name": "pipeline-testing-playwright",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Playwright E2E, ATC, UJT, and API tests for pl-test Pipeline Verification Tool",
+  "scripts": {
+    "test": "playwright test --config=playwright.config.ts",
+    "test:atc": "playwright test --config=playwright.config.ts --project=atc-mock",
+    "test:ujt": "playwright test --config=playwright.config.ts --project=ujt-mock",
+    "test:api": "LIVE_MODE=true playwright test --config=playwright.config.ts --project=api",
+    "test:api:win": "set LIVE_MODE=true && playwright test --config=playwright.config.ts --project=api",
+    "test:smoke": "playwright test --config=playwright.config.ts --grep @smoke",
+    "test:regression": "playwright test --config=playwright.config.ts --grep @regression",
+    "test:headed": "playwright test --config=playwright.config.ts --headed",
+    "test:debug": "playwright test --config=playwright.config.ts --debug",
+    "test:live": "set LIVE_MODE=true && playwright test --config=playwright.config.ts --project=atc-live --project=ujt-live --project=api",
+    "report": "playwright show-report reports/html",
+    "report:coverage": "node scripts/coverage-report.js",
+    "install:browsers": "playwright install --with-deps chromium"
+  },
+  "devDependencies": {
+    "@axe-core/playwright": "^4.11.3",
+    "@playwright/test": "^1.60.0",
+    "typescript": "^5.9.3",
+    "ts-node": "^10.9.2"
+  }
+}
