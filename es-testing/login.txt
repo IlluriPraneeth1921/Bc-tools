@@ -1,0 +1,13 @@
+URL: https://widhs-f2-carity.lower-widhs.aws.feisystems.com
+User: FEIAdmin
+Password: Password123#
+Test MA ID:1430000012
+
+Test URL: https://widhs-f2-carity.lower-widhs.aws.feisystems.com/
+Username: George.Parker
+Password: Password123#
+Test MA ID:1430000012
+
+BASE_URL=https://widhs-uat-carity.lower-widhs.aws.feisystems.com
+TEST_USER=george.parker
+TEST_PASSWORD=Password123#

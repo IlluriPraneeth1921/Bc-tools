@@ -1,0 +1,19 @@
+{
+  "name": "es-testing",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Enrollment Service Playwright tests for Blue Compass (Carity)",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:atc": "npx playwright test --project=atc",
+    "test:ujt": "npx playwright test --project=ujt",
+    "test:tc001": "npx playwright test --grep TC-001",
+    "test:prereq": "npx playwright test --grep PREREQ --project=atc",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.44.0",
+    "@types/node": "^22.0.0",
+    "typescript": "5.4.5"
+  }
+}
