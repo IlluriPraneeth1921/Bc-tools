@@ -1,7 +1,6 @@
 # ═══════════════════════════════════════════════════════════════════════════════
 # ICD-D06: WI DHS Medicaid Provider File Extract
-# Generated from: Medicaid Provider File Extract Layout 01.12.26.pdf
-#                  FG 2_WI DHS MES CMM_ICD-D06_v2.0 Unsubmitted Updates.xlsx
+# Generated from: FG 2_WI DHS MES CMM_ICD-D06_Medicaid Provider File_v2.0 Unsubmitted Updates.xlsx
 # ═══════════════════════════════════════════════════════════════════════════════
 
 meta:
@@ -184,6 +183,7 @@ fields:
       length: 25
       type: string
       required: true
+      description: "See Appendix A for valid values"
       db_column: OrganizationTypeDescription
     - name: medicare_part_a
       length: 1
@@ -221,12 +221,12 @@ fields:
     - name: medicaid_service_provider_count
       length: 5
       type: numeric
-      description: "Only for waiver providers"
+      description: "Number of Medicaid Service Providers. Only for waiver providers."
       db_column: MedicaidServiceProviderCount
     - name: medicaid_member_count
       length: 5
       type: numeric
-      description: "Only for waiver providers"
+      description: "Number of Medicaid Service Members. Only for waiver providers."
       db_column: MedicaidMemberCount
     - name: revalidation_date
       length: 8
@@ -267,6 +267,12 @@ fields:
       code_table: address_type_codes
       description: "S=Practice, M=Mailing, P=Pay To, I=IRS 1099"
       db_column: AddressTypeCode
+    - name: name_type_code
+      length: 1
+      type: code
+      code_table: provider_name_type_codes
+      description: "B=Business, P=Personal. Used with Name - Address Specific."
+      db_column: NameTypeCode
     - name: name_address_specific
       length: 50
       type: string
@@ -303,7 +309,8 @@ fields:
     - name: practice_location_county_code
       length: 10
       type: string
-      description: "Only for Address Type S"
+      required: true
+      description: "Physical address county code for the practice location. Only for Address Type S."
       db_column: PracticeLocationCountyCode
     - name: email_address
       length: 256
@@ -328,7 +335,7 @@ fields:
     - name: phone_number_member_use
       length: 10
       type: string
-      description: "Only for Address Type S"
+      description: "Phone number for patients use. Only for Address Type S."
       db_column: PhoneNumberMemberUse
 
   # ─── Record Type 03: Provider TIN ─────────────────────────────────────────
@@ -345,7 +352,7 @@ fields:
     - name: tax_id_number
       length: 9
       type: string
-      description: "Tax Identification Number (IRS)"
+      description: "Tax Identification Number assigned by IRS"
       db_column: TaxIdNumber
     - name: tax_id_type
       length: 1
@@ -357,11 +364,13 @@ fields:
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The first date the Tax ID is effective"
       db_column: TinEffectiveDate
     - name: tin_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The last date the Tax ID is effective"
       db_column: TinEndDate
 
   # ─── Record Type 04: Provider Contract ────────────────────────────────────
@@ -384,11 +393,13 @@ fields:
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The first date the provider contract is effective"
       db_column: ContractEffectiveDate
     - name: contract_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The last date the provider contract is effective"
       db_column: ContractEndDate
     - name: contract_enrollment_status_code
       length: 1
@@ -399,6 +410,7 @@ fields:
     - name: contract_enrollment_status_description
       length: 21
       type: string
+      description: "Provider contract status description"
       db_column: ContractEnrollmentStatusDescription
 
   # ─── Record Type 05: Provider Type and Specialty ──────────────────────────
@@ -415,34 +427,40 @@ fields:
       required: true
       db_column: MedicaidProviderNumber
     - name: provider_type_code
-      length: 2
+      length: 50
       type: string
       required: true
+      description: "Interchange assigned provider type code"
       db_column: ProviderTypeCode
     - name: provider_type_description
       length: 50
       type: string
+      description: "Interchange assigned provider type description"
       db_column: ProviderTypeDescription
     - name: provider_specialty_code
       length: 3
       type: string
       required: true
+      description: "Interchange assigned provider specialty code"
       db_column: ProviderSpecialtyCode
     - name: provider_specialty_description
       length: 50
       type: string
+      description: "Interchange assigned provider specialty description"
       db_column: ProviderSpecialtyDescription
     - name: provider_type_specialty_effective_date
       length: 8
       type: date
       format: YYYYMMDD
       required: true
+      description: "The first date the specified Provider Type is effective"
       db_column: ProviderTypeSpecialtyEffectiveDate
     - name: provider_type_specialty_end_date
       length: 8
       type: date
       format: YYYYMMDD
       required: true
+      description: "The last date the specified provider type is effective"
       db_column: ProviderTypeSpecialtyEndDate
 
   # ─── Record Type 06: Provider NPI ─────────────────────────────────────────
@@ -465,11 +483,13 @@ fields:
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The first date the specified NPI is effective"
       db_column: NpiEffectiveDate
     - name: npi_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The last date the specific NPI is effective"
       db_column: NpiEndDate
     - name: npi_type_description
       length: 50
@@ -491,17 +511,19 @@ fields:
     - name: taxonomy_code
       length: 10
       type: string
-      description: "Provider taxonomy code (alphanumeric with X suffix)"
+      description: "Provider taxonomy code identifying provider type and specialty"
       db_column: TaxonomyCode
     - name: taxonomy_effective_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The first date the taxonomy code is effective"
       db_column: TaxonomyEffectiveDate
     - name: taxonomy_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "The last date the taxonomy code is effective"
       db_column: TaxonomyEndDate
 
   # ─── Record Type 08: Provider ACA Payment Hold ────────────────────────────
@@ -519,11 +541,13 @@ fields:
       length: 8
       type: date
       format: YYYYMMDD
+      description: "Effective Date for ACA suspension of payment"
       db_column: AcaPaymentHoldEffectiveDate
     - name: aca_payment_hold_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "Date provider was cleared from suspension"
       db_column: AcaPaymentHoldEndDate
     - name: aca_payment_hold_indicator
       length: 1
@@ -547,16 +571,18 @@ fields:
       length: 8
       type: date
       format: YYYYMMDD
+      description: "Date provider was first eligible for value-added payment"
       db_column: ValueAddedPaymentStartDate
     - name: value_added_payment_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "Date provider is no longer eligible for value-added payment"
       db_column: ValueAddedPaymentEndDate
     - name: eligible_for_value_added_payment
       length: 4
       type: string
-      description: "0128 = Dental Enhancement Eligible"
+      description: "Indicates what type of value-added payment (e.g. 0128 = Dental Enhancement Eligible)"
       db_column: EligibleForValueAddedPayment
 
   # ─── Record Type 10: Provider Waiver Program ──────────────────────────────
@@ -579,16 +605,19 @@ fields:
     - name: waiver_program_description
       length: 50
       type: string
+      description: "Provider Waiver Program Description"
       db_column: WaiverProgramDescription
     - name: waiver_program_effective_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "First date provider is enrolled in the waiver program"
       db_column: WaiverProgramEffectiveDate
     - name: waiver_program_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "Last date provider is enrolled in the waiver program"
       db_column: WaiverProgramEndDate
 
   # ─── Record Type 11: Provider Waiver Service ──────────────────────────────
@@ -611,16 +640,19 @@ fields:
     - name: waiver_service_description
       length: 250
       type: string
+      description: "Provider Waiver Service Description"
       db_column: WaiverServiceDescription
     - name: waiver_service_effective_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "First date provider is enrolled in the waiver service"
       db_column: WaiverServiceEffectiveDate
     - name: waiver_service_end_date
       length: 8
       type: date
       format: YYYYMMDD
+      description: "Last date provider is enrolled in the waiver service"
       db_column: WaiverServiceEndDate
     - name: waiver_service_status_code
       length: 1
@@ -631,6 +663,7 @@ fields:
     - name: waiver_service_status_description
       length: 30
       type: string
+      description: "Provider Waiver Service status description"
       db_column: WaiverServiceStatusDescription
 
   # ─── Record Type 12: Provider County and Tribe Served ─────────────────────
@@ -647,7 +680,7 @@ fields:
     - name: county_code
       length: 10
       type: string
-      description: "County or tribe code served"
+      description: "County or tribe code served by the provider"
       db_column: CountyCode
 
   # ─── Record Type 13: Provider License ─────────────────────────────────────
@@ -664,18 +697,21 @@ fields:
     - name: license_number
       length: 10
       type: string
+      description: "Provider's license number"
       db_column: LicenseNumber
     - name: license_effective_date
       length: 8
       type: date
       format: YYYYMMDD
       required: true
+      description: "Effective date on file for the license"
       db_column: LicenseEffectiveDate
     - name: license_end_date
       length: 8
       type: date
       format: YYYYMMDD
       required: true
+      description: "End date on file for the license"
       db_column: LicenseEndDate
     - name: licensure_board_code
       length: 3
@@ -686,6 +722,7 @@ fields:
     - name: licensure_board_description
       length: 50
       type: string
+      description: "Description of the Licensure Board"
       db_column: LicensureBoardDescription
     - name: license_classification_code
       length: 3
@@ -696,6 +733,7 @@ fields:
     - name: license_classification_description
       length: 50
       type: string
+      description: "Description of the license classification code"
       db_column: LicenseClassificationDescription
 
   # ─── Record Type 14: Provider Certification and Credentials ───────────────
@@ -712,7 +750,7 @@ fields:
     - name: certification_number
       length: 15
       type: string
-      description: "May be blank"
+      description: "Provider's certification or credential number. May be blank."
       db_column: CertificationNumber
     - name: certification_type_code
       length: 2
@@ -723,6 +761,7 @@ fields:
     - name: certification_type_description
       length: 50
       type: string
+      description: "Certification Type Description"
       db_column: CertificationTypeDescription
     - name: special_program_certification_code
       length: 2
@@ -740,12 +779,14 @@ fields:
       type: date
       format: YYYYMMDD
       required: true
+      description: "Effective date on file for the certification"
       db_column: CertificationEffectiveDate
     - name: certification_end_date
       length: 8
       type: date
       format: YYYYMMDD
       required: true
+      description: "End date on file for the certification"
       db_column: CertificationEndDate
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -867,10 +908,10 @@ code_tables:
     name: waiver_service_codes
     description: "Appendix D - Waiver Service Codes"
     values:
-      "WVR001": "Transportation (Non Emerg Med & Comm) - FC/FCP/PACE"
+      "WVR001": "Transportation (Non Emerg Med & Comm)-FC/FCP/PACE"
       "WVR002": "Consumer Directed Support Services/Support Broker Services"
       "WVR003": "Daily Living Skills"
-      "WVR004": "Transportation (Community) - IRIS"
+      "WVR004": "Transportation (Community)-IRIS"
       "WVR005": "Respite Care"
       "WVR006": "Self-Directed Personal Care Services"
       "WVR007": "Supported Employment - Individual Setting"
@@ -948,24 +989,117 @@ code_tables:
 
   license_classification_codes:
     name: license_classification_codes
-    description: "Appendix G - License Classification Codes (partial - 100+ values)"
+    description: "Appendix G - License Classification Codes"
     values:
-      "DEN": "Dentist"
-      "PH1": "DSPS Physician(MD)"
-      "PH2": "DSPS Physician (DO)"
-      "RNL": "Registered Nurse"
-      "LPN": "Licensed Practical Nurse"
-      "PHT": "Physical Therapist"
-      "OCT": "Occupational Therapist"
-      "PSY": "Psychologist"
-      "CSW": "Social Worker"
-      "PHM": "Pharmacist"
-      "AMB": "Ambulance"
-      "HHA": "Home Health Agency"
-      "HOS": "Hospital"
-      "NHM": "Nursing Home"
+      "850": "Temporary Education Training Permit"
+      "875": "Special Permits"
+      "AAL": "Anesthesiologist Assistant"
+      "ACU": "Acupuncturist"
       "AF1": "Adult Family Home 1-2 Bed"
       "AF3": "Adult Family Home 3-4 Bed"
+      "AMB": "Ambulance"
+      "APN": "Advanced Practice Nurse Prescriber"
+      "ASC": "Ambulatory Surgical Center"
+      "ASW": "QTT - Advanced Practice Social Worker"
+      "AUD": "Audiologist"
+      "BCO": "Building Contractor"
+      "BHA": "Behavior Analyst"
+      "CAD": "Substance Abuse Counselor"
+      "CAR": "Carpenter"
+      "CD2": "Clinical Substance Abuse Counselor"
+      "CED": "Certified Dietitian"
+      "CFC": "Children's Foster Care"
+      "CHI": "Chiropractor"
+      "CIT": "Substance Abuse Counselor In Training"
+      "CRT": "Chiropractic Radiological Technician"
+      "CST": "Clinical Supervisor In Training"
+      "CSW": "Social Worker"
+      "CTE": "Chiropractic Technician"
+      "CW2": "Licensed Clinical Social Worker"
+      "DCA": "Day Camps"
+      "DEN": "Dentist"
+      "DHY": "Dental Hygienist"
+      "DIT": "Dietitian"
+      "DSC": "Day Services - Children"
+      "DWC": "Dwelling Contractor"
+      "EEL": "Elevator, Escalator and Lift Inspector"
+      "ELC": "Electrical Contractor"
+      "ELE": "Electrician"
+      "ELV": "Elevator, Escalator and Lift Contractor"
+      "ERD": "End Stage Renal Disease"
+      "FCC": "Family Child Care Centers"
+      "FDA": "Blood Bank"
+      "FSC": "Fire Sprinkler Contractor"
+      "GCC": "Group Child Care Centers"
+      "GFC": "Group Foster Homes for Children"
+      "HHA": "Home Health Agency"
+      "HIS": "Hearing Instrument Specialist"
+      "HOS": "Hospital"
+      "HSP": "Hospice"
+      "HVC": "HVAC Contractor"
+      "ICF": "ICFs/MR"
+      "IMS": "Intermediate Clinical Supervisor"
+      "IPS": "Independent Clinical Supervisor"
+      "ISW": "QTT - Independent Social Worker"
+      "LMD": "Licensed Midwife"
+      "LPN": "Licensed Practical Nurse"
+      "LRG": "Licensed Radiographer"
+      "MDP": "Mobile Dentistry Program"
+      "MFC": "Marriage and Family Therapist Training Certificate"
+      "MFT": "Marriage and Family Therapist"
+      "MHP": "Mental Health Practitioner"
+      "MT1": "Massage Therapist or Bodywork Therapist"
+      "MT2": "Massage Therapist or Bodyworker"
+      "MTT": "QTT - Marriage and Family Therapist-in-Training"
+      "NHM": "Nursing Home"
+      "NMD": "Nurse - Midwife"
+      "OCT": "Occupational Therapist"
+      "OPT": "Optometrist"
+      "OTA": "Occupational Therapist Assistant"
+      "PCT": "QTT - Professional Counselor-in-Training"
+      "PEN": "Professional Engineers"
+      "PER": "Perfusionist"
+      "PH1": "DSPS Physician(MD)"
+      "PH2": "DSPS Physician (DO)"
+      "PHA": "Physician Assistant"
+      "PHC": "DSPS Physician Compact (MD)"
+      "PHD": "DSPS Physician Compact (DO)"
+      "PHM": "Pharmacist"
+      "PHR": "Pharmacy"
+      "PHT": "Physical Therapist"
+      "PHY": "Non-DSPS Physician"
+      "PLU": "Plumber"
+      "POD": "Podiatrist"
+      "PRC": "Professional Counseling"
+      "PST": "Prevention Specialist In Training"
+      "PSY": "Psychologist"
+      "PTA": "Physical Therapy Assistant"
+      "PTC": "Professional Counselor Training Certificate"
+      "PVS": "Prevention Specialist"
+      "PVT": "Private Practice of School Psychology"
+      "PXR": "Portable X-Ray"
+      "RAD": "Registered Alcohol and Drug Counselor"
+      "RCC": "Residential Care Centers for Children and Youth"
+      "RCP": "Respiratory Care Practitioner"
+      "REH": "Rehab Agency"
+      "RHC": "Rural Health Clinic"
+      "RNL": "Registered Nurse"
+      "SAP": "Substance Abuse Practitioner"
+      "SCF": "Shelter Care Facilities"
+      "SIR": "Sign Language Interpreter (Restricted)"
+      "SLI": "Sign Language Interpreter"
+      "STN": "Speech Language - Pathology"
+      "STS": "Specialized Transportation Service Provider"
+      "SWA": "Social Worker - Advanced Practice"
+      "SWI": "Social Worker - Independent"
+      "SWT": "Social Worker - Training Certificate"
+      "TAR": "Therapist - Art"
+      "TDA": "Therapist - Dance"
+      "TEL": "Teaching License"
+      "TEQ": "Therapist - Equine"
+      "TFC": "Treatment Foster Care Homes"
+      "TMM": "Therapist - Music"
+      "TRE": "Therapist - Respiratory"
 
   certification_type_codes:
     name: certification_type_codes
@@ -980,29 +1114,57 @@ code_tables:
       "CB": "Community Based Residential Facility - DQA"
       "CP": "CPR"
       "CR": "CRNA"
+      "DC": "Comprehensive Community Support Program"
       "DD": "DQA"
+      "DL": "Department of Labor Fair Labor Standards Act 14(c)"
+      "DM": "Adult Mental Health Day Treatment"
+      "DP": "Community Support Program"
+      "DR": "Crisis Intervention"
+      "DS": "Substance Abuse Day Treatment"
+      "EA": "PA Exempted Provider Approver"
       "EE": "Express Enrollment"
+      "EF": "EFT Restriction"
+      "ES": "Early Start Denver Model"
       "HA": "ASHA"
       "HC": "HealthCheck Screener"
       "HM": "Home and Community-Based Services Compliance"
       "JC": "JCAHO"
+      "LD": "College Diploma"
+      "LE": "Equine Certification"
+      "LF": "Fitness and Health Certification"
+      "LL": "Recommendation Letter"
+      "LQ": "LTC Qualification"
+      "LR": "Resume"
+      "LT": "Teacher Certification"
       "PD": "PDN"
-      "RC": "Adult RCS"
+      "PH": "Pharmacist Collaborative Practice Agreement"
+      "PR": "Pediatric RCS"
+      "RA": "Residential Care Apartment Complex - DQA"
       "RB": "Registered Behavior Technician"
+      "RC": "Adult RCS"
+      "WM": "Wisconsin Microboard Association Approval Letter"
+      "1A": "1-2 Bed Adult Family Home Certified by iCare"
+      "1C": "1-2 Bed Adult Family Home Certified by CCI"
+      "1D": "1-2 Bed Adult Family Home Certified by DHS"
+      "1E": "1-2 Bed Adult Family Home Certified by Other"
+      "1L": "1-2 Bed Adult Family Home Certified by Lakeland"
+      "1M": "1-2 Bed Adult Family Home Certified by MyChoice"
+      "1N": "1-2 Bed Adult Family Home Certified by Inclusa"
+      "3D": "3-4 Bed Adult Family Home - DQA"
 
   special_program_certification_codes:
     name: special_program_certification_codes
     description: "Appendix I - Special Program Certification Codes"
     values:
-      "01": "Traumatic Brain Injury"
-      "02": "Terminally Ill"
-      "03": "Pregnant Women/Counseling"
-      "04": "Physically Disabled"
-      "05": "Irreversible Dementia/Alzheimer's"
-      "06": "Emotionally Disturbed/Mental Illness"
-      "07": "Developmentally Disabled"
-      "08": "Alcohol/Drug Dependent"
-      "09": "Advanced Aged"
+      "1": "Traumatic Brain Injury"
+      "2": "Terminally Ill"
+      "3": "Pregnant Women/Counseling"
+      "4": "Physically Disabled"
+      "5": "Irreversible Dementia/Alzheimer's"
+      "6": "Emotionally Disturbed/Mental Illness"
+      "7": "Developmentally Disabled"
+      "8": "Alcohol/Drug Dependent"
+      "9": "Advanced Aged"
       "10": "HCBS Compliance"
       "11": "Waiver Certified Independent CBRF Apartments"
       "12": "Correctional Clients"
@@ -1015,119 +1177,120 @@ code_tables:
 
 business_rules:
   - id: BR-D06-001
-    description: "IRIS Organization Providers (Waiver Program=IRIS, PTPS != 90/979) not in BC → create new Org + Location"
-    affects_fields: [waiver_program_code, provider_type_code, provider_specialty_code]
-    logic: "waiver_program_code='IRIS' AND NOT (provider_type='90' AND specialty='979') AND not_in_BC → CREATE"
+    description: "IRIS Providers identified by Waiver Program Code. Enumeration IDs (Medicaid Provider Number) used for matching."
+    affects_fields: [medicaid_provider_number, waiver_program_code]
+    logic: "waiver_program_code = 'IRIS' → provider is IRIS provider"
     type: filter
   - id: BR-D06-002
-    description: "EVV Providers (Provider Type=85, Specialty=858) not in BC → create new Org + Location"
-    affects_fields: [provider_type_code, provider_specialty_code]
-    logic: "provider_type='85' AND specialty='858' AND not_in_BC → CREATE"
+    description: "EVV Providers identified by Provider Type = '85'. Enumeration IDs (Medicaid Provider Number) used for matching."
+    affects_fields: [medicaid_provider_number, provider_type_code]
+    logic: "provider_type_code = '85' → provider is EVV provider"
     type: filter
-  - id: BR-D06-004
-    description: "Match existing providers by Medicaid Provider Number for updates"
+  - id: BR-D06-003
+    description: "New Org and EVV Providers will be loaded with an additional Location record."
     affects_fields: [medicaid_provider_number]
-    logic: "Match on medicaid_provider_number → UPDATE existing"
+    logic: "new provider → create Organization + Location records"
+    type: transformation
+  - id: BR-D06-004
+    description: "Enumeration IDs (Medicaid Provider Number) will be stored at both Organization and Location levels."
+    affects_fields: [medicaid_provider_number]
+    logic: "store ID → OrganizationIdentifiers + LocationIdentifiers"
     type: transformation
   - id: BR-D06-005
-    description: "PHW providers (Type=90, Specialty=979) do NOT create new records"
-    affects_fields: [provider_type_code, provider_specialty_code]
-    logic: "provider_type='90' AND specialty='979' → SKIP new creation"
+    description: "PHW Provider records will not be used to create new Organizations or Locations."
+    affects_fields: [provider_type_code]
+    logic: "provider_type_code = 'PHW' → skip record creation"
     type: filter
   - id: BR-D06-006
-    description: "Waiver Program End Date < current date → end IRIS program association, set status Inactive"
+    description: "Providers not on daily file with active waiver program are end-dated."
     affects_fields: [waiver_program_end_date]
-    logic: "waiver_program_end_date < today → end SupportedPrograms, set Org+Location status='Inactive'"
+    logic: "provider absent from file + active waiver → set end date"
     type: transformation
   - id: BR-D06-007
-    description: "Waiver Program End Date < current date → end-date associated Service Authorizations"
-    affects_fields: [waiver_program_end_date]
-    logic: "waiver_program_end_date < today → trigger automation to end-date SAs"
+    description: "Providers not on daily file with active status are end-dated."
+    affects_fields: [contract_end_date]
+    logic: "provider absent from file + active status → set end date"
     type: transformation
   - id: BR-D06-008
-    description: "Waiver Service End Date captures last date provider can perform service"
+    description: "Waiver Service End Date used to capture service termination."
     affects_fields: [waiver_service_end_date]
-    logic: "Store as EffectiveDateRangeEndDate on LocationExtensionWaiverServices"
+    logic: "waiver_service_end_date populated → mark service inactive"
     type: transformation
   - id: BR-D06-009
-    description: "Billing Indicator B (Both) → Location Type = Waiver Service Provider"
+    description: "Billing Indicator 'B' (Biller and Performer) → Location Type = Billing and Rendering."
     affects_fields: [billing_indicator]
-    logic: "billing_indicator='B' → LocationType.PrimaryTypeDisplayName='Waiver Service Provider'"
-    type: transformation
+    logic: "billing_indicator = 'B' → PrimaryTypeDisplayName = 'Billing and Rendering'"
+    type: vocab_lookup
   - id: BR-D06-010
-    description: "Billing Indicator Y (Biller) → Location Type = Waiver Service Provider"
+    description: "Billing Indicator 'Y' (Biller) → Location Type = Billing."
     affects_fields: [billing_indicator]
-    logic: "billing_indicator='Y' → LocationType.PrimaryTypeDisplayName='Waiver Service Provider'"
-    type: transformation
+    logic: "billing_indicator = 'Y' → PrimaryTypeDisplayName = 'Billing'"
+    type: vocab_lookup
   - id: BR-D06-011
-    description: "Billing Indicator N (Performer) → Location Type = Waiver Service Provider"
+    description: "Billing Indicator 'N' (Performer) → Location Type = Rendering."
     affects_fields: [billing_indicator]
-    logic: "billing_indicator='N' → LocationType.PrimaryTypeDisplayName='Waiver Service Provider'"
-    type: transformation
+    logic: "billing_indicator = 'N' → PrimaryTypeDisplayName = 'Rendering'"
+    type: vocab_lookup
   - id: BR-D06-012
-    description: "Billing Indicator R (Referring) → provider NOT loaded into Blue Compass"
+    description: "Billing Indicator 'R' (Referring) → Location Type = Referring/Prescribing/Ordering."
     affects_fields: [billing_indicator]
-    logic: "billing_indicator='R' → SKIP entire provider"
-    type: filter
+    logic: "billing_indicator = 'R' → PrimaryTypeDisplayName = 'Referring/Prescribing/Ordering'"
+    type: vocab_lookup
   - id: BR-D06-013
-    description: "Each MCD ID = one Organization + one Location in Blue Compass"
+    description: "Each Medicaid Provider ID creates one Organization and one Location in the system."
     affects_fields: [medicaid_provider_number]
-    logic: "1 MCD ID → 1 Org + 1 Location"
+    logic: "unique MCD ID → 1 Organization + 1 Location"
+    type: composite
+  - id: BR-D06-014
+    description: "Effective dates captured as-is; no conversion or validation of future/past dates."
+    affects_fields: [contract_effective_date, waiver_program_effective_date, waiver_service_effective_date]
+    logic: "store date values as received"
     type: transformation
   - id: BR-D06-015
-    description: "Waiver Service Codes determine what services a provider can perform"
+    description: "Waiver Service Codes received must exist in the WaiverServiceCode vocabulary."
     affects_fields: [waiver_service_code]
-    logic: "Store in LocationExtensionWaiverServices with effective dates"
-    type: transformation
-  - id: BR-D06-016
-    description: "Generate Error Report after processing each inbound file"
-    affects_fields: []
-    logic: "Log row for each provider failing required business rules"
+    logic: "waiver_service_code must exist in vocabulary → validation"
     type: validation
+  - id: BR-D06-016
+    description: "An Error Report shall be generated after processing with all rejected records."
+    affects_fields: []
+    logic: "processing errors → generate error report"
+    type: validation
+  - id: BR-D06-017
+    description: "EVV Providers identified by Provider Type = '85' and Specialty = '850'."
+    affects_fields: [provider_type_code, provider_specialty_code]
+    logic: "type = '85' AND specialty = '850' → EVV provider"
+    type: filter
   - id: BR-D06-018
-    description: "Rendering/Location Address (S) must be Current; only one address can be Current=Yes"
+    description: "Provider's Rendering/Location Address must be identified as current address."
     affects_fields: [address_type_code]
-    logic: "address_type='S' → CurrentDisplayName='Yes', IsPrimary=1; others → 'No', IsPrimary=0"
+    logic: "address_type_code = 'S' → CurrentDisplayName = 'Yes'"
     type: transformation
   - id: BR-D06-019
-    description: "Zip codes must be numeric, 5 digits or 10 with dash (12345 or 12345-6789)"
+    description: "Zip codes must be numeric and 5 digits. Extension appended with hyphen if present."
     affects_fields: [zip_code, zip_code_extension]
-    logic: "Concatenate zip_code + '-' + zip_code_extension → PhysicalAddressPostalCode"
-    type: transformation
+    logic: "zip_code + '-' + zip_code_extension → PhysicalAddressPostalCode"
+    type: composite
   - id: BR-D06-020
-    description: "StatusDisplayName=Active requires: WVR contract (status A, current dates) AND IRIS waiver program (current dates)"
+    description: "When active WVR contract AND active IRIS waiver program, set StatusDisplayName = 'Active'."
     affects_fields: [provider_contract_code, contract_enrollment_status_code, waiver_program_code]
-    logic: "Contract 'WVR' (status=A, current) AND WaiverProgram 'IRIS' (current) → 'Active', else 'Inactive'"
+    logic: "contract_code = 'WVR' AND status = 'A' AND waiver = 'IRIS' → Status = 'Active'"
     type: composite
   - id: BR-D06-021
-    description: "Taxonomy code resolves Grouping/Classification/Specialization from vocabulary lookup"
+    description: "Taxonomy code used to resolve GroupingName, ClassificationName, SpecializationName via vocabulary lookup."
     affects_fields: [taxonomy_code]
-    logic: "Lookup taxonomy_code in LocationTaxonomy vocab → GroupingName, ClassificationName, SpecializationName"
+    logic: "taxonomy_code → lookup GroupingName, ClassificationName, SpecializationName"
     type: vocab_lookup
   - id: BR-D06-022
-    description: "NPI dedup: load only the most recent NPI (by effective date, then end date)"
+    description: "When multiple NPI records exist, only the most recent active NPI is primary."
     affects_fields: [npi, npi_effective_date, npi_end_date]
-    logic: "Multiple NPIs per provider → keep most recent effective date; ties broken by latest end date"
-    type: filter
+    logic: "multiple NPIs → most recent active = primary"
+    type: composite
   - id: BR-D06-023
-    description: "TIN dedup: load only most recent TIN per type (by effective date, then end date)"
-    affects_fields: [tax_id_number, tax_id_type, tin_effective_date, tin_end_date]
-    logic: "Multiple TINs same type → keep most recent effective date; ties broken by latest end date"
-    type: filter
-
-cross_field_dependencies:
-  - condition: "If provider_name_type = 'P', name is formatted as Last(1-25) First(26-38) MI(39)"
-    fields: [provider_name_type, provider_full_name]
-  - condition: "Contact Person only populated for Address Type S and P"
-    fields: [address_type_code, contact_person, phone_number_contact_person]
-  - condition: "Email Address only populated for Address Type M"
-    fields: [address_type_code, email_address]
-  - condition: "Practice Location County Code only populated for Address Type S"
-    fields: [address_type_code, practice_location_county_code]
-  - condition: "Phone Number Member Use only populated for Address Type S"
-    fields: [address_type_code, phone_number_member_use]
-  - condition: "BR-D06-020: Active status requires WVR contract + IRIS program both current"
-    fields: [provider_contract_code, contract_enrollment_status_code, waiver_program_code, waiver_program_effective_date, waiver_program_end_date]
+    description: "When multiple TIN records exist, only the most recent active TIN is primary."
+    affects_fields: [tax_id_number, tin_effective_date, tin_end_date]
+    logic: "multiple TINs → most recent active = primary"
+    type: composite
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # DATABASE TARGETS
@@ -1139,111 +1302,52 @@ db_targets:
     schema: CustomerInterfaceModule
     tables:
       - name: MedicaidProviderRaw
-        columns:
-          record_type: RecordType
-          medicaid_provider_number: MedicaidProviderNumber
         filter_column: MedicaidProviderNumber
-
   stage2:
     database: "WiDHS.Qc.Interface.Carity.ToolTesting"
     schema: CustomerInterfaceModule
     tables:
-      - name: MedicaidProviderMain
-        record_type: "01"
+      - name: MedicaidProviderParsed
         columns:
           medicaid_provider_number: MedicaidProviderNumber
           provider_full_name: ProviderFullName
           provider_name_type: ProviderNameType
-          organization_type_code: OrganizationTypeCode
           billing_indicator: BillingIndicator
           revalidation_date: RevalidationDate
         filter_column: MedicaidProviderNumber
-      - name: MedicaidProviderAddress
-        record_type: "02"
-        columns:
-          medicaid_provider_number: MedicaidProviderNumber
-          address_type_code: AddressTypeCode
-          street_address_1: StreetAddress1
-          city: City
-          state: State
-          zip_code: ZipCode
-        filter_column: MedicaidProviderNumber
-      - name: MedicaidProviderTin
-        record_type: "03"
-        columns:
-          medicaid_provider_number: MedicaidProviderNumber
-          tax_id_number: TaxIdNumber
-          tax_id_type: TaxIdType
-        filter_column: MedicaidProviderNumber
-      - name: MedicaidProviderContract
-        record_type: "04"
-        columns:
-          medicaid_provider_number: MedicaidProviderNumber
-          provider_contract_code: ProviderContractCode
-          contract_enrollment_status_code: ContractEnrollmentStatusCode
-        filter_column: MedicaidProviderNumber
-      - name: MedicaidProviderTypeAndSpecialty
-        record_type: "05"
-        columns:
-          medicaid_provider_number: MedicaidProviderNumber
-          provider_type_code: ProviderType
-          provider_specialty_code: ProviderSpecialtyCode
-        filter_column: MedicaidProviderNumber
-      - name: MedicaidProviderNpi
-        record_type: "06"
-        columns:
-          medicaid_provider_number: MedicaidProviderNumber
-          npi: Npi
-        filter_column: MedicaidProviderNumber
-      - name: MedicaidProviderTaxonomy
-        record_type: "07"
-        columns:
-          medicaid_provider_number: MedicaidProviderNumber
-          taxonomy_code: Taxonomy
-        filter_column: MedicaidProviderNumber
-
   stage3:
     database: "WiDHS.Qc.Interface.Carity.ToolTesting"
-    schema: InterfaceModule
+    schema: OrganizationModule
     tables:
-      - name: IncomingOrganization
-        columns:
-          medicaid_provider_number: CustomerProviderIdentifier
-        filter_column: CustomerProviderIdentifier
-      - name: IncomingOrganizationIdentifiers
-        columns:
-          medicaid_provider_number: CustomerProviderIdentifier
-        filter_column: CustomerProviderIdentifier
-      - name: IncomingOrganizationAddresses
-        columns:
-          medicaid_provider_number: CustomerProviderIdentifier
-        filter_column: CustomerProviderIdentifier
-      - name: IncomingLocation
-        columns:
-          medicaid_provider_number: CustomerProviderIdentifier
-        filter_column: CustomerProviderIdentifier
-      - name: IncomingLocationIdentifiers
-        columns:
-          medicaid_provider_number: CustomerProviderIdentifier
-        filter_column: CustomerProviderIdentifier
-
+      - name: Organization
+        filter_column: OrganizationKey
+      - name: Location
+        filter_column: LocationKey
+      - name: LocationIdentifiers
+        filter_column: LocationKey
+      - name: LocationAddresses
+        filter_column: LocationKey
+      - name: LocationCredentials
+        filter_column: LocationKey
+      - name: LocationSpecialty
+        filter_column: LocationKey
+      - name: LocationTaxonomies
+        filter_column: LocationKey
+      - name: LocationSupportedPrograms
+        filter_column: LocationKey
+      - name: PaymentSuspension
+        filter_column: LocationKey
   stage4:
     database: "WiDHS.Qc.Carity.ToolTestig"
     schema: OrganizationModule
     tables:
       - name: Organization
-        columns:
-          medicaid_provider_number: CustomerProviderIdentifier
-        filter_column: CustomerProviderIdentifier
-      - name: OrganizationIdentifiers
-        filter_column: Value
+        filter_column: OrganizationKey
       - name: Location
-        filter_column: CustomerProviderIdentifier
-      - name: LocationIdentifiers
-        filter_column: Value
+        filter_column: LocationKey
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# FILE NAMING & TEST CONFIG
+# FILE NAMING
 # ═══════════════════════════════════════════════════════════════════════════════
 
 naming:
@@ -1251,44 +1355,9 @@ naming:
   environment_suffix: "_T"
   extension: ".psv"
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# TEST SCENARIOS
+# ═══════════════════════════════════════════════════════════════════════════════
+
 test_scenarios:
   volume_size: 50
-  mutations:
-    - code: UPD01
-      name: ADDRESS_CHANGES
-      description: "Provider addresses updated (street, city, zip, county)"
-      fields_affected: [street_address_1, city, zip_code, practice_location_county_code]
-    - code: UPD02
-      name: CONTRACT_STATUS
-      description: "Contract terminations, new contracts, status transitions"
-      fields_affected: [provider_contract_code, contract_enrollment_status_code, contract_end_date]
-    - code: UPD03
-      name: DEMOGRAPHICS
-      description: "Provider name, org type, billing indicator changes"
-      fields_affected: [provider_full_name, organization_type_code, billing_indicator]
-    - code: UPD04
-      name: NPI_TAXONOMY
-      description: "NPI replacements, new NPIs, taxonomy changes"
-      fields_affected: [npi, npi_effective_date, npi_end_date, taxonomy_code]
-    - code: UPD05
-      name: WAIVER_CHANGES
-      description: "New waiver enrollment, program end-dates, service activations"
-      fields_affected: [waiver_program_code, waiver_program_end_date, waiver_service_code]
-    - code: UPD06
-      name: NEW_PROVIDERS
-      description: "Brand new providers appearing in extract"
-      fields_affected: [medicaid_provider_number]
-    - code: UPD07
-      name: TERM_REACTIVATION
-      description: "Provider terminated then reactivated same day"
-      fields_affected: [contract_enrollment_status_code, contract_end_date]
-  deletions:
-    - code: DEL01
-      name: PROVIDER_REMOVED
-      description: "Provider no longer in extract (terminated)"
-    - code: DEL02
-      name: SUBRECORD_REMOVED
-      description: "Sub-records (address, NPI, contract) removed"
-    - code: DEL03
-      name: WAIVER_RECORDS_REMOVED
-      description: "Waiver program/service records removed"

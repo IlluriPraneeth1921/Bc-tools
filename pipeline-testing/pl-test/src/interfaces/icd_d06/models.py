@@ -58,6 +58,7 @@ class RecordType02:
     record_type: str  # "02"
     medicaid_provider_number: str
     address_type_code: str  # 1 char (S/M/P/I)
+    name_type_code: str  # 1 char (B/P) — used with Name - Address Specific
     name_address_specific: str  # 50 chars
     street_address_1: str  # 30 chars
     street_address_2: str  # 30 chars

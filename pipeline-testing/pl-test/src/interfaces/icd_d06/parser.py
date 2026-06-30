@@ -55,7 +55,7 @@ class IcdD06Parser(BaseParser):
         Returns:
             ParsedFile containing all parsed records grouped by provider.
         """
-        with open(filepath, "r", encoding="utf-8") as f:
+        with open(filepath, "r", encoding="utf-8-sig") as f:
             content = f.read()
         return self.parse_content(content, filename=filepath)
 
@@ -70,6 +70,10 @@ class IcdD06Parser(BaseParser):
         Returns:
             ParsedFile containing all parsed records grouped by provider.
         """
+        # Strip UTF-8 BOM if present
+        if content.startswith("\ufeff"):
+            content = content[1:]
+
         parsed_file = ParsedFile(filename=filename)
         lines = content.splitlines()
 
@@ -192,19 +196,20 @@ class IcdD06Parser(BaseParser):
             record_type=self._get_field(fields, 0),
             medicaid_provider_number=self._get_field(fields, 1),
             address_type_code=self._get_field(fields, 2),
-            name_address_specific=self._get_field(fields, 3),
-            street_address_1=self._get_field(fields, 4),
-            street_address_2=self._get_field(fields, 5),
-            city=self._get_field(fields, 6),
-            state=self._get_field(fields, 7),
-            zip_code=self._get_field(fields, 8),
-            zip_code_extension=self._get_field(fields, 9),
-            practice_location_county_code=self._get_field(fields, 10),
-            email_address=self._get_field(fields, 11),
-            contact_person=self._get_field(fields, 12),
-            phone_number_contact=self._get_field(fields, 13),
-            phone_extension_contact=self._get_field(fields, 14),
-            phone_number_member_use=self._get_field(fields, 15),
+            name_type_code=self._get_field(fields, 3),
+            name_address_specific=self._get_field(fields, 4),
+            street_address_1=self._get_field(fields, 5),
+            street_address_2=self._get_field(fields, 6),
+            city=self._get_field(fields, 7),
+            state=self._get_field(fields, 8),
+            zip_code=self._get_field(fields, 9),
+            zip_code_extension=self._get_field(fields, 10),
+            practice_location_county_code=self._get_field(fields, 11),
+            email_address=self._get_field(fields, 12),
+            contact_person=self._get_field(fields, 13),
+            phone_number_contact=self._get_field(fields, 14),
+            phone_extension_contact=self._get_field(fields, 15),
+            phone_number_member_use=self._get_field(fields, 16),
         )
 
     def _parse_record_03(self, line_number: int, fields: list) -> RecordType03:

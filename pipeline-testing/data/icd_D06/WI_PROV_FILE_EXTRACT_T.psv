@@ -1,8 +1,8 @@
 00|20260618|20240618|20260618|000000000049|000000000003
 01|000000000012345|Smith                    John         M|P|1|For Profit|A|B|I|B|Y|Y|00005|00012|20270115|Y|20260101
-02|000000000012345|S|Smith                    John         M|123 Main Street|Suite 200|Madison|WI|53703|1234|5500100000|admin@smithmedical.com|Jane Doe|6085551234|1001|6085559876
-02|000000000012345|M|Smith                    John         M|PO Box 4456| |Madison|WI|53704|4456| |john.smith@email.com| | | | 
-02|000000000012345|P|Smith Medical Billing LLC|789 Payment Ave| |Madison|WI|53703|1234| | |Bob Wilson|6085552345|2002|
+02|000000000012345|S|P|Smith                    John         M|123 Main Street|Suite 200|Madison|WI|53703|1234|5500100000|admin@smithmedical.com|Jane Doe|6085551234|1001|6085559876
+02|000000000012345|M|P|Smith                    John         M|PO Box 4456| |Madison|WI|53704|4456| |john.smith@email.com| | | | 
+02|000000000012345|P|B|Smith Medical Billing LLC|789 Payment Ave| |Madison|WI|53703|1234| | |Bob Wilson|6085552345|2002|
 03|000000000012345|391234567|S|20200101|99991231
 04|000000000012345|MEDSV|20200101|99991231|A|Active
 05|000000000012345|31|Physician|100|General Practice|20200101|99991231
@@ -13,9 +13,9 @@
 14|000000000012345|CERT001|BM|American Board of Medical Specialties (ABMS)| | |20200101|99991231
 14|000000000012345|CERT002|HC|HealthCheck Screener| | |20220601|99991231
 01|000000000067890|Lakeside Medical Group|B|6|Not for Profit|A| |O|Y|Y|Y| | |20261201|N|
-02|000000000067890|S|Lakeside Medical Group|500 Lake Drive|Building C|Milwaukee|WI|53202|5678|4000100000| |Sarah Connor|4145551000| |4145551111
-02|000000000067890|M|Lakeside Medical Group|PO Box 8899| |Milwaukee|WI|53201|8899| |info@lakesidemedical.org| | | | 
-02|000000000067890|P|Lakeside Medical Group|500 Lake Drive|Building C|Milwaukee|WI|53202|5678| | |Sarah Connor|4145551000| |
+02|000000000067890|S|B|Lakeside Medical Group|500 Lake Drive|Building C|Milwaukee|WI|53202|5678|4000100000| |Sarah Connor|4145551000| |4145551111
+02|000000000067890|M|B|Lakeside Medical Group|PO Box 8899| |Milwaukee|WI|53201|8899| |info@lakesidemedical.org| | | | 
+02|000000000067890|P|B|Lakeside Medical Group|500 Lake Drive|Building C|Milwaukee|WI|53202|5678| | |Sarah Connor|4145551000| |
 03|000000000067890|396789012|F|20180601|99991231
 04|000000000067890|MEDSV|20180601|99991231|A|Active
 04|000000000067890|WVR|20190101|99991231|A|Active
@@ -35,9 +35,9 @@
 14|000000000067890|CERT003|JC|JCAHO| | |20180601|99991231
 14|000000000067890|CERT004|HM|Home and Community-Based Services Compliance|10|HCBS Compliance|20190101|99991231
 01|000000000024680|Johnson                  Mary         A|P|4|Sole Proprietor| |B|I|N|Y|Y|00003|00008|20270601|N|
-02|000000000024680|S|Johnson                  Mary         A|250 Oak Avenue| |Green Bay|WI|54301|0001|0500100000| |Mary Johnson|9205553456| |9205553457
-02|000000000024680|M|Johnson                  Mary         A|250 Oak Avenue| |Green Bay|WI|54301|0001| |mary.johnson@greenbayhealth.com| | | | 
-02|000000000024680|P|Johnson                  Mary         A|250 Oak Avenue| |Green Bay|WI|54301|0001| | |Mary Johnson|9205553456| |
+02|000000000024680|S|P|Johnson                  Mary         A|250 Oak Avenue| |Green Bay|WI|54301|0001|0500100000| |Mary Johnson|9205553456| |9205553457
+02|000000000024680|M|P|Johnson                  Mary         A|250 Oak Avenue| |Green Bay|WI|54301|0001| |mary.johnson@greenbayhealth.com| | | | 
+02|000000000024680|P|P|Johnson                  Mary         A|250 Oak Avenue| |Green Bay|WI|54301|0001| | |Mary Johnson|9205553456| |
 03|000000000024680|392468013|S|20210315|99991231
 04|000000000024680|DENTL|20210315|99991231|A|Active
 05|000000000024680|35|Dentist|300|General Dentistry|20210315|99991231
