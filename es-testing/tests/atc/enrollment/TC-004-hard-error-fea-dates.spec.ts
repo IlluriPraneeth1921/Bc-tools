@@ -86,12 +86,56 @@ async function createEnrollment(
   // Status Reason
   const reasonInput = pg.locator('input[aria-label="Status Reason"]').first();
   await reasonInput.click({ force: true });
-  await pg.waitForTimeout(300);
-  await reasonInput.fill(opts.statusReason.substring(0, 10), { force: true });
-  await pg.waitForTimeout(1500);
-  const reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-  if (await reasonOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+  await pg.waitForTimeout(500);
+
+  // Type the status reason text to trigger autocomplete
+  await reasonInput.fill('', { force: true });
+  await reasonInput.pressSequentially(opts.statusReason.substring(0, 10), { delay: 80 });
+  await pg.waitForTimeout(2000);
+
+  let reasonSelected = false;
+  let reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+  if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await reasonOpt.click();
+    reasonSelected = true;
+  }
+
+  if (!reasonSelected) {
+    // Try typing just first 3 chars
+    await reasonInput.fill('', { force: true });
+    await reasonInput.pressSequentially('Not', { delay: 80 });
+    await pg.waitForTimeout(2000);
+    reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+    if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await reasonOpt.click();
+      reasonSelected = true;
+    }
+  }
+
+  if (!reasonSelected) {
+    // Try typing just a single space/letter to open full list
+    await reasonInput.fill('', { force: true });
+    await reasonInput.pressSequentially('a', { delay: 80 });
+    await pg.waitForTimeout(1500);
+    // Clear and try again — some autocompletes show all on backspace
+    await reasonInput.fill('', { force: true });
+    await pg.waitForTimeout(1500);
+    reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+    if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await reasonOpt.click();
+      reasonSelected = true;
+    }
+  }
+
+  if (!reasonSelected) {
+    // Last resort: use keyboard to open and select
+    await reasonInput.click({ force: true });
+    await reasonInput.press('ArrowDown');
+    await pg.waitForTimeout(1000);
+    reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+    if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await reasonOpt.click();
+    }
   }
   await pg.waitForTimeout(500);
 

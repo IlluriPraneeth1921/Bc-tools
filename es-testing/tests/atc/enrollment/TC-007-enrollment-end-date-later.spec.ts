@@ -90,6 +90,25 @@ test.describe.serial('TC-007: End Date Later (Extension)', () => {
   // ─── Open Edit Dialog and Extend End Date ───────────────────────────────────
 
   test('ATC-ES-036 - Open edit dialog and extend end date to 12/31/2299', async () => {
+    // Wait for any pending MMIS transaction to complete before editing
+    // (TC-006 may have just triggered a sync that hasn't finished)
+    const currentUrl = page.url();
+    const maxWaitAttempts = 6;
+    for (let attempt = 1; attempt <= maxWaitAttempts; attempt++) {
+      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+
+      const pageText = await page.locator('main').textContent().catch(() => '') || '';
+      if (!/Synchronization Pending/i.test(pageText)) {
+        console.log(`[TC-007] No pending sync detected (attempt ${attempt})`);
+        break;
+      }
+      if (attempt < maxWaitAttempts) {
+        console.log(`[TC-007] MMIS sync still pending — waiting 10s (attempt ${attempt}/${maxWaitAttempts})...`);
+        await page.waitForTimeout(10_000);
+      }
+    }
     // Wait for Overview section to render
     await page.locator('text=Overview').first().waitFor({ state: 'visible', timeout: 15_000 });
     await page.waitForTimeout(2000);
@@ -118,52 +137,14 @@ test.describe.serial('TC-007: End Date Later (Extension)', () => {
 
     expect(dialogOpened, 'Edit Program Enrollment dialog did not open after clicking pencil icon').toBe(true);
 
-    // Change Status back to "Enrolled"
-    const statusInput = page.locator('input[aria-label="Status"]').first();
-    await expect(statusInput).toBeVisible({ timeout: 10_000 });
-    await statusInput.click({ force: true });
-    await page.waitForTimeout(300);
-    await statusInput.fill('', { force: true });
-    await statusInput.fill('Enrolled', { force: true });
-    await page.waitForTimeout(1500);
-
-    const statusOpt = page.locator('mat-option').filter({ hasText: /^Enrolled$/i }).first();
-    if (await statusOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await statusOpt.click();
-      await page.waitForTimeout(1500);
-    } else {
-      // Try broader match
-      const statusOptAlt = page.locator('mat-option').filter({ hasText: /Enrolled/i }).filter({ hasNotText: /Disenrolled/i }).first();
-      await expect(statusOptAlt).toBeVisible({ timeout: 5_000 });
-      await statusOptAlt.click();
-      await page.waitForTimeout(1500);
+    // Dismiss any warning banner
+    const closeBanner = page.locator('mat-dialog-container button').filter({ hasText: /^close$/ }).first();
+    if (await closeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await closeBanner.click();
+      await page.waitForTimeout(500);
     }
 
-    // Select Status Reason (pick first available — "Not Applicable" preferred)
-    const reasonInput = page.locator('input[aria-label="Status Reason"]').first();
-    if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await reasonInput.click({ force: true });
-      await page.waitForTimeout(300);
-      await reasonInput.fill('', { force: true });
-      await reasonInput.fill('Not Applicable', { force: true });
-      await page.waitForTimeout(1500);
-      const reasonOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-      if (await reasonOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
-        await reasonOpt.click();
-        await page.waitForTimeout(500);
-      } else {
-        // Fallback: clear and pick first
-        await reasonInput.fill('', { force: true });
-        await page.waitForTimeout(1000);
-        const fallbackOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-        if (await fallbackOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await fallbackOpt.click();
-          await page.waitForTimeout(500);
-        }
-      }
-    }
-
-    // Set End Date to later date (12/31/2299 = open-ended)
+    // Step 1: Set End Date to later date (12/31/2299 = open-ended)
     const endDateInput = page.locator('input[id^="endDate_"]').first();
     await expect(endDateInput).toBeVisible({ timeout: 5_000 });
     await endDateInput.click({ force: true });
@@ -175,7 +156,50 @@ test.describe.serial('TC-007: End Date Later (Extension)', () => {
       el.dispatchEvent(new Event('blur', { bubbles: true }));
     });
     await endDateInput.press('Tab');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1500);
+
+    // Step 2: Status field is required — ensure it has a value
+    const statusInput = page.locator('mat-dialog-container input[aria-label="Status"]').first();
+    if (await statusInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      const currentStatus = await statusInput.inputValue().catch(() => '');
+      if (!currentStatus || currentStatus.trim() === '') {
+        await statusInput.click({ force: true });
+        await page.waitForTimeout(300);
+        await statusInput.fill('Enrolled', { force: true });
+        await page.waitForTimeout(1500);
+        const statusOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+        if (await statusOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await statusOpt.click();
+          await page.waitForTimeout(1000);
+        }
+      }
+    }
+
+    // Step 3: Status Reason field is required — ensure it has a value
+    const reasonInput = page.locator('mat-dialog-container input[aria-label="Status Reason"]').first();
+    if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      const currentReason = await reasonInput.inputValue().catch(() => '');
+      if (!currentReason || currentReason.trim() === '') {
+        await reasonInput.click({ force: true });
+        await page.waitForTimeout(300);
+        await reasonInput.fill('Not Applicable', { force: true });
+        await page.waitForTimeout(1500);
+        const reasonOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+        if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await reasonOpt.click();
+          await page.waitForTimeout(500);
+        } else {
+          await reasonInput.fill('', { force: true });
+          await reasonInput.fill('Not', { force: true });
+          await page.waitForTimeout(1500);
+          const fallback = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+          if (await fallback.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            await fallback.click();
+            await page.waitForTimeout(500);
+          }
+        }
+      }
+    }
 
     // Click Save
     const saveBtn = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
@@ -190,8 +214,11 @@ test.describe.serial('TC-007: End Date Later (Extension)', () => {
     // Verify dialog closed
     const dialogStillOpen = await page.locator('mat-dialog-container').first().isVisible({ timeout: 3_000 }).catch(() => false);
     if (dialogStillOpen) {
-      const errors = await page.locator('mat-error').all();
-      for (const e of errors) { console.error(`[TC-007] Error: ${(await e.textContent())?.trim()}`); }
+      const matErrors = await page.locator('mat-error').all();
+      for (const e of matErrors) { console.error(`[TC-007] mat-error: ${(await e.textContent())?.trim()}`); }
+      const dialogText = await page.locator('mat-dialog-container').textContent().catch(() => '') || '';
+      console.error(`[TC-007] Dialog text (first 500): ${dialogText.substring(0, 500)}`);
+      await page.screenshot({ path: 'test-results/tc007-dialog-not-closed.png', fullPage: true }).catch(() => {});
     }
     expect(dialogStillOpen, 'Dialog did not close after save — possible validation errors').toBe(false);
 

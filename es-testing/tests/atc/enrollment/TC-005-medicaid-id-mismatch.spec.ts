@@ -84,12 +84,32 @@ async function createEnrollment(
   // Status Reason
   const reasonInput = pg.locator('input[aria-label="Status Reason"]').first();
   await reasonInput.click({ force: true });
-  await pg.waitForTimeout(300);
-  await reasonInput.fill(opts.statusReason.substring(0, 10), { force: true });
-  await pg.waitForTimeout(1500);
-  const reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-  if (await reasonOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+  await pg.waitForTimeout(500);
+  await reasonInput.fill('', { force: true });
+  await reasonInput.pressSequentially(opts.statusReason.substring(0, 10), { delay: 80 });
+  await pg.waitForTimeout(2000);
+  let reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+  if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
     await reasonOpt.click();
+  } else {
+    // Fallback: try shorter text
+    await reasonInput.fill('', { force: true });
+    await reasonInput.pressSequentially('Not', { delay: 80 });
+    await pg.waitForTimeout(2000);
+    reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+    if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await reasonOpt.click();
+    } else {
+      // Last resort: ArrowDown to open list
+      await reasonInput.fill('', { force: true });
+      await reasonInput.click({ force: true });
+      await reasonInput.press('ArrowDown');
+      await pg.waitForTimeout(1000);
+      reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+      if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await reasonOpt.click();
+      }
+    }
   }
   await pg.waitForTimeout(500);
 

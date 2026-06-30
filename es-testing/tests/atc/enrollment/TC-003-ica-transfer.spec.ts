@@ -54,10 +54,7 @@ test.describe.serial('TC-003: ICA Transfer: Close Old + Open New Span', () => {
   const state = await getFullEnrollmentState(page);
   console.log(`[TC-003] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
 
-  if (state.irisState !== 'Enrolled') {
-    console.log(`[TC-003] Skipping — precondition not met (current: ${state.irisState})`);
-    return;
-  }
+  expect(state.irisState, 'Precondition failed: participant must be Enrolled. Run TC-001 first.').toBe('Enrolled');
 
   const firstRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).first();
   await expect(firstRow).toBeVisible({ timeout: 15_000 });
