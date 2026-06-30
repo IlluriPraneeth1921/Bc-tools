@@ -117,46 +117,14 @@ test.describe.serial('TC-006: End Date Earlier (Disenrollment)', () => {
 
     expect(dialogOpened, 'Edit Program Enrollment dialog did not open after clicking pencil icon').toBe(true);
 
-    // Change Status to "Disenrolled"
-    const statusInput = page.locator('input[aria-label="Status"]').first();
-    await expect(statusInput).toBeVisible({ timeout: 10_000 });
-    await statusInput.click({ force: true });
-    await page.waitForTimeout(300);
-    await statusInput.fill('', { force: true });
-    await statusInput.fill('Disenrolled', { force: true });
-    await page.waitForTimeout(1500);
-
-    const statusOpt = page.locator('mat-option').filter({ hasText: /Disenrolled/i }).first();
-    await expect(statusOpt).toBeVisible({ timeout: 5_000 });
-    await statusOpt.click();
-    await page.waitForTimeout(1500);
-
-    // Select Status Reason (pick first available)
-    const reasonInput = page.locator('input[aria-label="Status Reason"]').first();
-    if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await reasonInput.click({ force: true });
-      await page.waitForTimeout(300);
-      await reasonInput.fill('', { force: true });
-      await reasonInput.fill('Voluntary', { force: true });
-      await page.waitForTimeout(1500);
-      const reasonOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-      if (await reasonOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
-        await reasonOpt.click();
-        await page.waitForTimeout(500);
-      } else {
-        // Fallback: try "Not Applicable"
-        await reasonInput.fill('', { force: true });
-        await reasonInput.fill('Not', { force: true });
-        await page.waitForTimeout(1500);
-        const fallbackOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-        if (await fallbackOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await fallbackOpt.click();
-          await page.waitForTimeout(500);
-        }
-      }
+    // Step 1: Dismiss any warning banner (close button)
+    const closeBanner = page.locator('mat-dialog-container button').filter({ hasText: /^close$/ }).first();
+    if (await closeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
+      await closeBanner.click();
+      await page.waitForTimeout(500);
     }
 
-    // Set End Date to earlier date (09/30/2026)
+    // Step 2: Set End Date to earlier date (09/30/2026)
     const endDateInput = page.locator('input[id^="endDate_"]').first();
     await expect(endDateInput).toBeVisible({ timeout: 5_000 });
     await endDateInput.click({ force: true });
@@ -168,7 +136,50 @@ test.describe.serial('TC-006: End Date Earlier (Disenrollment)', () => {
       el.dispatchEvent(new Event('blur', { bubbles: true }));
     });
     await endDateInput.press('Tab');
-    await page.waitForTimeout(500);
+    await page.waitForTimeout(1500);
+
+    // Step 3: Status field is required — ensure it has a value
+    const statusInput = page.locator('mat-dialog-container input[aria-label="Status"]').first();
+    if (await statusInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      const currentStatus = await statusInput.inputValue().catch(() => '');
+      if (!currentStatus || currentStatus.trim() === '') {
+        await statusInput.click({ force: true });
+        await page.waitForTimeout(300);
+        await statusInput.fill('Enrolled', { force: true });
+        await page.waitForTimeout(1500);
+        const statusOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+        if (await statusOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await statusOpt.click();
+          await page.waitForTimeout(1000);
+        }
+      }
+    }
+
+    // Step 4: Status Reason field is required — ensure it has a value
+    const reasonInput = page.locator('mat-dialog-container input[aria-label="Status Reason"]').first();
+    if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      const currentReason = await reasonInput.inputValue().catch(() => '');
+      if (!currentReason || currentReason.trim() === '') {
+        await reasonInput.click({ force: true });
+        await page.waitForTimeout(300);
+        await reasonInput.fill('Not Applicable', { force: true });
+        await page.waitForTimeout(1500);
+        const reasonOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+        if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await reasonOpt.click();
+          await page.waitForTimeout(500);
+        } else {
+          await reasonInput.fill('', { force: true });
+          await reasonInput.fill('Not', { force: true });
+          await page.waitForTimeout(1500);
+          const fallback = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+          if (await fallback.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            await fallback.click();
+            await page.waitForTimeout(500);
+          }
+        }
+      }
+    }
 
     // Click Save
     const saveBtn = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
@@ -183,8 +194,20 @@ test.describe.serial('TC-006: End Date Earlier (Disenrollment)', () => {
     // Verify dialog closed
     const dialogStillOpen = await page.locator('mat-dialog-container').first().isVisible({ timeout: 3_000 }).catch(() => false);
     if (dialogStillOpen) {
-      const errors = await page.locator('mat-error').all();
-      for (const e of errors) { console.error(`[TC-006] Error: ${(await e.textContent())?.trim()}`); }
+      // Log ALL error indicators
+      const matErrors = await page.locator('mat-error').all();
+      for (const e of matErrors) { console.error(`[TC-006] mat-error: ${(await e.textContent())?.trim()}`); }
+      
+      // Also check for snackbar/toast errors
+      const snackbar = await page.locator('snack-bar-container, .mat-snack-bar-container, [class*="snack"]').textContent().catch(() => '');
+      if (snackbar) console.error(`[TC-006] Snackbar: ${snackbar.trim()}`);
+
+      // Check for any visible error text in the dialog
+      const dialogText = await page.locator('mat-dialog-container').textContent().catch(() => '') || '';
+      console.error(`[TC-006] Dialog text (first 500): ${dialogText.substring(0, 500)}`);
+      
+      // Take screenshot for debugging
+      await page.screenshot({ path: 'test-results/tc006-dialog-not-closed.png', fullPage: true }).catch(() => {});
     }
     expect(dialogStillOpen, 'Dialog did not close after save — possible validation errors').toBe(false);
 

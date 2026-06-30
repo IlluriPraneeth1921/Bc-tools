@@ -44,15 +44,29 @@ export async function loginAndSelectContext(page: Page) {
   const currentUrl = page.url();
 
   // ─── Step 1: Cognito login (if redirected) ─────────────────────────────────
-  if (currentUrl.includes('amazoncognito.com')) {
+  if (currentUrl.includes('amazoncognito.com') || currentUrl.includes('auth') || await page.locator('input[placeholder="Username"], #signInFormUsername').first().isVisible({ timeout: 5_000 }).catch(() => false)) {
+    // Try the standard Cognito hosted UI form first
     const form = page.locator(
       '.modal-content-mobile.visible-md form[name="cognitoSignInForm"], ' +
       '.modal-content-desktop form[name="cognitoSignInForm"]'
     ).first();
-    await form.waitFor({ state: 'attached', timeout: 15_000 });
-    await form.locator('#signInFormUsername').fill(process.env.TEST_USER!, { force: true });
-    await form.locator('#signInFormPassword').fill(process.env.TEST_PASSWORD!, { force: true });
-    await form.locator('input[name="signInSubmitButton"]').click({ force: true });
+    const formFound = await form.isVisible({ timeout: 5_000 }).catch(() => false);
+
+    if (formFound) {
+      await form.locator('#signInFormUsername').fill(process.env.TEST_USER!, { force: true });
+      await form.locator('#signInFormPassword').fill(process.env.TEST_PASSWORD!, { force: true });
+      await form.locator('input[name="signInSubmitButton"]').click({ force: true });
+    } else {
+      // Fallback: simpler Cognito login form (different layout)
+      const usernameInput = page.locator('input[placeholder="Username"], input[name="username"], #signInFormUsername').first();
+      const passwordInput = page.locator('input[placeholder="Password"], input[name="password"], #signInFormPassword').first();
+      const signInBtn = page.locator('button:has-text("Sign in"), input[name="signInSubmitButton"], button[type="submit"]').first();
+
+      await usernameInput.waitFor({ state: 'visible', timeout: 10_000 });
+      await usernameInput.fill(process.env.TEST_USER!, { force: true });
+      await passwordInput.fill(process.env.TEST_PASSWORD!, { force: true });
+      await signInBtn.click({ force: true });
+    }
 
     // Wait for redirect back to the app
     await page.waitForURL(

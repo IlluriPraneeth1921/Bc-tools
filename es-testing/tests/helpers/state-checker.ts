@@ -36,6 +36,10 @@ export interface EnrollmentStateInfo {
  * Returns the most recent IRIS enrollment status or null if none exist.
  */
 export async function getCurrentIrisState(page: Page): Promise<IrisEnrollmentState> {
+  // Wait for mat-row elements to appear (list may still be loading)
+  const firstRow = page.locator('mat-row').first();
+  await firstRow.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
   const rows = page.locator('mat-row');
   const count = await rows.count();
 
@@ -76,6 +80,10 @@ export async function getCurrentSdpcState(page: Page): Promise<IrisEnrollmentSta
  * Full state snapshot — reads all relevant enrollment/suspension/sync information.
  */
 export async function getFullEnrollmentState(page: Page): Promise<EnrollmentStateInfo> {
+  // Wait for mat-row elements to appear (list may still be loading)
+  const firstRow = page.locator('mat-row').first();
+  await firstRow.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
   const rows = page.locator('mat-row');
   const count = await rows.count();
 
