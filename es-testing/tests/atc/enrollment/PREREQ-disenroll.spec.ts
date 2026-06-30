@@ -22,18 +22,17 @@ let browser: Browser;
 let page: Page;
 let participantUuid: string;
 
-test.beforeAll(async () => {
-  browser = await chromium.launch({ headless: true });
-  page = await browser.newContext().then(c => c.newPage());
-  await loginAndSelectContext(page);
-  participantUuid = await resolveParticipantUuid(page);
-  console.log(`[Prereq-Disenroll] Participant UUID: ${participantUuid}`);
-});
-test.setTimeout(180_000);
+test.describe.serial('PREREQ: Disenroll participant from IRIS', () => {
 
-test.afterAll(async () => {
-  await browser.close();
-});
+  test.beforeAll(async () => {
+    browser = await chromium.launch({ headless: true });
+    page = await browser.newContext().then(c => c.newPage());
+    await loginAndSelectContext(page);
+    participantUuid = await resolveParticipantUuid(page);
+    console.log(`[Prereq-Disenroll] Participant UUID: ${participantUuid}`);
+  });
+  test.setTimeout(180_000);
+  test.afterAll(async () => { await browser.close(); });
 
 test('PREREQ-001 - Disenroll participant from IRIS program', async () => {
   // Navigate to enrollments
@@ -199,7 +198,9 @@ test('PREREQ-003 - Open disenrollment detail and verify MMIS sync status', async
 
   // Wait for sync (up to 20 seconds)
   await page.waitForTimeout(5000);
-  await page.reload({ waitUntil: 'networkidle', timeout: 15_000 }).catch(() => {});
+  const currentUrl = page.url();
+  await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(3000);
 
   const status = await getSyncStatus(page);
@@ -212,3 +213,5 @@ test('PREREQ-003 - Open disenrollment detail and verify MMIS sync status', async
   const hasSyncInfo = pageText.includes('MMIS') || pageText.includes('Sync') || pageText.includes('sync');
   expect(hasSyncInfo).toBe(true);
 });
+
+}); // end describe.serial

@@ -36,18 +36,17 @@ let browser: Browser;
 let page: Page;
 let participantUuid: string;
 
-test.beforeAll(async () => {
-  browser = await chromium.launch({ headless: true });
-  page = await browser.newContext().then(c => c.newPage());
-  await loginAndSelectContext(page);
-  participantUuid = await resolveParticipantUuid(page);
-  console.log(`[TC-030] Participant UUID: ${participantUuid}`);
-});
-test.setTimeout(300_000);
+test.describe.serial('TC-030: SE Response: Enrollment Activated', () => {
 
-test.afterAll(async () => {
-  await browser.close();
-});
+  test.beforeAll(async () => {
+    browser = await chromium.launch({ headless: true });
+    page = await browser.newContext().then(c => c.newPage());
+    await loginAndSelectContext(page);
+    participantUuid = await resolveParticipantUuid(page);
+    console.log(`[TC-030] Participant UUID: ${participantUuid}`);
+  });
+  test.setTimeout(300_000);
+  test.afterAll(async () => { await browser.close(); });
 
 /**
  * Helper: Creates a new enrollment via "+ New Program Enrollment" dialog.
@@ -147,11 +146,25 @@ test('ATC-ES-127 - Verify SE response status', async () => {
   }
 
   await page.waitForTimeout(10000);
-  await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
+  const currentUrl = page.url();
+  const maxAttempts = 6;
+  const pollInterval = 10_000;
+  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
 
-  const status = await getSyncStatus(page);
-  console.log(`[TC-030] Sync status: ${JSON.stringify(status)}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+
+    status = await getSyncStatus(page);
+    console.log(`[TC-030] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+    if (status.responseStatus !== null) break;
+
+    if (attempt < maxAttempts) {
+      await page.waitForTimeout(pollInterval);
+    }
+  }
 
   expect(status.responseStatus).toBe('SE');
 });
@@ -186,3 +199,5 @@ test('ATC-ES-130 - Verify no conflict badge (SE is success)', async () => {
   const conflictVisible = await hasConflictBadge(page);
   expect(conflictVisible).toBe(false);
 });
+
+}); // end describe.serial

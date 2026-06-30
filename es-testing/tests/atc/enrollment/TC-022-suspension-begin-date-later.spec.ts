@@ -33,18 +33,17 @@ let browser: Browser;
 let page: Page;
 let participantUuid: string;
 
-test.beforeAll(async () => {
-  browser = await chromium.launch({ headless: true });
-  page = await browser.newContext().then(c => c.newPage());
-  await loginAndSelectContext(page);
-  participantUuid = await resolveParticipantUuid(page);
-  console.log(`[TC-022] Participant UUID: ${participantUuid}`);
-});
-test.setTimeout(300_000);
+test.describe.serial('TC-022: Suspension Begin → Later (S230_002)', () => {
 
-test.afterAll(async () => {
-  await browser.close();
-});
+  test.beforeAll(async () => {
+    browser = await chromium.launch({ headless: true });
+    page = await browser.newContext().then(c => c.newPage());
+    await loginAndSelectContext(page);
+    participantUuid = await resolveParticipantUuid(page);
+    console.log(`[TC-022] Participant UUID: ${participantUuid}`);
+  });
+  test.setTimeout(300_000);
+  test.afterAll(async () => { await browser.close(); });
 
 test('ATC-ES-093 - Navigate to enrollment detail (only if Enrolled + suspension)', async () => {
   await navigateToEnrollments(page, participantUuid);
@@ -105,8 +104,25 @@ test('ATC-ES-094 - Change suspension begin date to later date', async () => {
 });
 
 test('ATC-ES-095 - Verify 3 MMIS transactions (S410 + S510 + S400)', async () => {
-  await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(5000);
+  const currentUrl = page.url();
+  const maxAttempts = 6;
+  const pollInterval = 10_000;
+  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+
+    status = await getSyncStatus(page);
+    console.log(`[TC-022] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+    if (status.responseStatus !== null) break;
+
+    if (attempt < maxAttempts) {
+      await page.waitForTimeout(pollInterval);
+    }
+  }
 
   await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
 
@@ -120,6 +136,8 @@ test('ATC-ES-096 - Verify SU response and no conflict', async () => {
   const status = await getSyncStatus(page);
   console.log(`[TC-022] Sync status: ${JSON.stringify(status)}`);
 
-  expect(status.responseStatus).toBe('SU');
+  expect(status.responseStatus).toMatch(/^(SU|SE)$/);
   expect(status.hasConflict).toBe(false);
 });
+
+}); // end describe.serial

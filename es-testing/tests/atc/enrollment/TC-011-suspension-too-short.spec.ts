@@ -35,18 +35,17 @@ let browser: Browser;
 let page: Page;
 let participantUuid: string;
 
-test.beforeAll(async () => {
-  browser = await chromium.launch({ headless: true });
-  page = await browser.newContext().then(c => c.newPage());
-  await loginAndSelectContext(page);
-  participantUuid = await resolveParticipantUuid(page);
-  console.log(`[TC-011] Participant UUID: ${participantUuid}`);
-});
-test.setTimeout(300_000);
+test.describe.serial('TC-011: Suspension < 3 Days (Error)', () => {
 
-test.afterAll(async () => {
-  await browser.close();
-});
+  test.beforeAll(async () => {
+    browser = await chromium.launch({ headless: true });
+    page = await browser.newContext().then(c => c.newPage());
+    await loginAndSelectContext(page);
+    participantUuid = await resolveParticipantUuid(page);
+    console.log(`[TC-011] Participant UUID: ${participantUuid}`);
+  });
+  test.setTimeout(300_000);
+  test.afterAll(async () => { await browser.close(); });
 
 test('ATC-ES-049 - Navigate to enrollment detail (only if Enrolled)', async () => {
   await navigateToEnrollments(page, participantUuid);
@@ -115,7 +114,9 @@ test('ATC-ES-051 - Verify error displayed (no MMIS sync triggered)', async () =>
 
 test('ATC-ES-052 - Verify no MMIS transaction rows generated', async () => {
   // If we're still on the detail page, reload and check
-  await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+  const currentUrl = page.url();
+  await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(3000);
 
   // Should NOT have any new MMIS transaction list for this failed suspension
@@ -134,3 +135,5 @@ test('ATC-ES-052 - Verify no MMIS transaction rows generated', async () => {
 
   expect(status.hasConflict).toBe(false);
 });
+
+}); // end describe.serial

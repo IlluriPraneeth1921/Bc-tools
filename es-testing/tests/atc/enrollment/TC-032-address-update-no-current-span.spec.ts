@@ -32,18 +32,17 @@ let browser: Browser;
 let page: Page;
 let participantUuid: string;
 
-test.beforeAll(async () => {
-  browser = await chromium.launch({ headless: true });
-  page = await browser.newContext().then(c => c.newPage());
-  await loginAndSelectContext(page);
-  participantUuid = await resolveParticipantUuid(page);
-  console.log(`[TC-032] Participant UUID: ${participantUuid}`);
-});
-test.setTimeout(300_000);
+test.describe.serial('TC-032: Address Update: No Current Span (S700 Cond 2)', () => {
 
-test.afterAll(async () => {
-  await browser.close();
-});
+  test.beforeAll(async () => {
+    browser = await chromium.launch({ headless: true });
+    page = await browser.newContext().then(c => c.newPage());
+    await loginAndSelectContext(page);
+    participantUuid = await resolveParticipantUuid(page);
+    console.log(`[TC-032] Participant UUID: ${participantUuid}`);
+  });
+  test.setTimeout(300_000);
+  test.afterAll(async () => { await browser.close(); });
 
 test('ATC-ES-135 - Navigate to disenrolled participant (only if Disenrolled)', async () => {
   await navigateToEnrollments(page, participantUuid);
@@ -109,8 +108,10 @@ test('ATC-ES-136 - Update address on disenrolled participant', async () => {
 });
 
 test('ATC-ES-137 - Verify no new MMIS transaction generated', async () => {
-  await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(5000);
+  const currentUrl = page.url();
+  await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  await page.waitForTimeout(3000);
 
   const transactionList = page.getByText('MMIS Transaction List').first();
   const hasTransactionList = await transactionList.isVisible({ timeout: 5_000 }).catch(() => false);
@@ -138,3 +139,5 @@ test('ATC-ES-138 - Verify S700 condition 2 routes to do nothing', async () => {
 
   console.log('[TC-032] Confirmed: S700 Condition 2 — no MMIS transaction sent for disenrolled participant');
 });
+
+}); // end describe.serial

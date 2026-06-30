@@ -38,18 +38,17 @@ let browser: Browser;
 let page: Page;
 let participantUuid: string;
 
-test.beforeAll(async () => {
-  browser = await chromium.launch({ headless: true });
-  page = await browser.newContext().then(c => c.newPage());
-  await loginAndSelectContext(page);
-  participantUuid = await resolveParticipantUuid(page);
-  console.log(`[TC-004] Participant UUID: ${participantUuid}`);
-});
-test.setTimeout(300_000);
+test.describe.serial('TC-004: Hard Error: FEA Dates Don\'t Span Enrollment Period', () => {
 
-test.afterAll(async () => {
-  await browser.close();
-});
+  test.beforeAll(async () => {
+    browser = await chromium.launch({ headless: true });
+    page = await browser.newContext().then(c => c.newPage());
+    await loginAndSelectContext(page);
+    participantUuid = await resolveParticipantUuid(page);
+    console.log(`[TC-004] Participant UUID: ${participantUuid}`);
+  });
+  test.setTimeout(300_000);
+  test.afterAll(async () => { await browser.close(); });
 
 /**
  * Helper: Creates a new enrollment via "+ New Program Enrollment" dialog.
@@ -177,13 +176,26 @@ test('ATC-ES-022 - Verify FL response status', async () => {
     return;
   }
 
-  // Wait for sync attempt to complete
-  await page.waitForTimeout(10000);
-  await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
+  // Wait for sync attempt to complete with polling
+  const currentUrl = page.url();
+  const maxAttempts = 6;
+  const pollInterval = 10_000;
+  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
 
-  const status = await getSyncStatus(page);
-  console.log(`[TC-004] Sync status: ${JSON.stringify(status)}`);
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+
+    status = await getSyncStatus(page);
+    console.log(`[TC-004] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+    if (status.responseStatus !== null) break;
+
+    if (attempt < maxAttempts) {
+      await page.waitForTimeout(pollInterval);
+    }
+  }
 
   expect(status.responseStatus).toBe('FL');
 });
@@ -206,3 +218,5 @@ test('ATC-ES-025 - Verify Re-submit button visible', async () => {
   const resubmitVisible = await isResubmitVisible(page);
   expect(resubmitVisible).toBe(true);
 });
+
+}); // end describe.serial
