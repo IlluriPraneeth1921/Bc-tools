@@ -60,41 +60,41 @@
 
 ## Test Case Inventory
 
-| TC # | Scenario | Program | Txns | Decision Table Path | Expected |
-|------|----------|---------|------|---------------------|----------|
-| TC-001 | New IRIS Enrollment — Happy Path | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | SU |
-| TC-002 | Enrolled → Suspended (with end date) | IRIS | 3 | S100(3)→S200→S240(1)→**S500+S510+S520** | SU |
-| TC-003 | ICA Transfer — Active Span | IRIS | 2 | S100(6)→S200→S250(1)→**S600+S255(2)→S610** | SU |
-| TC-004 | Hard Error — FEA Dates Don't Span | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | FL (9156) |
-| TC-005 | Medicaid ID Mismatch (BR-D01-016) | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | SU + ID swap |
-| TC-006 | End Date → Earlier (Disenrollment) | IRIS | 1 | S100(2)→S200→S220(4)→**S340** | SU |
-| TC-007 | End Date → Later (Extension) | IRIS | 1 | S100(2)→S200→S220(5)→**S350**(2) | SU |
-| TC-008 | Enrolled → Referral Withdrawn | IRIS | 1 | S100(2)→S200→S220(6)→**S310** | SU |
-| TC-009 | Disenrolled → Enrolled (Reinstatement) | IRIS | 1 | S100(2)→S200→S220(7)→**S300** | SU |
-| TC-010 | Open-Ended Suspension (no end date) | IRIS | 2 | S100(3)→S200→S240(2)→**S500+S510** | SU |
-| TC-011 | Suspension < 3 Days (Error) | IRIS | 0 | S100(3)→S200→S240(3)→⛔ | No Txn |
-| TC-012 | Suspension Deleted | IRIS | 2 | S100(4)→S200→S230(5)→**S410+S470** | SU |
-| TC-013 | Suspension End: Null → Valid | IRIS | 2 | S100(4)→S200→S230(6)→**S440+S520** | SU |
-| TC-014 | Address-Only Update (S700 Cond 1) | IRIS | 1 | S100(11)→S200→**S700**(1) | SU |
-| TC-015 | New SDPC Enrollment | SDPC | 1 | S100(7)→S210→S220(1)→**S300**(Col2) | SU |
-| TC-016 | FEA Transfer — Close + Open | IRIS | 2 | S100(5)→S200→S250(1)→**S600+S255(2)→S610** | SU |
-| TC-017 | ICA Transfer During Suspension | IRIS | 3 | S100(6)→S200→S250(2)→**S600(2)+S255(3/4+2)→S620+S610** | SU |
-| TC-018 | New SDPC Suspension | SDPC | 3 | S100(9)→S210→S240(1)→**S500+S510+S520**(Col2) | SU |
-| TC-019 | Begin Date → Earlier (Delete+Recreate) | IRIS | 2 | S100(2)→S200→S220(2)→**S310+S300** | SU |
-| TC-020 | Begin Date → Later (Delete+Recreate) | IRIS | 2 | S100(2)→S200→S220(3)→**S310+S300** | SU |
-| TC-021 | Suspension Begin → Earlier (S230_001) | IRIS | 4 | S100(4)→S200→S230(1)→**S400+S410+S300+S510** | SU |
-| TC-022 | Suspension Begin → Later (S230_002) | IRIS | 3 | S100(4)→S200→S230(2)→**S410+S510+S400** | SU |
-| TC-023 | Suspension End → Earlier (S230_003) | IRIS | 4 | S100(4)→S200→S230(3)→**S410+S310+S510+S520** | SU |
-| TC-024 | Suspension End → Later (S230_004) | IRIS | 3 | S100(4)→S200→S230(4)→**S310+S445+S520** | SU |
-| TC-025 | Suspension End: Valid → Null (S230_007) | IRIS | 2 | S100(4)→S200→S230(7)→**S310+S445** | SU |
-| TC-026 | SDPC End Date → Earlier (Disenrollment) | SDPC | 1 | S100(8)→S210→S220(4)→**S340**(Col2) | SU |
-| TC-027 | SDPC Suspension Deleted | SDPC | 2 | S100(10)→S210→S230(5)→**S410+S470**(Col2) | SU |
-| TC-028 | End Date Later + Last Span Suspended | IRIS | 1 | S100(2)→S200→S220(5)→S350(1)→**S360** | SU |
-| TC-029 | Multiple MMIS Error Segments | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | FL (multi) |
-| TC-030 | SE Response — Enrollment Activated | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | SE |
-| TC-031 | ICA Transfer — Span-C Exists (S255_001) | IRIS | 3 | S100(6)→S200→S250(1)→**S600+S255(1)→S310+S610** | SU |
-| TC-032 | Address Update — No Current Span (S700 Cond 2) | IRIS | 0 | S100(11)→S200→**S700**(2)→⛔ | No Txn |
-| TC-033 | Disenrolled Span Created — Real Reason Code (S345) | IRIS | 1 | S100(2)→S200→S220(8)→**S345** | SU |
+| TC # | Scenario | Program | Txns | Decision Table Path | Expected | Automation |
+|------|----------|---------|------|---------------------|----------|------------|
+| TC-001 | New IRIS Enrollment — Happy Path | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | SU | ✅ Working |
+| TC-002 | Enrolled → Suspended (with end date) | IRIS | 3 | S100(3)→S200→S240(1)→**S500+S510+S520** | SU | ✅ Working |
+| TC-003 | ICA Transfer — Active Span | IRIS | 2 | S100(6)→S200→S250(1)→**S600+S255(2)→S610** | SU | ✅ Working |
+| TC-004 | Hard Error — FEA Dates Don't Span | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | FL (9156) | ✅ Working |
+| TC-005 | Medicaid ID Mismatch (BR-D01-016) | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | SU + ID swap | ✅ Working |
+| TC-006 | End Date → Earlier (Disenrollment) | IRIS | 1 | S100(2)→S200→S220(4)→**S340** | SU | ✅ Working |
+| TC-007 | End Date → Later (Extension) | IRIS | 1 | S100(2)→S200→S220(5)→**S350**(2) | SU | ✅ Working |
+| TC-008 | Enrolled → Referral Withdrawn | IRIS | 1 | S100(2)→S200→S220(6)→**S310** | SU | ✅ Working |
+| TC-009 | Disenrolled → Enrolled (Reinstatement) | IRIS | 1 | S100(2)→S200→S220(7)→**S300** | SU | ✅ Working |
+| TC-010 | Open-Ended Suspension (no end date) | IRIS | 2 | S100(3)→S200→S240(2)→**S500+S510** | SU | — |
+| TC-011 | Suspension < 3 Days (Error) | IRIS | 0 | S100(3)→S200→S240(3)→⛔ | No Txn | — |
+| TC-012 | Suspension Deleted | IRIS | 2 | S100(4)→S200→S230(5)→**S410+S470** | SU | — |
+| TC-013 | Suspension End: Null → Valid | IRIS | 2 | S100(4)→S200→S230(6)→**S440+S520** | SU | — |
+| TC-014 | Address-Only Update (S700 Cond 1) | IRIS | 1 | S100(11)→S200→**S700**(1) | SU | ✅ Working |
+| TC-015 | New SDPC Enrollment | SDPC | 1 | S100(7)→S210→S220(1)→**S300**(Col2) | SU | — |
+| TC-016 | FEA Transfer — Close + Open | IRIS | 2 | S100(5)→S200→S250(1)→**S600+S255(2)→S610** | SU | — |
+| TC-017 | ICA Transfer During Suspension | IRIS | 3 | S100(6)→S200→S250(2)→**S600(2)+S255(3/4+2)→S620+S610** | SU | — |
+| TC-018 | New SDPC Suspension | SDPC | 3 | S100(9)→S210→S240(1)→**S500+S510+S520**(Col2) | SU | — |
+| TC-019 | Begin Date → Earlier (Delete+Recreate) | IRIS | 2 | S100(2)→S200→S220(2)→**S310+S300** | SU | — |
+| TC-020 | Begin Date → Later (Delete+Recreate) | IRIS | 2 | S100(2)→S200→S220(3)→**S310+S300** | SU | — |
+| TC-021 | Suspension Begin → Earlier (S230_001) | IRIS | 4 | S100(4)→S200→S230(1)→**S400+S410+S300+S510** | SU | — |
+| TC-022 | Suspension Begin → Later (S230_002) | IRIS | 3 | S100(4)→S200→S230(2)→**S410+S510+S400** | SU | — |
+| TC-023 | Suspension End → Earlier (S230_003) | IRIS | 4 | S100(4)→S200→S230(3)→**S410+S310+S510+S520** | SU | — |
+| TC-024 | Suspension End → Later (S230_004) | IRIS | 3 | S100(4)→S200→S230(4)→**S310+S445+S520** | SU | — |
+| TC-025 | Suspension End: Valid → Null (S230_007) | IRIS | 2 | S100(4)→S200→S230(7)→**S310+S445** | SU | — |
+| TC-026 | SDPC End Date → Earlier (Disenrollment) | SDPC | 1 | S100(8)→S210→S220(4)→**S340**(Col2) | SU | — |
+| TC-027 | SDPC Suspension Deleted | SDPC | 2 | S100(10)→S210→S230(5)→**S410+S470**(Col2) | SU | — |
+| TC-028 | End Date Later + Last Span Suspended | IRIS | 1 | S100(2)→S200→S220(5)→S350(1)→**S360** | SU | — |
+| TC-029 | Multiple MMIS Error Segments | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | FL (multi) | — |
+| TC-030 | SE Response — Enrollment Activated | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | SE | — |
+| TC-031 | ICA Transfer — Span-C Exists (S255_001) | IRIS | 3 | S100(6)→S200→S250(1)→**S600+S255(1)→S310+S610** | SU | — |
+| TC-032 | Address Update — No Current Span (S700 Cond 2) | IRIS | 0 | S100(11)→S200→**S700**(2)→⛔ | No Txn | ✅ Working |
+| TC-033 | Disenrolled Span Created — Real Reason Code (S345) | IRIS | 1 | S100(2)→S200→S220(8)→**S345** | SU | — |
 
 ---
 
