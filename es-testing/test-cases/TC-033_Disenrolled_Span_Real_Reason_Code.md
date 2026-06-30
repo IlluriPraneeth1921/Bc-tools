@@ -350,3 +350,180 @@ ORDER BY Timestamp DESC
 
 ---
 
+## Database Verification (Post-Execution State)
+
+After test execution, verify the following Carity database records.
+
+### 1. `CustomerProgramEnrollmentModule.ProgramEnrollmentExtension`
+
+```sql
+SELECT * FROM CustomerProgramEnrollmentModule.ProgramEnrollmentExtension
+WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
+```
+
+| Column | Expected Value | Notes |
+|--------|----------------|-------|
+| `HasConflict` | 0 (false) | No conflict |
+| `ResponseStatusCode` | "SU" | Closure re-sent successfully |
+| `TransactionTypeCode` | "C" | Closure transaction |
+| `LastSynchronizedTimestamp` | Updated datetime2 | Newer than pre-execution |
+| `LastChangeTypeCode` | "DisenrolledSpanCreated" (or equivalent) | Disenrolled span triggered this |
+| `MmisEffectiveDate` | **2026-07-01** | Unchanged from prior S340 |
+| `MmisEndDate` | **2026-09-30** | Unchanged from prior S340 |
+
+### 2. `CustomerProgramEnrollmentModule.SyncTransaction`
+
+```sql
+SELECT * FROM CustomerProgramEnrollmentModule.SyncTransaction
+WHERE ProgramEnrollmentExtensionKey = '{ProgramEnrollmentExtensionKey}'
+ORDER BY Timestamp DESC
+```
+
+Expected: **1 new row** (in addition to prior TC-006 S340 row)
+
+**New Row — S345 (Re-send Closure with real reason):**
+
+| Column | Expected Value |
+|--------|----------------|
+| `TransactionTypeCode` | "C" |
+| `MmisEffectiveDate` | 2026-07-01 (same as prior S340) |
+| `MmisEndDate` | 2026-09-30 (same as prior S340) |
+| `ResponseStatusCode` | "SU" |
+| `RequestJsonTextFile` | NOT NULL — verify StartReasonCode = "64", StopReasonCode = "64" |
+| `ChangeTypeCode` | "DisenrolledSpanCreated" (or equivalent) |
+| `TxnRefId` | {captured at runtime} |
+
+### 3. `CustomerProgramEnrollmentModule.ProgramEnrollmentExtensionMessages`
+
+```sql
+SELECT * FROM CustomerProgramEnrollmentModule.ProgramEnrollmentExtensionMessages
+WHERE ProgramEnrollmentExtensionKey = '{ProgramEnrollmentExtensionKey}'
+```
+
+| Expected Result | Notes |
+|-----------------|-------|
+| **No rows returned** | Transaction successful — no error messages |
+
+### 4. `ProgramEnrollmentModule.ProgramEnrollment` (original enrollment — no change)
+
+```sql
+SELECT StatusDisplayName, EnrollmentDateRangeStartDate, EnrollmentDateRangeEndDate
+FROM ProgramEnrollmentModule.ProgramEnrollment
+WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
+```
+
+| Column | Expected Value | Notes |
+|--------|----------------|-------|
+| `StatusDisplayName` | "Enrolled" | Unchanged |
+| `EnrollmentDateRangeStartDate` | 2026-07-01 | Unchanged |
+| `EnrollmentDateRangeEndDate` | 2026-09-30 | Unchanged — still end-dated |
+
+### 5. Disenrolled Span Created — `ProgramEnrollmentModule.ProgramEnrollment`
+
+```sql
+SELECT StatusDisplayName, StatusReasonDisplayName,
+       EnrollmentDateRangeStartDate, EnrollmentDateRangeEndDate
+FROM ProgramEnrollmentModule.ProgramEnrollment
+WHERE CaseKey = '{CaseKey}' AND StatusDisplayName = 'Disenrolled'
+```
+
+| Column | Expected Value | Notes |
+|--------|----------------|-------|
+| `StatusDisplayName` | "Disenrolled" | New disenrolled span |
+| `StatusReasonDisplayName` | "Deceased" | User-selected reason |
+| `EnrollmentDateRangeStartDate` | 2026-09-30 | Starts at enrollment end |
+
+### 6. `PersonModule.PersonMedicaidNumbers` (no change expected)
+
+| Verification | Expected |
+|--------------|----------|
+| Row count | 1 (unchanged) |
+| `Value` | "1430000013" (unchanged) |
+
+---
+
+## UI Verification (Post-Execution)
+
+| Element | Expected State |
+|---------|----------------|
+| Conflict Status chip | Not displayed |
+| Re-submit button | Hidden |
+| Last Sync timestamp | Updated to current time |
+| Response Status display | "SU" |
+| MMIS Errors table | Empty (no errors) |
+| Enrollment Status | Shows end-dated enrollment + Disenrolled span |
+| Disenrollment Reason | "Deceased" displayed |
+
+---
+
+## Failure Criteria
+
+### Response Validation Failures
+- ResponseStatus ≠ "SU" → MMIS rejected the re-sent closure
+- MMIS rejects because dates don't match existing span
+
+### Payload Construction Failures
+- TransactionType ≠ "C" → must be Closure (same as prior S340)
+- Status ≠ "A" → closure of active span requires Status "A"
+- DateEnrlEff ≠ prior S340 DateEnrlEff → dates must be IDENTICAL to prior closure
+- DateEnrlEnd ≠ prior S340 DateEnrlEnd → dates must be IDENTICAL to prior closure
+- StartReasonCode = "2W" → should be REAL translated code (e.g., "64"), NOT placeholder
+- StopReasonCode = "2W" → should be REAL translated code (e.g., "64"), NOT placeholder
+- Reason code not properly translated from BC disenrollment reason display name
+
+### Data Integrity Failures
+- HasConflict set to 1 when response was SU
+- MmisEffectiveDate or MmisEndDate changed (should remain same as prior S340)
+- TransactionTypeCode not "C"
+
+### Reason Code Translation Failures
+- "Deceased" not translated to "64"
+- Translation table lookup fails or returns wrong code
+- Placeholder "2W" sent instead of real code
+
+### Audit Trail Failures
+- RequestJsonTextFile is NULL in SyncTransaction
+- SyncTransaction row not created for this transaction
+- TxnRefId not properly incremented
+
+### UI State Failures
+- Conflict chip displayed when not expected
+- Disenrollment reason not visible
+
+---
+
+## Appendix: Data Lookup Chains (Request Field → DB Path)
+
+| Request Field | Lookup Path |
+|---------------|-------------|
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000013" |
+| **WaiverAgencyID** | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
+| **WaiverFEA** | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
+| **DateEnrlEff** | `ProgramEnrollmentExtension.MmisEffectiveDate` = **"20260701"** (from prior S340 — unchanged) |
+| **DateEnrlEnd** | `ProgramEnrollmentExtension.MmisEndDate` = **"20260930"** (from prior S340 — unchanged) |
+| **StartReasonCode** | `ProgramEnrollment.StatusReasonDisplayName` → "Deceased" → translated via reason code lookup → **"64"** |
+| **StopReasonCode** | Same translation as StartReasonCode → **"64"** |
+| **WorkerID** | `PersonModule.PersonStaffMemberAssignment` → WHERE role LIKE 'ICA - IRIS Consultant%' AND active → derive ID (8 chars) |
+| **RecertificationDueDate** | `PersonCenteredPlanModule.PersonCenteredPlan.EffectiveDateRangeEndDate` (completed ISP) |
+
+---
+
+## Appendix: Disenrollment Reason Code Translation (Known Mappings)
+
+| BC StatusReasonDisplayName | MMIS Reason Code | Notes |
+|---------------------------|------------------|-------|
+| Deceased | 64 | Used in this test case |
+| Voluntary Withdrawal | (TBD) | Alternative reason |
+| Moved Out of State | (TBD) | Alternative reason |
+| Loss of Eligibility | (TBD) | Alternative reason |
+
+> **Note:** The complete reason code translation table is maintained in the ICD-D01 V6.0 document. The "Deceased" (64) mapping is used as the example for this test case. Other reason codes should be validated in a follow-up test if needed.
+
+---
+
+## Related Test Cases
+
+- TC-006: Enrollment End Date Changed to Earlier Date (S340 — prerequisite, sends placeholder 2W/2W)
+- TC-001: New IRIS Enrollment — Happy Path (creates the initial enrollment)
+- TC-009: Disenrolled → Enrolled — Reinstatement (reverse flow — goes from disenrolled back to enrolled)
+- TC-008: Referral Withdrawn (another status-change scenario with different mechanism)

@@ -27,11 +27,12 @@ import {
 import {
   getCurrentIrisState,
 } from '../../helpers/state-checker';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 // Extend end date back to open-ended (12/31/2299)
-const EXTENDED_END_DATE = '12/31/2299';
+const EXTENDED_END_DATE = SCENARIOS.TC_007.bcInput.newEnrollmentEndDate!;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 

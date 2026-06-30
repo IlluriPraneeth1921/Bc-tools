@@ -10,9 +10,6 @@
  * Test Participant: MA ID 1430000013
  * Prerequisite: TC-001 must have completed (active IRIS enrollment with SU sync).
  *
- * Suspension dates: Start = 08/15/2026, End = 09/14/2026
- * (31 days, well above the 3-day minimum per BR-D01-019)
- *
  * IMPORTANT: Tests run in serial mode. If any step fails, all subsequent steps are skipped.
  */
 import { test, expect, Page, Browser } from '@playwright/test';
@@ -26,12 +23,13 @@ import {
 import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
-// ─── Configuration ────────────────────────────────────────────────────────────
+// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
-// Suspension dates — must be after enrollment start (07/01/2026) and span >= 3 days
-const SUSPENSION_START = '08/15/2026';
-const SUSPENSION_END = '09/14/2026';
+const DATA = SCENARIOS.TC_002;
+const SUSPENSION_START = DATA.bcInput.suspensionStartDate!;
+const SUSPENSION_END = DATA.bcInput.suspensionEndDate!;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 

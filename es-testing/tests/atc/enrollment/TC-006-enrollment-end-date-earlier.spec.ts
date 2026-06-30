@@ -27,10 +27,11 @@ import {
 import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const NEW_END_DATE = '09/30/2026';
+const NEW_END_DATE = SCENARIOS.TC_006.bcInput.newEnrollmentEndDate!;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 

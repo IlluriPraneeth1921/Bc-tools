@@ -2,7 +2,7 @@
 
 **Feature:** Enrollment Service (ICD-D01 V6.0)  
 **Test Participant:** MA ID 1430000013  
-**Total Test Cases:** 32  
+**Total Test Cases:** 33  
 **Last Updated:** 2026-06-28  
 
 ---
@@ -35,20 +35,20 @@
 
 | Metric | Value |
 |--------|-------|
-| Total Test Cases | 32 |
-| IRIS Test Cases | 28 |
+| Total Test Cases | 33 |
+| IRIS Test Cases | 29 |
 | SDPC Test Cases | 4 |
-| Happy Path (SU expected) | 27 |
+| Happy Path (SU expected) | 28 |
 | Error / Negative Cases | 4 (TC-004 FL, TC-011 no txn, TC-029 FL multi, TC-032 no txn) |
 | Edge Cases | 1 (TC-030 SE response) |
-| Single-Transaction Tests | 13 |
+| Single-Transaction Tests | 14 |
 | Multi-Transaction Tests (2 txns) | 9 |
 | Multi-Transaction Tests (3 txns) | 6 |
 | Multi-Transaction Tests (4 txns) | 2 |
 | Zero-Transaction Tests | 2 (TC-011, TC-032) |
 | Business Rules Covered | 24 of 24 (BR-D01-001 through BR-D01-024) |
 | S100 Trigger Coverage | 11 of 11 (100%) |
-| S220 Condition Coverage | 7 of 7 (100%) |
+| S220 Condition Coverage | 8 of 8 (100%) |
 | S230 Condition Coverage | 7 of 7 (100%) |
 | S240 Condition Coverage | 3 of 3 (100%) |
 | S250 Condition Coverage | 2 of 2 (100%) |
@@ -94,6 +94,7 @@
 | TC-030 | SE Response — Enrollment Activated | IRIS | 1 | S100(1)→S200→S220(1)→**S300** | SE |
 | TC-031 | ICA Transfer — Span-C Exists (S255_001) | IRIS | 3 | S100(6)→S200→S250(1)→**S600+S255(1)→S310+S610** | SU |
 | TC-032 | Address Update — No Current Span (S700 Cond 2) | IRIS | 0 | S100(11)→S200→**S700**(2)→⛔ | No Txn |
+| TC-033 | Disenrolled Span Created — Real Reason Code (S345) | IRIS | 1 | S100(2)→S200→S220(8)→**S345** | SU |
 
 ---
 
@@ -198,7 +199,7 @@ gantt
 
 | BR / Req | Description | Test Cases |
 |----------|-------------|------------|
-| BR-D01-001 | Waiver Enrollment status change triggers webservice | TC-001, TC-002, TC-004–TC-013, TC-019–TC-025, TC-028–TC-031 |
+| BR-D01-001 | Waiver Enrollment status change triggers webservice | TC-001, TC-002, TC-004–TC-013, TC-019–TC-025, TC-028–TC-031, TC-033 |
 | BR-D01-002 | FEA or ICA transfer triggers webservice | TC-003, TC-016, TC-017, TC-031 |
 | BR-D01-003 | Address update triggers webservice | TC-014, TC-032 |
 | BR-D01-004 | FEA effective dates/status update triggers webservice | TC-016 |
@@ -226,7 +227,7 @@ gantt
 | R386 | Import/integrate data from multiple sources | TC-005 |
 | R388 | Matching logic using multiple identifiers | TC-005 |
 | R394 | Real-time notification on error/failure | TC-004, TC-005, TC-029 |
-| R411 | Maintain program-specific reason codes | All (reason codes per BR-D01-022) |
+| R411 | Maintain program-specific reason codes | All (reason codes per BR-D01-022), TC-033 |
 | R443 | Create/update/inactivate enrollment real-time | TC-001 (create), TC-006/007/028 (update), TC-008 (inactivate) |
 | R444 | Incorporate MMIS eligibility editing | TC-004, TC-029 |
 | R455 | Automate changes triggered by events | TC-002, TC-003, TC-012, TC-013, TC-016, TC-017, TC-021–TC-025, TC-027, TC-031 |
@@ -243,7 +244,7 @@ gantt
 | # | Trigger | Test Cases |
 |---|---------|------------|
 | 1 | New IRIS enrollment added | TC-001, TC-004, TC-005, TC-029, TC-030 |
-| 2 | Existing IRIS enrollment updated | TC-006, TC-007, TC-008, TC-009, TC-019, TC-020, TC-028 |
+| 2 | Existing IRIS enrollment updated | TC-006, TC-007, TC-008, TC-009, TC-019, TC-020, TC-028, TC-033 |
 | 3 | New IRIS suspension added | TC-002, TC-010, TC-011 |
 | 4 | Existing IRIS suspension updated/deleted | TC-012, TC-013, TC-021, TC-022, TC-023, TC-024, TC-025 |
 | 5 | FEA assignment updated | TC-016 |
@@ -265,6 +266,7 @@ gantt
 | 5 | End date → later (extension) | TC-007, TC-028 |
 | 6 | Enrolled → Referral Withdrawn | TC-008 |
 | 7 | Disenrolled → Enrolled (reinstatement) | TC-009 |
+| 8 | Disenrolled span created (real reason code) | TC-033 |
 
 ### S230 Suspension Update Conditions
 
@@ -325,6 +327,7 @@ gantt
 | S300 | Create New Enrollment Span | O/A | A | TC-001, TC-004, TC-005, TC-009, TC-015, TC-019, TC-020, TC-021, TC-029, TC-030 |
 | S310 | Delete Enrollment Span | O/A | I | TC-008, TC-019, TC-020, TC-023, TC-024, TC-025, TC-031 |
 | S340 | End Date → Earlier (Closure) | C | A | TC-006, TC-026 |
+| S345 | Re-send Closure with Real Reason Code | C | A | TC-033 |
 | S350 | End Date → Later (Extension) | O/A | A | TC-007, TC-028 |
 | S360 | Create Span After Suspension | O | A | TC-028 |
 | S400 | Update Span-A End Date (backfill) | C | A | TC-021, TC-022 |
@@ -368,6 +371,7 @@ Phase 3 — Requires disenrolled state (TC-006):
   TC-007  End Date → Later
   TC-009  Disenrolled → Enrolled
   TC-032  Address Update — No Current Span
+  TC-033  Disenrolled Span Created — Real Reason Code
 
 Phase 4 — Requires separate active enrollment (TC-001):
   TC-008  Referral Withdrawn
