@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-031 |
 | Scenario | ICA Transfer after suspension synced — old Span-C exists in MMIS, must be deleted before recreating with new agency |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 6) → S200 → S250 (Condition 1) → S600 + S255 (Condition 1) → S310 + S610 |
 | Business Rules | BR-D01-002, BR-D01-020, BR-D01-021, BR-D01-022 |

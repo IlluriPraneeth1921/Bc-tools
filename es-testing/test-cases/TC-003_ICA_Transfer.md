@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-003 |
 | Scenario | ICA Transfer — Close Old Agency Span + Open New Agency Span |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Decision Table | S100 (Condition 6) → S200 → S250 (Condition 1) → S600 + S255 (Condition 2) → S610 |
 | Business Rules | BR-D01-002, BR-D01-020, BR-D01-021, BR-D01-022 |
 | Trigger | User transfers participant to a new ICA (location assignment update) |
@@ -50,7 +50,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -397,7 +397,7 @@ WHERE PersonKey = '{test PersonKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) |
+| `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -419,7 +419,7 @@ These chains show how Blue Compass resolves each request field from the Carity d
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000012"** |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000013"** |
 | **WaiverAgencyID** (Txn 1 — close) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND LocationKey = OLD ICA → `OrganizationModule.LocationIdentifiers` → `Value` = **"1234567890"** |
 | **WaiverAgencyID** (Txn 2 — open) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND LocationKey = NEW ICA → `OrganizationModule.LocationIdentifiers` → `Value` = **"9876543210"** |
 | **WaiverFEA** (both txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |

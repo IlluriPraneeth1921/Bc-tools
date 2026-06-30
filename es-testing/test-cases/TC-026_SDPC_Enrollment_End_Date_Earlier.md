@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-026 |
 | Scenario | SDPC Enrollment End Date Changed to Earlier Date (Disenrollment) |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | SDPC |
 | Decision Table | S100 (Condition 8) → S210 → S220 (Condition 4) → S340 (Column 2 SDPC) |
 | Business Rules | BR-D01-011, BR-D01-012, BR-D01-015, BR-D01-020, BR-D01-021 |
@@ -61,7 +61,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `IsOriginal` | true | |
 | `EffectiveDateRangeEndDate` | NULL | Currently active |
@@ -211,7 +211,7 @@ WHERE CaseKey = '{CaseKey}' AND AssignmentTypeSystemRoleDisplayName = 'SDPC Nurs
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10), from PersonMedicaidNumbers.Value |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10), from PersonMedicaidNumbers.Value |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25), optional |
@@ -255,8 +255,8 @@ WHERE CaseKey = '{CaseKey}' AND AssignmentTypeSystemRoleDisplayName = 'SDPC Nurs
 | EffectiveDate | Same as DateSDPCEffective sent (e.g., "20260701") | Echoed |
 | EndDate | Same as DateSDPCEnd sent (e.g., "20260930") | Echoed — new earlier end |
 | TxnRefId | Same as request TxnRefId | Echoed |
-| IdUniqueClient | "1430000012" | No ID swap expected |
-| SubmittedClientID | "1430000012" | Echoed |
+| IdUniqueClient | "1430000013" | No ID swap expected |
+| SubmittedClientID | "1430000013" | Echoed |
 | ErrorType | **NOT PRESENT** | SDPC response does NOT include ErrorType field |
 | Error Segment | Not present | No errors expected |
 
@@ -280,8 +280,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `ResponseStatusCode` | "SU" | Success |
 | `TransactionTypeCode` | "C" | Closure transaction |
 | `TxnRefId` | {captured at runtime} | From request |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent |
 | `MmisEffectiveDate` | 2026-07-01 (enrollment begin — ANCHOR) | From response EffectiveDate |
 | `MmisEndDate` | 2026-09-30 (new earlier end date) | From response EndDate |
 | `LastSynchronizedTimestamp` | Current datetime2 | Updated on sync |
@@ -312,8 +312,8 @@ Expected: **1 new row** (in addition to TC-015 initial enrollment sync row)
 | `MmisEffectiveDate` | 2026-07-01 (ANCHOR begin date) |
 | `MmisEndDate` | 2026-09-30 (new earlier end) |
 | `ResponseStatusCode` | "SU" |
-| `IdUniqueClientIdentifier` | "1430000012" |
-| `SubmittedClientId` | "1430000012" |
+| `IdUniqueClientIdentifier` | "1430000013" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — full SDPCEnrollmentRequest payload stored |
 | `ResponseJsonTextFile` | NOT NULL |
 | `ChangeTypeCode` | "Disenrollment" (or equivalent) |
@@ -368,7 +368,7 @@ WHERE PersonKey = '{PersonKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| Active `Value` | "1430000012" (unchanged) |
+| Active `Value` | "1430000013" (unchanged) |
 
 ### 6. Verify NO Address/FEA Payload Content
 
@@ -447,7 +447,7 @@ ORDER BY Timestamp DESC
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000013" |
 | **NameLast** | `PersonModule.Person.NameLastName` |
 | **NameFirst** | `PersonModule.Person.NameFirstName` |
 | **DateBirth** | `PersonModule.Person.BirthDate` |

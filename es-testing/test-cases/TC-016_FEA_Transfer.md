@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-016 |
 | Scenario | FEA Transfer — Close Old FEA Span + Open New FEA Span |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 5) → S200 → S250 (Condition 1) → S600 + S255 (Condition 2) → S610 |
 | Business Rules | BR-D01-002, BR-D01-004, BR-D01-020, BR-D01-021, BR-D01-022 |
@@ -53,7 +53,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `IsOriginal` | true | |
 | `EffectiveDateRangeEndDate` | NULL | Currently active |
@@ -423,7 +423,7 @@ WHERE pla.CaseKey = '{CaseKey}' AND pla.PersonLocationAssignmentTypeDisplayName 
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) |
+| `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -472,7 +472,7 @@ WHERE pla.CaseKey = '{CaseKey}' AND pla.PersonLocationAssignmentTypeDisplayName 
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000012"** |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000013"** |
 | **WaiverAgencyID** (both txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` = **"1234567890"** (SAME for both) |
 | **WaiverFEA** (Txn 1 — close) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' AND LocationKey = OLD FEA → `OrganizationModule.LocationIdentifiers` → `Value` = **"1111111111"** |
 | **WaiverFEA** (Txn 2 — open) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' AND LocationKey = NEW FEA → `OrganizationModule.LocationIdentifiers` → `Value` = **"2222222222"** |

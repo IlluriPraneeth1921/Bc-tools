@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-001 |
 | Scenario | New IRIS Enrollment — Happy Path |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Decision Table | S100 (Condition 1) → S200 → S220 (Condition 1) → S300 (Column 1) |
 | Business Rules | BR-D01-001, BR-D01-005, BR-D01-010, BR-D01-020, BR-D01-021, BR-D01-022, BR-D01-023, BR-D01-024 |
 | Trigger | User adds a new IRIS enrollment table entry; status changes to "Enrolled" |
@@ -52,7 +52,7 @@ The following Carity database tables and columns must be populated before test e
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -245,7 +245,7 @@ Verify these tables are **empty** for this participant's enrollment:
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | Participant's Medicaid ID | CHAR(10), from PersonModule.PersonMedicaidNumbers.Value = **"1430000012"** |
+| IdUniqueClient | IdUniqueClient | Participant's Medicaid ID | CHAR(10), from PersonModule.PersonMedicaidNumbers.Value = **"1430000013"** |
 | NameLast | NameLast | Participant's last name | CHAR(60), first 20 chars used for MMIS matching |
 | NameFirst | NameFirst | Participant's first name | CHAR(35), first 15 chars used for MMIS matching |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25), optional |
@@ -347,8 +347,8 @@ After test execution, verify the following Carity database records.
 |--------|----------------|-------|
 | `ProgramEnrollmentExtensionKey` | {new GUID — auto-generated} | PK created on first sync |
 | `HasConflict` | 0 (false) | No conflict for successful enrollment |
-| `IdUniqueClientIdentifier` | "1430000012" (participant's Medicaid ID) | From MMIS response IdUniqueClient |
-| `SubmittedClientId` | "1430000012" | What was sent in request |
+| `IdUniqueClientIdentifier` | "1430000013" (participant's Medicaid ID) | From MMIS response IdUniqueClient |
+| `SubmittedClientId` | "1430000013" | What was sent in request |
 | `ResponseStatusCode` | "SU" | Success |
 | `TransactionTypeCode` | "O" | Open |
 | `TxnRefId` | {captured at runtime} | From request |
@@ -372,8 +372,8 @@ After test execution, verify the following Carity database records.
 | `ResponseStatusCode` | "SU" | Success |
 | `TransactionTypeCode` | "O" | Open |
 | `TxnRefId` | {captured at runtime} | Must match request TxnRefId |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | From request |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | From request |
 | `MmisEffectiveDate` | Enrollment begin date | |
 | `MmisEndDate` | 2299-12-31 | |
 | `RequestJsonTextFile` | **NOT NULL** — Full JSON payload | Verify JSON is stored and contains expected structure (see verification checklist below) |
@@ -388,7 +388,7 @@ Deserialize the JSON stored in `SyncTransaction.RequestJsonTextFile` and verify 
 |-------------------|----------------|
 | `TxnSource` | "CMMRT" |
 | `TxnRefId` | Matches `SyncTransaction.TxnRefId` |
-| `IdUniqueClient` | "1430000012" |
+| `IdUniqueClient` | "1430000013" |
 | `WaiverProgramName` | "IRIS" |
 | `TransactionType` | "O" |
 | `Status` | "A" |
@@ -423,7 +423,7 @@ Deserialize the JSON stored in `SyncTransaction.RequestJsonTextFile` and verify 
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) | No ID mismatch in happy path |
+| `Value` | "1430000013" (unchanged) | No ID mismatch in happy path |
 | `EffectiveDateRangeEndDate` | NULL (still active) | |
 
 ---
@@ -478,7 +478,7 @@ These chains show how Blue Compass resolves each request field from the Carity d
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `PersonKey` = participant AND `StatusDisplayName` = 'Active' → `Value` = **"1430000012"** |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `PersonKey` = participant AND `StatusDisplayName` = 'Active' → `Value` = **"1430000013"** |
 | **NameLast** | `PersonModule.Person.NameLastName` |
 | **NameFirst** | `PersonModule.Person.NameFirstName` |
 | **NameMi** | `PersonModule.Person.NameMiddleName` |

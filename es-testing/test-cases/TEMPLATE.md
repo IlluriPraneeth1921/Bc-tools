@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-{NNN} |
 | Scenario | {Brief scenario description} |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | {IRIS / SDPC} |
 | Decision Table | {S100 (Condition X) → S200 → ... path through decision tables} |
 | Business Rules | {Comma-separated list: BR-D01-001, BR-D01-002, ...} |
@@ -54,7 +54,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -237,7 +237,7 @@ WHERE {conditions}
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10), from PersonMedicaidNumbers.Value |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10), from PersonMedicaidNumbers.Value |
 | NameLast | NameLast | {participant's last name} | CHAR(60), first 20 chars used for MMIS matching |
 | NameFirst | NameFirst | {participant's first name} | CHAR(35), first 15 chars used for MMIS matching |
 | NameMi | NameMi | {middle name or empty} | CHAR(25), optional |
@@ -351,7 +351,7 @@ WHERE {conditions}
 | EndDate / DateSDPCEnd | {CCYYMMDD} | Echoed → ProgramEnrollmentExtension.MmisEndDate |
 | TxnRefId | {echoed from request} | → ProgramEnrollmentExtension.TxnRefId |
 | IdUniqueClient | {value} | {Same as request, OR different per BR-D01-016 → triggers ID swap} |
-| SubmittedClientID | "1430000012" | Echoed from request → ProgramEnrollmentExtension.SubmittedClientId |
+| SubmittedClientID | "1430000013" | Echoed from request → ProgramEnrollmentExtension.SubmittedClientId |
 
 ### Error Segment (if applicable — 0..unbounded)
 
@@ -392,7 +392,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `TransactionTypeCode` | "{O/C/A}" | Last transaction type |
 | `TxnRefId` | {value} | Last transaction ref |
 | `IdUniqueClientIdentifier` | {value} | From response (may differ from submitted per BR-D01-016) |
-| `SubmittedClientId` | "1430000012" | What was sent |
+| `SubmittedClientId` | "1430000013" | What was sent |
 | `MmisEffectiveDate` | {date} | From last response EffectiveDate |
 | `MmisEndDate` | {date} | From last response EndDate |
 | `LastSynchronizedTimestamp` | Current datetime2 | Updated on sync attempt |
@@ -425,7 +425,7 @@ Expected: **{N} row(s)**
 | `MmisEndDate` | {date} |
 | `ResponseStatusCode` | "{SU/SE/FL}" |
 | `IdUniqueClientIdentifier` | {value from response} |
-| `SubmittedClientId` | "1430000012" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — full request payload stored |
 | `ResponseJsonTextFile` | {NOT NULL if captured / NULL} |
 | `ChangeTypeCode` | {value} |
@@ -549,7 +549,7 @@ These chains show how Blue Compass resolves each request field from the Carity d
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000013" |
 | **NameLast** | `PersonModule.Person.NameLastName` |
 | **NameFirst** | `PersonModule.Person.NameFirstName` |
 | **DateBirth** | `PersonModule.Person.BirthDate` |
@@ -652,7 +652,7 @@ await page.route('**/api/enrollment/ProcessEnrollment', async (route) => {
       ProcessEnrollmentResult: {
         TxnRefId: '{expected TxnRefId}',
         IdUniqueClient: '{expected — same or different per test}',
-        SubmittedClientID: '1430000012',
+        SubmittedClientID: '1430000013',
         WaiverProgramName: 'IRIS',
         ResponseStatus: '{SU/SE/FL}',
         TransactionType: '{O/C}',
@@ -672,7 +672,7 @@ await page.route('**/api/enrollment/ProcessEnrollment', async (route) => {
 // SQL to establish preconditions before test execution
 const setupQueries = [
   // Verify participant exists
-  `SELECT PersonKey FROM PersonModule.PersonMedicaidNumbers WHERE Value = '1430000012' AND StatusDisplayName = 'Active'`,
+  `SELECT PersonKey FROM PersonModule.PersonMedicaidNumbers WHERE Value = '1430000013' AND StatusDisplayName = 'Active'`,
 
   // {Scenario-specific setup — e.g., insert suspension, update FEA dates, create new ICA assignment}
   // `INSERT INTO ProgramEnrollmentModule.ProgramEnrollmentSuspension ...`
@@ -695,7 +695,7 @@ const assertions = {
       ResponseStatusCode: '{SU/SE/FL}',
       TransactionTypeCode: '{O/C/A}',
       IdUniqueClientIdentifier: '{value}',
-      SubmittedClientId: '1430000012',
+      SubmittedClientId: '1430000013',
       // MmisEffectiveDate, MmisEndDate, LastSynchronizedTimestamp...
     }
   },
@@ -737,7 +737,7 @@ await expect(page.locator('[data-testid="mmis-errors-table"]')).{toBeVisible() /
 ```typescript
 const TEST_DATA = {
   participant: {
-    medicaidId: '1430000012',
+    medicaidId: '1430000013',
     personKey: '{GUID}',
     caseKey: '{GUID}',
   },
@@ -771,7 +771,7 @@ const TEST_DATA = {
       "TxnDate": "{CCYYMMDD}",
       "TxnTime": "{HHMMSS}",
       "TxnRefId": "{S000000001}",
-      "IdUniqueClient": "1430000012",
+      "IdUniqueClient": "1430000013",
       "NameLast": "{value}",
       "NameFirst": "{value}",
       "DateBirth": "{CCYYMMDD}",
@@ -802,7 +802,7 @@ const TEST_DATA = {
   "ProcessEnrollmentResult": {
     "TxnRefId": "{S000000001}",
     "IdUniqueClient": "{value — same or different}",
-    "SubmittedClientID": "1430000012",
+    "SubmittedClientID": "1430000013",
     "ResponseStatus": "{SU/SE/FL}",
     "WaiverProgramName": "IRIS",
     "TransactionType": "{O/C}",

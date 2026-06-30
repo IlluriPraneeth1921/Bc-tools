@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-011 |
 | Scenario | Suspension Too Short — Less Than 3 Calendar Days (Error Case) |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 3) → S200 → S240 (Condition 3) |
 | Business Rules | BR-D01-001, BR-D01-019 |
@@ -56,7 +56,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -363,7 +363,7 @@ WHERE PersonKey = '{PersonKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| Active `Value` | "1430000012" (unchanged) |
+| Active `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -409,7 +409,7 @@ WHERE PersonKey = '{PersonKey}'
 
 | Request Field | Lookup Path | Notes |
 |---------------|-------------|-------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000012" | Not sent — no transaction |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000013" | Not sent — no transaction |
 | **Suspension Start** | `ProgramEnrollmentModule.ProgramEnrollmentSuspension.DateRangeStartDate` = 2026-07-10 | Used for validation only |
 | **Suspension End** | `ProgramEnrollmentModule.ProgramEnrollmentSuspension.DateRangeEndDate` = 2026-07-11 | Used for validation only |
 | **Offset Calculation** | Start + 1 = 2026-07-11, End - 1 = 2026-07-10 | **INVALID: begin > end** |

@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-015 |
 | Scenario | New SDPC Enrollment — Happy Path |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | SDPC |
 | Decision Table | S100 (Condition 7) → S210 → S220 (Condition 1) → S300 (Column 2 — SDPC) |
 | Business Rules | BR-D01-011, BR-D01-012, BR-D01-015, BR-D01-020, BR-D01-021 |
@@ -60,7 +60,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -149,7 +149,7 @@ This record is created as part of the sync process (may be pre-created or create
 SELECT Value, StatusDisplayName
 FROM PersonModule.PersonMedicaidNumbers
 WHERE PersonKey = '{PersonKey}' AND StatusDisplayName = 'Active'
--- Expected: Value='1430000012', StatusDisplayName='Active'
+-- Expected: Value='1430000013', StatusDisplayName='Active'
 
 -- Verify SDPC assignment exists
 SELECT pla.PersonLocationAssignmentTypeDisplayName, li.Value AS SDPCProviderId
@@ -214,7 +214,7 @@ WHERE pe.CaseKey = '{CaseKey}' AND p.DisplayName = 'SDPC'
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10), from PersonMedicaidNumbers.Value |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10), from PersonMedicaidNumbers.Value |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25), optional |
@@ -258,8 +258,8 @@ WHERE pe.CaseKey = '{CaseKey}' AND p.DisplayName = 'SDPC'
 | EffectiveDate | Same as DateSDPCEffective sent (e.g., "20260701") | Echoed |
 | EndDate | Same as DateSDPCEnd sent (e.g., "22991231") | Echoed |
 | TxnRefId | Same as request TxnRefId | Echoed |
-| IdUniqueClient | "1430000012" | No ID swap expected |
-| SubmittedClientID | "1430000012" | Echoed |
+| IdUniqueClient | "1430000013" | No ID swap expected |
+| SubmittedClientID | "1430000013" | Echoed |
 | ErrorType | **NOT PRESENT** | SDPC response does NOT include ErrorType field |
 | Error Segment | Not present | No errors expected |
 
@@ -285,8 +285,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `ResponseStatusCode` | "SU" | Success — enrollment activated |
 | `TransactionTypeCode` | "A" | SDPC Add/Update transaction |
 | `TxnRefId` | {captured at runtime} | From request |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent |
 | `MmisEffectiveDate` | 2026-07-01 (enrollment begin) | From response EffectiveDate |
 | `MmisEndDate` | 2299-12-31 (open-ended) | From response EndDate |
 | `LastSynchronizedTimestamp` | Current datetime2 | Updated on sync |
@@ -317,8 +317,8 @@ Expected: **1 row** (first sync for this SDPC enrollment)
 | `MmisEffectiveDate` | 2026-07-01 (enrollment begin) |
 | `MmisEndDate` | 2299-12-31 (open-ended) |
 | `ResponseStatusCode` | "SU" |
-| `IdUniqueClientIdentifier` | "1430000012" |
-| `SubmittedClientId` | "1430000012" |
+| `IdUniqueClientIdentifier` | "1430000013" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — full SDPCEnrollmentRequest payload stored |
 | `ResponseJsonTextFile` | NOT NULL |
 | `ChangeTypeCode` | "NewSDPCEnrollment" (or equivalent) |
@@ -374,7 +374,7 @@ WHERE PersonKey = '{PersonKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| Active `Value` | "1430000012" (unchanged) |
+| Active `Value` | "1430000013" (unchanged) |
 
 ### 6. Verify NO Address-Related Payload Content
 
@@ -453,7 +453,7 @@ WHERE ProgramEnrollmentExtensionKey = '{ProgramEnrollmentExtensionKey}'
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000013" |
 | **NameLast** | `PersonModule.Person.NameLastName` |
 | **NameFirst** | `PersonModule.Person.NameFirstName` |
 | **DateBirth** | `PersonModule.Person.BirthDate` |

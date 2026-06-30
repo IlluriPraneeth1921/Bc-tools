@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-019 |
 | Scenario | Enrollment Begin Date Changed to Earlier Date — Delete + Recreate Span |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 2) → S200 → S220 (Condition 2) → S310 + S300 |
 | Business Rules | BR-D01-001, BR-D01-020, BR-D01-021, BR-D01-022 |
@@ -53,7 +53,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `IsOriginal` | true | |
 | `EffectiveDateRangeEndDate` | NULL | Currently active |
@@ -296,7 +296,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | TransactionType | "O" | Echoed |
 | EffectiveDate | "20260701" | EXACT match of existing begin |
 | EndDate | "22991231" | EXACT match of existing end |
-| IdUniqueClient | "1430000012" | No ID swap |
+| IdUniqueClient | "1430000013" | No ID swap |
 
 ### Transaction 2 (S300 — Create)
 
@@ -306,7 +306,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | TransactionType | "O" | Echoed |
 | EffectiveDate | "20260615" | New earlier begin date |
 | EndDate | "22991231" | Same end date |
-| IdUniqueClient | "1430000012" | No ID swap |
+| IdUniqueClient | "1430000013" | No ID swap |
 
 ---
 
@@ -395,7 +395,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) |
+| `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -451,7 +451,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000012"** |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000013"** |
 | **WaiverAgencyID** (both txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
 | **WaiverFEA** (both txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
 | **DateEnrlEff** (Txn 1 / S310) | `ProgramEnrollmentExtension.MmisEffectiveDate` = **"20260701"** (EXACT existing begin) |

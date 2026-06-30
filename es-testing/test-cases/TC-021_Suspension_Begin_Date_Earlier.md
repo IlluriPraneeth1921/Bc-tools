@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-021 |
 | Scenario | Suspension Begin Date Changed to Earlier Date (S230_001) |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 4) → S200 → S230 (Condition 1) → S400 + S410 + S300 + S510 |
 | Business Rules | BR-D01-001, BR-D01-017, BR-D01-020, BR-D01-021, BR-D01-022 |
@@ -53,7 +53,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `IsOriginal` | true | |
 | `EffectiveDateRangeEndDate` | NULL | Currently active |
@@ -276,7 +276,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10) |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10) |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25) |
@@ -360,7 +360,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10) |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10) |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | DateBirth | DateBirth | DOB in CCYYMMDD | NUM(8) |
@@ -513,8 +513,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `ResponseStatusCode` | "SU" | All transactions successful |
 | `TransactionTypeCode` | "O" | Last transaction type (S510 create) |
 | `TxnRefId` | {Txn 4 ref ID} | From last transaction |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent |
 | `MmisEffectiveDate` | 2026-07-06 (new Span-B begin) | From last transaction (S510) |
 | `MmisEndDate` | 2026-08-09 (Span-B end) | From last transaction |
 | `LastSynchronizedTimestamp` | Current datetime2 | Updated on sync |
@@ -660,7 +660,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000013" |
 | **NameLast** | `PersonModule.Person.NameLastName` |
 | **NameFirst** | `PersonModule.Person.NameFirstName` |
 | **DateBirth** | `PersonModule.Person.BirthDate` |

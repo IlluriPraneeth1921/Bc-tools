@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-018 |
 | Scenario | New SDPC Suspension — Close Active Span + Add Suspended Span + Create Post-Suspension Span |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | SDPC |
 | Decision Table | S100 (Condition 9) → S210 → S240 (Condition 1) → S500 + S510 + S520 (all Column 2 SDPC) |
 | Business Rules | BR-D01-011, BR-D01-017, BR-D01-018, BR-D01-019, BR-D01-020, BR-D01-021 |
@@ -61,7 +61,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `IsOriginal` | true | |
 | `EffectiveDateRangeEndDate` | NULL | Currently active |
@@ -224,7 +224,7 @@ WHERE CaseKey = '{CaseKey}' AND AssignmentTypeSystemRoleDisplayName = 'SDPC Nurs
 |-------|-------------|----------------|-------|
 | TxnSource | TxnSource | "CMMRT" | Fixed |
 | TxnRefId | TxnRefId | Incremental (e.g., "S000000001") | First transaction |
-| IdUniqueClient | IdUniqueClient | "1430000012" | From PersonMedicaidNumbers |
+| IdUniqueClient | IdUniqueClient | "1430000013" | From PersonMedicaidNumbers |
 | WaiverProgramName | WaiverProgramName | "IRIS" | Fixed — always "IRIS" even for SDPC |
 | SDPCAgencyID | SDPCAgencyID | "5551234567" | From SDPC Oversight Agency |
 | TransactionType | TransactionType | **"C" (Closure)** | Same for both IRIS/SDPC on closure |
@@ -395,7 +395,7 @@ WHERE pe.ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) |
+| `Value` | "1430000013" (unchanged) |
 
 ### 7. Verify NO Address/FEA Payload Content
 
@@ -468,7 +468,7 @@ ORDER BY Timestamp DESC
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000012"** |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000013"** |
 | **SDPCAgencyID** (all 3 txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = '**SDPC**' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
 | **DateSDPCEnd** (Txn 1 / S500) | BC suspension start date from `ProgramEnrollmentSuspension.DateRangeStartDate` (no offset) |
 | **DateSDPCEffective** (Txn 2 / S510) | `ProgramEnrollmentSuspension.DateRangeStartDate` + 1 day (BR-D01-017) |

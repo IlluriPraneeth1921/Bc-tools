@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-005 |
 | Scenario | Medicaid ID Mismatch — MMIS Returns Different (Current) Medicaid ID |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Decision Table | S100 (Condition 1) → S200 → S220 (Condition 1) → S300 (Column 1) |
 | Business Rules | BR-D01-001, BR-D01-010, BR-D01-016, BR-D01-020, BR-D01-021, BR-D01-022 |
 | Trigger | User adds a new IRIS enrollment table entry; status changes to "Enrolled" |
@@ -19,7 +19,7 @@
 ## Preconditions
 
 1. Participant has valid demographics (DOB, SSN, Name)
-2. Participant's Blue Compass Medicaid ID = "1430000012"
+2. Participant's Blue Compass Medicaid ID = "1430000013"
 3. MMIS has a **different (current)** Medicaid ID on file for this participant: "0987654321"
 4. Active residential and mailing addresses exist
 5. Active ICA assignment with valid Medicaid Provider ID
@@ -52,7 +52,7 @@ The following Carity database tables and columns must be populated before test e
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient sent to MMIS |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient sent to MMIS |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -194,7 +194,7 @@ Verify these tables are **empty** for this participant's enrollment:
 -- Verify exactly 1 active Medicaid number (will become 2 after execution)
 SELECT * FROM PersonModule.PersonMedicaidNumbers
 WHERE PersonKey = '{PersonKey}'
--- Expected: 1 row, Value = '1430000012', StatusDisplayName = 'Active', EffectiveDateRangeEndDate = NULL
+-- Expected: 1 row, Value = '1430000013', StatusDisplayName = 'Active', EffectiveDateRangeEndDate = NULL
 
 -- Verify enrollment is ready
 SELECT pe.StatusDisplayName, pe.EnrollmentDateRangeStartDate, pe.EnrollmentDateRangeEndDate
@@ -226,7 +226,7 @@ WHERE pe.ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Field | JSON Element | Value Sent | Notes |
 |-------|-------------|------------|-------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | BC's stored Medicaid ID |
+| IdUniqueClient | IdUniqueClient | "1430000013" | BC's stored Medicaid ID |
 | WaiverProgramName | WaiverProgramName | "IRIS" | Fixed |
 | TransactionType | TransactionType | "O" (Open) | New enrollment |
 | DateEnrlEff | DateEnrlEff | BC enrollment begin date (CCYYMMDD) | |
@@ -248,7 +248,7 @@ WHERE pe.ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | ResponseStatus | "SU" (Success) or "SE" (Success with Errors) | Enrollment is accepted despite ID difference |
 | TxnRefId | Echoed from request | |
 | **IdUniqueClient** | **"0987654321"** | **Current MMIS Medicaid ID (different from what BC sent)** |
-| **SubmittedClientID** | **"1430000012"** | **What BC originally sent (echoed back for reference)** |
+| **SubmittedClientID** | **"1430000013"** | **What BC originally sent (echoed back for reference)** |
 | WaiverProgramName | "IRIS" | Echoed |
 | TransactionType | "O" | Echoed |
 | EffectiveDate | BC enrollment begin date | Echoed |
@@ -257,9 +257,9 @@ WHERE pe.ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 ### ID Mismatch Detection Logic
 
 ```
-Request:   IdUniqueClient = "1430000012" (BC's stored ID)
+Request:   IdUniqueClient = "1430000013" (BC's stored ID)
 Response:  IdUniqueClient = "0987654321" (MMIS's current ID)
-           SubmittedClientID = "1430000012" (what was sent)
+           SubmittedClientID = "1430000013" (what was sent)
 
 Detection: Response.IdUniqueClient ≠ Request.IdUniqueClient
            → BR-D01-016 triggered
@@ -281,7 +281,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `HasConflict` | 0 (false) | Enrollment accepted — no conflict |
 | `ResponseStatusCode` | "SU" | Success |
 | `IdUniqueClientIdentifier` | **"0987654321"** | **MMIS-provided current Medicaid ID** |
-| `SubmittedClientId` | "1430000012" | What BC originally sent |
+| `SubmittedClientId` | "1430000013" | What BC originally sent |
 | `TransactionTypeCode` | "O" | Open |
 | `MmisEffectiveDate` | Enrollment begin date | |
 | `MmisEndDate` | 2299-12-31 | |
@@ -301,7 +301,7 @@ Expected: **1 row**
 | `TransactionTypeCode` | "O" |
 | `ResponseStatusCode` | "SU" |
 | `IdUniqueClientIdentifier` | "0987654321" |
-| `SubmittedClientId` | "1430000012" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL |
 | `MmisEffectiveDate` | Enrollment begin date |
 | `MmisEndDate` | 2299-12-31 |
@@ -323,7 +323,7 @@ Expected: **2 rows** (new ID created, old ID end-dated)
 | Row | Value | EffectiveDateRangeStartDate | EffectiveDateRangeEndDate | StatusDisplayName | Notes |
 |-----|-------|----------------------------|--------------------------|-------------------|-------|
 | NEW | **"0987654321"** | Today (current date) | NULL | "Active" | New MMIS-provided ID, now active |
-| OLD | "1430000012" | (original start) | **Today - 1** | "Active" (end-dated) | Previous ID, end-dated to yesterday |
+| OLD | "1430000013" | (original start) | **Today - 1** | "Active" (end-dated) | Previous ID, end-dated to yesterday |
 
 ### 5. `ProgramEnrollmentModule.ProgramEnrollment`
 
@@ -341,7 +341,7 @@ WHERE [PersonKey or related FK] = '{PersonKey}'
 ORDER BY EntityCreatedTimestamp DESC
 ```
 
-Expected: Notification record exists indicating Medicaid ID was updated from "1430000012" to "0987654321".
+Expected: Notification record exists indicating Medicaid ID was updated from "1430000013" to "0987654321".
 
 ---
 
@@ -414,11 +414,11 @@ Per the ICD v6.0:
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** (sent) | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000012" |
+| **IdUniqueClient** (sent) | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000013" |
 | **IdUniqueClient** (response) | MMIS returns "0987654321" — triggers BR-D01-016 ID swap |
-| **SubmittedClientID** (response) | MMIS echoes back "1430000012" — what was originally sent |
+| **SubmittedClientID** (response) | MMIS echoes back "1430000013" — what was originally sent |
 | **PersonMedicaidNumbers update** | New row: Value = "0987654321", EffectiveDateRangeStartDate = today, EndDate = NULL |
-| **PersonMedicaidNumbers update** | Old row: Value = "1430000012", EffectiveDateRangeEndDate = today - 1 |
+| **PersonMedicaidNumbers update** | Old row: Value = "1430000013", EffectiveDateRangeEndDate = today - 1 |
 | **WaiverAgencyID** | Same lookup as TC-001: PersonLocationAssignment (ICA) → LocationIdentifiers → Value |
 | **WaiverFEA** | Same lookup as TC-001: PersonLocationAssignment (FEA) → LocationIdentifiers → Value |
 

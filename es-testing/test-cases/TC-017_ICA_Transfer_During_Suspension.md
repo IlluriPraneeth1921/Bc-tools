@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-017 |
 | Scenario | ICA Transfer During Active Suspension — 3 Transactions |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 6) → S200 → S250 (Condition 2) → S600 (Condition 2) + S255 (Conditions 3+4) → S620 + S610 |
 | Business Rules | BR-D01-002, BR-D01-020, BR-D01-021, BR-D01-022 |
@@ -52,7 +52,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `IsOriginal` | true | |
 | `EffectiveDateRangeEndDate` | NULL | Currently active |
@@ -438,7 +438,7 @@ Expected: **2 rows**
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) |
+| `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -489,7 +489,7 @@ Expected: **2 rows**
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000012"** |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000013"** |
 | **WaiverAgencyID** (Txn 1 — close) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND LocationKey = OLD ICA → `OrganizationModule.LocationIdentifiers` → `Value` = **"1234567890"** |
 | **WaiverAgencyID** (Txns 2+3 — open) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND LocationKey = NEW ICA → `OrganizationModule.LocationIdentifiers` → `Value` = **"9876543210"** |
 | **WaiverFEA** (all txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |

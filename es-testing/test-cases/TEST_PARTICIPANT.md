@@ -22,7 +22,7 @@
 
 | Attribute | Value |
 |-----------|-------|
-| **Medicaid ID (MA ID)** | **1430000012** |
+| **Medicaid ID (MA ID)** | **1430000013** |
 | Used In | All 32 test cases (TC-001 through TC-032) |
 
 ---
@@ -56,7 +56,7 @@ The following data must exist **before TC-001 (first test case) execution**.
 | Column | Value | Notes |
 |--------|-------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | → IdUniqueClient |
+| `Value` | **"1430000013"** | → IdUniqueClient |
 | `StatusDisplayName` | "Active" | |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -231,7 +231,7 @@ Before test execution, record these values from the database for use across all 
 
 | Item | How to Find | Used For |
 |------|-------------|----------|
-| `PersonKey` | Query PersonMedicaidNumbers WHERE Value = '1430000012' | FK in all tables |
+| `PersonKey` | Query PersonMedicaidNumbers WHERE Value = '1430000013' | FK in all tables |
 | `CaseKey` | Derived from PersonKey → Case relationship | FK for assignments, enrollment |
 | `ICA Agency A LocationKey` | LocationIdentifiers WHERE Value = '1234567890' AND Type = 'Medicaid Provider ID' | ICA assignment |
 | `ICA Agency B LocationKey` | LocationIdentifiers WHERE Value = '9876543210' AND Type = 'Medicaid Provider ID' | ICA transfer target |
@@ -253,7 +253,7 @@ SELECT pmn.PersonKey, p.NameFirstName, p.NameLastName, p.BirthDate,
        p.BirthAssignedGenderDisplayName
 FROM PersonModule.PersonMedicaidNumbers pmn
 JOIN PersonModule.Person p ON p.PersonKey = pmn.PersonKey
-WHERE pmn.Value = '1430000012'
+WHERE pmn.Value = '1430000013'
   AND pmn.StatusDisplayName = 'Active'
 ```
 
@@ -522,7 +522,7 @@ INSERT INTO PersonModule.PersonMedicaidNumbers (
     PersonKey, Value, StatusDisplayName, IsOriginal,
     EffectiveDateRangeStartDate, EffectiveDateRangeEndDate
 ) VALUES (
-    @PersonKey, '1430000012', 'Active', 1,
+    @PersonKey, '1430000013', 'Active', 1,
     '2020-01-01', NULL
 );
 
@@ -686,7 +686,7 @@ INSERT INTO CustomerProgramEnrollmentModule.ProgramEnrollmentExtension (
 ) VALUES (
     @ProgramExtensionKey, @ProgramEnrollmentKey,
     0, 'SU', 'O',
-    'S000000001', '1430000012', '1430000012',
+    'S000000001', '1430000013', '1430000013',
     @EnrollmentBegin, '2299-12-31',
     GETDATE(), 'NewEnrollment'
 );
@@ -702,7 +702,7 @@ INSERT INTO CustomerProgramEnrollmentModule.SyncTransaction (
 ) VALUES (
     @SyncTransactionKey, @ProgramExtensionKey,
     'SU', 'O',
-    'S000000001', '1430000012', '1430000012',
+    'S000000001', '1430000013', '1430000013',
     @EnrollmentBegin, '2299-12-31',
     'NewEnrollment', GETDATE(),
     '{"TxnSource":"CMMRT","WaiverProgramName":"IRIS","TransactionType":"O","Status":"A"}'
@@ -757,7 +757,7 @@ INSERT INTO CustomerProgramEnrollmentModule.SyncTransaction (
 ) VALUES (
     @SyncTxn1Key, @ProgramExtensionKey,
     'SU', 'C',
-    'S000000002', '1430000012', '1430000012',
+    'S000000002', '1430000013', '1430000013',
     '2026-07-01', @SuspensionBegin,
     'EnrolledToSuspended', GETDATE(),
     '{"TransactionType":"C","Status":"A","StartReasonCode":"2I","StopReasonCode":"2I"}'
@@ -773,7 +773,7 @@ INSERT INTO CustomerProgramEnrollmentModule.SyncTransaction (
 ) VALUES (
     @SyncTxn2Key, @ProgramExtensionKey,
     'SU', 'O',
-    'S000000003', '1430000012', '1430000012',
+    'S000000003', '1430000013', '1430000013',
     @MMISSpanBBegin, @MMISSpanBEnd,
     'EnrolledToSuspended', GETDATE(),
     '{"TransactionType":"O","Status":"S","StartReasonCode":"2I","StopReasonCode":"2I"}'
@@ -789,7 +789,7 @@ INSERT INTO CustomerProgramEnrollmentModule.SyncTransaction (
 ) VALUES (
     @SyncTxn3Key, @ProgramExtensionKey,
     'SU', 'O',
-    'S000000004', '1430000012', '1430000012',
+    'S000000004', '1430000013', '1430000013',
     @SuspensionEnd, '2299-12-31',
     'EnrolledToSuspended', GETDATE(),
     '{"TransactionType":"O","Status":"A","StartReasonCode":"2Q"}'
@@ -843,7 +843,7 @@ INSERT INTO CustomerProgramEnrollmentModule.SyncTransaction (
 ) VALUES (
     NEWID(), @ProgramExtensionKey,
     'SU', 'C',
-    'S000000002', '1430000012', '1430000012',
+    'S000000002', '1430000013', '1430000013',
     '2026-07-01', @DisenrollEndDate,
     'Disenrollment', GETDATE(),
     '{"TransactionType":"C","Status":"A","StartReasonCode":"65","StopReasonCode":"65"}'
@@ -949,7 +949,7 @@ INSERT INTO CustomerProgramEnrollmentModule.ProgramEnrollmentExtension (
 ) VALUES (
     @SDPCExtensionKey, @SDPCEnrollmentKey,
     0, 'SU', 'A',
-    'S000000001', '1430000012', '1430000012',
+    'S000000001', '1430000013', '1430000013',
     @SDPCEnrollmentBegin, '2299-12-31',
     GETDATE(), 'NewEnrollment'
 );
@@ -964,7 +964,7 @@ INSERT INTO CustomerProgramEnrollmentModule.SyncTransaction (
 ) VALUES (
     @SDPCSyncTxnKey, @SDPCExtensionKey,
     'SU', 'A',
-    'S000000001', '1430000012', '1430000012',
+    'S000000001', '1430000013', '1430000013',
     @SDPCEnrollmentBegin, '2299-12-31',
     'NewEnrollment', GETDATE(),
     '{"WaiverProgramName":"IRIS","TransactionType":"A","Status":"A","SDPCAgencyID":"5555555555"}'
@@ -1051,7 +1051,7 @@ WHERE CaseKey = @CaseKey
 
 3. **SDPC uses same participant:** TC-015, TC-018, TC-026, TC-027 add SDPC enrollments/suspensions to the same participant. SDPC and IRIS are independent programs — both can exist simultaneously.
 
-4. **TC-005 modifies Medicaid ID:** If TC-005 (Medicaid ID Mismatch) is executed, the participant's Medicaid ID may be updated from "1430000012" to a new value returned by MMIS. Plan accordingly — TC-005 may need to run in isolation or with a database reset afterward.
+4. **TC-005 modifies Medicaid ID:** If TC-005 (Medicaid ID Mismatch) is executed, the participant's Medicaid ID may be updated from "1430000013" to a new value returned by MMIS. Plan accordingly — TC-005 may need to run in isolation or with a database reset afterward.
 
 5. **Agency B data must pre-exist:** The ICA "Agency B" (Medicaid Provider ID "9876543210") location and its LocationIdentifiers record must exist in the database before running TC-003, TC-017, or TC-031. The test only creates the PersonLocationAssignment linking the participant to Agency B.
 
@@ -1074,7 +1074,7 @@ WHERE CaseKey = @CaseKey
 | **ISP** | Individual Service Plan (Person Centered Plan) — the participant's active care plan; dates map to RecertificationCompletionDate/RecertificationDueDate |
 | **LocationIdentifiers** | Table in OrganizationModule linking a Location (ICA/FEA) to its Medicaid Provider ID |
 | **LocationKey** | GUID identifying an agency/location; used to look up the Medicaid Provider ID via LocationIdentifiers |
-| **MA ID** | Medical Assistance ID (Medicaid ID) — 10-character numeric identifier; this participant's is "1430000012" |
+| **MA ID** | Medical Assistance ID (Medicaid ID) — 10-character numeric identifier; this participant's is "1430000013" |
 | **MMIS** | Medicaid Management Information System — Wisconsin's central Medicaid claims and enrollment system |
 | **PersonKey** | The GUID identifying the participant in PersonModule.Person; FK throughout all person-related tables |
 | **PersonLocationAssignment** | Table linking a participant (via CaseKey) to an agency (via LocationKey) with type (ICA/FEA) and effective dates |

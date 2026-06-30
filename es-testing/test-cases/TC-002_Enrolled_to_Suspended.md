@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-002 |
 | Scenario | Enrolled → Suspended (Suspense Date Logic) |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Decision Table | S100 (Condition 3) → S200 → S240 (Condition 1) → S500 + S510 + S520 |
 | Business Rules | BR-D01-001, BR-D01-017, BR-D01-018, BR-D01-019, BR-D01-020, BR-D01-021, BR-D01-022 |
 | Trigger | User adds a new IRIS suspension table entry |
@@ -50,7 +50,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -407,7 +407,7 @@ WHERE ProgramEnrollmentKey = '{key}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) |
+| `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -428,7 +428,7 @@ WHERE ProgramEnrollmentKey = '{key}'
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000013" |
 | **WaiverAgencyID** (all 3 txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` WHERE Type = 'Medicaid Provider ID' → `Value` |
 | **WaiverFEA** (all 3 txns) | Same path as above but Type = 'FEA' |
 | **DateEnrlEnd** (Txn 1 / S500) | BC suspension begin date from `ProgramEnrollmentModule.ProgramEnrollmentSuspension.DateRangeStartDate` (no offset) |

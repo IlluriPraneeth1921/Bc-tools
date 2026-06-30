@@ -1,7 +1,7 @@
 # Enrollment Service — Test Case Inventory & Scenario Coverage
 
 **Feature:** Enrollment Service (ICD-D01 V6.0)  
-**Test Participant:** MA ID 1430000012  
+**Test Participant:** MA ID 1430000013  
 **Total Test Cases:** 32  
 **Last Updated:** 2026-06-28  
 
@@ -24,9 +24,10 @@
    - [S700 Address-Only Update Conditions](#s700-address-only-update-conditions)
 6. [Leaf Scenario (Transaction Builder) Coverage](#leaf-scenario-transaction-builder-coverage)
 7. [Test Execution Order (Recommended)](#test-execution-order-recommended)
-8. [Open Question (Unresolved)](#open-question-unresolved)
-9. [Key References](#key-references)
-10. [Glossary](#glossary)
+8. [Test Execution Paths (TC-001 → TC-008)](#test-execution-paths-tc-001--tc-008)
+9. [Open Question (Unresolved)](#open-question-unresolved)
+10. [Key References](#key-references)
+11. [Glossary](#glossary)
 
 ---
 
@@ -392,6 +393,158 @@ Phase 7 — Requires SDPC enrollment (TC-015):
 Phase 8 — Requires SDPC suspension (TC-018):
   TC-027  SDPC Suspension Deleted
 ```
+
+---
+
+## Test Execution Paths (TC-001 → TC-008)
+
+The following tree shows all valid execution paths starting from TC-001 and ending at TC-008. Each path represents a sequence of state transitions that must be walked in order, with a database cleanup/reset back to pristine state between paths (since TC-008 requires a fresh active enrollment from TC-001).
+
+### Path Legend
+
+- `→` = sequential execution (output state of left feeds into right)
+- `[RESET]` = run cleanup script to return participant to pristine state (no enrollment)
+- `⊘` = standalone test (no prerequisite chain needed, can run in parallel with any path)
+
+### Execution Path Tree
+
+```
+                              ┌─────────────────────────────────────────────────────────┐
+                              │          TC-001 (New IRIS Enrollment)                    │
+                              │          Creates: Active enrollment, open-ended          │
+                              └─────────────────────┬───────────────────────────────────┘
+                                                    │
+                 ┌──────────────┬───────────────────┼───────────────────┬───────────────┐
+                 │              │                    │                   │               │
+                 ▼              ▼                    ▼                   ▼               ▼
+          ┌──────────┐  ┌──────────┐         ┌──────────┐       ┌──────────┐    ┌──────────┐
+          │  TC-002  │  │  TC-003  │         │  TC-005  │       │  TC-006  │    │  TC-008  │
+          │Suspension│  │ICA Xfer  │         │ID Mismatch│      │Disenroll │    │Ref Wdrwn │
+          │(3 txns)  │  │(2 txns)  │         │(1 txn)   │       │End Earlier│   │(1 txn)   │
+          └──────────┘  └──────────┘         └──────────┘       └────┬─────┘    └──────────┘
+                                                                      │            END ✓
+                                                                      ▼
+                                                               ┌──────────┐
+                                                               │  TC-007  │
+                                                               │End Later │
+                                                               │(1 txn)   │
+                                                               └──────────┘
+
+  ⊘ TC-004 (Hard Error — FEA Dates) — Standalone, no prerequisite chain
+```
+
+### Valid Sequential Paths (Start → End)
+
+Each path below is a complete walkthrough from TC-001 to TC-008. Between paths, run the cleanup stored procedure to reset participant state.
+
+#### Path A: Enrollment → Disenroll → Extend → [RESET] → Referral Withdrawn
+```
+TC-001 → TC-006 → TC-007 → [RESET] → TC-001 → TC-008
+```
+**State transitions:**
+1. TC-001: Pristine → Active enrollment (open-ended, 22991231)
+2. TC-006: Active enrollment → Disenrolled (end date = 09/30/2026)
+3. TC-007: Disenrolled → Re-enrolled (end date extended back to 22991231)
+4. [RESET]: Clean all enrollment data
+5. TC-001: Pristine → Active enrollment (open-ended)
+6. TC-008: Active enrollment → Referral Withdrawn (span deleted from MMIS)
+
+#### Path B: Enrollment → Suspension → [RESET] → Disenroll → Extend → [RESET] → Referral Withdrawn
+```
+TC-001 → TC-002 → [RESET] → TC-001 → TC-006 → TC-007 → [RESET] → TC-001 → TC-008
+```
+**State transitions:**
+1. TC-001: Pristine → Active enrollment
+2. TC-002: Active → Suspended (3 spans: A, B, C)
+3. [RESET]: Clean all enrollment data
+4. TC-001: Pristine → Active enrollment
+5. TC-006: Active → Disenrolled
+6. TC-007: Disenrolled → Re-enrolled
+7. [RESET]: Clean all enrollment data
+8. TC-001: Pristine → Active enrollment
+9. TC-008: Active → Referral Withdrawn
+
+#### Path C: Enrollment → ICA Transfer → [RESET] → Disenroll → Extend → [RESET] → Referral Withdrawn
+```
+TC-001 → TC-003 → [RESET] → TC-001 → TC-006 → TC-007 → [RESET] → TC-001 → TC-008
+```
+
+#### Path D: Enrollment → ID Mismatch → [RESET] → Disenroll → Extend → [RESET] → Referral Withdrawn
+```
+TC-001 → TC-005 → [RESET] → TC-001 → TC-006 → TC-007 → [RESET] → TC-001 → TC-008
+```
+
+#### Path E (Comprehensive — All TCs in one walkthrough):
+```
+TC-004 (standalone)
+  ↓ [RESET]
+TC-001 → TC-005
+  ↓ [RESET]
+TC-001 → TC-002
+  ↓ [RESET]
+TC-001 → TC-003
+  ↓ [RESET]
+TC-001 → TC-006 → TC-007
+  ↓ [RESET]
+TC-001 → TC-008
+```
+
+### Minimum Execution Sets (Fewest Resets)
+
+To cover all 8 test cases with the fewest database resets:
+
+```
+Set 1 (parallel):  TC-004                        ← standalone, no enrollment needed
+Set 2 (serial):    TC-001 → TC-002               ← enrollment + suspension
+                   [RESET]
+Set 3 (serial):    TC-001 → TC-003               ← enrollment + ICA transfer
+                   [RESET]
+Set 4 (serial):    TC-001 → TC-005               ← enrollment + ID mismatch
+                   [RESET]
+Set 5 (serial):    TC-001 → TC-006 → TC-007      ← enrollment → disenroll → re-enroll
+                   [RESET]
+Set 6 (serial):    TC-001 → TC-008               ← enrollment → referral withdrawn
+```
+
+**Total executions:** 6 resets, 12 test case runs (TC-001 runs 5 times as prerequisite)
+
+### Dependency Graph (State Requirements)
+
+```
+┌─────────────────────────────────────────────────────────────────────────────┐
+│ State: PRISTINE (no enrollment)                                             │
+│ Entry tests: TC-001, TC-004                                                 │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ State: ACTIVE ENROLLMENT (open-ended, SU synced)                            │
+│ Entry tests: TC-002, TC-003, TC-005, TC-006, TC-008                         │
+│ Produced by: TC-001                                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ State: DISENROLLED (specific end date, SU synced)                           │
+│ Entry tests: TC-007                                                         │
+│ Produced by: TC-006                                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ State: SUSPENDED (3 MMIS spans, SU synced)                                  │
+│ Entry tests: (TC-012 thru TC-025, TC-028, TC-031 — outside TC-001→008)      │
+│ Produced by: TC-002                                                         │
+├─────────────────────────────────────────────────────────────────────────────┤
+│ State: REFERRAL WITHDRAWN (span deleted from MMIS)                          │
+│ Terminal state for TC-008                                                    │
+│ Produced by: TC-008                                                         │
+└─────────────────────────────────────────────────────────────────────────────┘
+```
+
+### Quick Reference: Which Test Produces Which State
+
+| Test Case | Required Input State | Output State |
+|-----------|---------------------|--------------|
+| TC-001 | Pristine (no enrollment) | Active Enrollment (open-ended) |
+| TC-002 | Active Enrollment | Suspended (3 spans) |
+| TC-003 | Active Enrollment | Active Enrollment (new agency) |
+| TC-004 | Pristine (no enrollment) | Failed Enrollment (conflict) |
+| TC-005 | Pristine (no enrollment) | Active Enrollment (new Medicaid ID) |
+| TC-006 | Active Enrollment | Disenrolled (specific end date) |
+| TC-007 | Disenrolled | Active Enrollment (re-enrolled, open-ended) |
+| TC-008 | Active Enrollment | Referral Withdrawn (span deleted) |
 
 ---
 

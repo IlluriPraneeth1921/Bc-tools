@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-032 |
 | Scenario | Address Update when participant is disenrolled — no MMIS transaction sent |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 11) → S200 → S700 (Condition 2) |
 | Business Rules | BR-D01-003, BR-D01-005, BR-D01-023 |

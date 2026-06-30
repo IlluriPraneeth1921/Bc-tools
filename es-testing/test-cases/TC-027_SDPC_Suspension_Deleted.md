@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-027 |
 | Scenario | SDPC Suspension Deleted |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | SDPC |
 | Decision Table | S100 (Condition 10) → S210 → S230 (Condition 5) → S410 + S470 (Column 2 SDPC) |
 | Business Rules | BR-D01-011, BR-D01-015, BR-D01-020, BR-D01-021 |
@@ -60,7 +60,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `IsOriginal` | true | |
 | `EffectiveDateRangeEndDate` | NULL | Currently active |
@@ -224,7 +224,7 @@ WHERE ProgramEnrollmentExtensionKey = '{ProgramEnrollmentExtensionKey}'
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10), from PersonMedicaidNumbers.Value |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10), from PersonMedicaidNumbers.Value |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25), optional |
@@ -262,7 +262,7 @@ WHERE ProgramEnrollmentExtensionKey = '{ProgramEnrollmentExtensionKey}'
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10) |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10) |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25) |
@@ -326,8 +326,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `ResponseStatusCode` | "SU" | Both transactions successful |
 | `TransactionTypeCode` | "A" | Last transaction type (S470 extend) |
 | `TxnRefId` | {Txn 2 ref ID} | From last transaction |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent |
 | `MmisEffectiveDate` | 2026-07-01 (Span-A begin — anchor) | From last transaction (S470) |
 | `MmisEndDate` | 2026-08-09 (Span-C begin - 1) | From last transaction (extended Span-A end) |
 | `LastSynchronizedTimestamp` | Current datetime2 | Updated on sync |
@@ -358,8 +358,8 @@ Expected: **2 new rows** (in addition to prior TC-015 + TC-018 sync rows)
 | `MmisEffectiveDate` | 2026-07-11 (Span-B begin — exact match) |
 | `MmisEndDate` | 2026-08-09 (Span-B end — exact match) |
 | `ResponseStatusCode` | "SU" |
-| `IdUniqueClientIdentifier` | "1430000012" |
-| `SubmittedClientId` | "1430000012" |
+| `IdUniqueClientIdentifier` | "1430000013" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — verify Status="I", SDPCAgencyID, NO address/FEA |
 | `ResponseJsonTextFile` | NOT NULL |
 | `ChangeTypeCode` | "SuspensionDeleted" (or equivalent) |
@@ -377,8 +377,8 @@ Expected: **2 new rows** (in addition to prior TC-015 + TC-018 sync rows)
 | `MmisEffectiveDate` | 2026-07-01 (Span-A begin — anchor) |
 | `MmisEndDate` | 2026-08-09 (Span-C begin - 1 — extended end) |
 | `ResponseStatusCode` | "SU" |
-| `IdUniqueClientIdentifier` | "1430000012" |
-| `SubmittedClientId` | "1430000012" |
+| `IdUniqueClientIdentifier` | "1430000013" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — verify Status="A", SDPCAgencyID, NO address/FEA |
 | `ResponseJsonTextFile` | NOT NULL |
 | `ChangeTypeCode` | "SuspensionDeleted" (or equivalent) |
@@ -436,7 +436,7 @@ WHERE pe.ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| Active `Value` | "1430000012" (unchanged) |
+| Active `Value` | "1430000013" (unchanged) |
 
 ### 7. Verify NO Address/FEA Payload Content
 
@@ -518,7 +518,7 @@ ORDER BY Timestamp DESC
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000012"** |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = **"1430000013"** |
 | **SDPCAgencyID** (both txns) | `PersonModule.PersonLocationAssignment` → WHERE Type = '**SDPC**' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
 | **DateSDPCEffective** (Txn 1 / S410) | Existing Span-B begin from prior MMIS sync = "20260711" (exact match) |
 | **DateSDPCEnd** (Txn 1 / S410) | Existing Span-B end from prior MMIS sync = "20260809" (exact match) |

@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-030 |
 | Scenario | Success with Errors (SE Response) — IRIS Enrollment Activated |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 1) → S200 → S220 (Condition 1) → S300 |
 | Business Rules | BR-D01-001, BR-D01-009, BR-D01-010 |
@@ -55,7 +55,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -252,8 +252,8 @@ WHERE pla.PersonLocationAssignmentTypeDisplayName = 'FEA' AND pla.CaseKey = '{Ca
 | EffectiveDate | "20260701" | Echoed |
 | EndDate | "22991231" | Echoed |
 | TxnRefId | Same as request TxnRefId | Echoed |
-| IdUniqueClient | "1430000012" | No ID swap expected |
-| SubmittedClientID | "1430000012" | Echoed |
+| IdUniqueClient | "1430000013" | No ID swap expected |
+| SubmittedClientID | "1430000013" | Echoed |
 
 ### Error/Warning Segment (Non-Blocking)
 
@@ -295,8 +295,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `ResponseStatusCode` | **"SE"** | Success with Errors |
 | `TransactionTypeCode` | "O" | Open (new enrollment) |
 | `TxnRefId` | {captured at runtime} | From request |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent |
 | `MmisEffectiveDate` | 2026-07-01 (enrollment begin) | From response |
 | `MmisEndDate` | 2299-12-31 (open-ended) | From response |
 | `LastSynchronizedTimestamp` | Current datetime2 | Updated on sync |
@@ -338,8 +338,8 @@ Expected: **1 row**
 | `MmisEffectiveDate` | 2026-07-01 |
 | `MmisEndDate` | 2299-12-31 |
 | `ResponseStatusCode` | "SE" |
-| `IdUniqueClientIdentifier` | "1430000012" |
-| `SubmittedClientId` | "1430000012" |
+| `IdUniqueClientIdentifier` | "1430000013" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — full request payload |
 | `ResponseJsonTextFile` | NOT NULL — contains SE response with warning |
 | `Timestamp` | Current datetime2 |
@@ -383,7 +383,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" (unchanged) |
+| `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -460,7 +460,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000013" |
 | **NameLast** | `PersonModule.Person.NameLastName` |
 | **NameFirst** | `PersonModule.Person.NameFirstName` |
 | **DateBirth** | `PersonModule.Person.BirthDate` |

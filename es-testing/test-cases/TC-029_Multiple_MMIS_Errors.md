@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-029 |
 | Scenario | Multiple MMIS Error Segments in Response |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 1) → S200 → S220 (Condition 1) → S300 |
 | Business Rules | BR-D01-001, BR-D01-009, BR-D01-010 |
@@ -53,7 +53,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -297,8 +297,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `MmisEffectiveDate` | 2026-01-01 | From response |
 | `MmisEndDate` | 2299-12-31 | From response |
 | `LastSynchronizedTimestamp` | Current datetime2 | Sync was attempted |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent in request |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent in request |
 
 ### 2. `CustomerProgramEnrollmentModule.ProgramEnrollmentExtensionMessages`
 
@@ -384,7 +384,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" |
+| `Value` | "1430000013" |
 
 ---
 
@@ -442,7 +442,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000013" |
 | **City** (Address Node) | `PersonModule.PersonAddress` → WHERE Residential AND Active → `PhysicalAddressCityName` = **NULL/empty** (error source) |
 | **WaiverFEA** | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
 | **FEAEffectiveDate** | `PersonModule.PersonLocationAssignment` (FEA) → `EffectiveDateRangeStartDate` = 2026-01-01 |

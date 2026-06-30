@@ -1,20 +1,50 @@
-# Introduction 
-TODO: Give a short introduction of your project. Let this section explain the objectives or the motivation behind this project. 
+# BC Tools Validation Helper
 
-# Getting Started
-TODO: Guide users through getting your code up and running on their own system. In this section you can talk about:
-1.	Installation process
-2.	Software dependencies
-3.	Latest releases
-4.	API references
+Automated test suite for validating the Blue Compass (Carity) enrollment webservice integration with Wisconsin DHS MMIS.
 
-# Build and Test
-TODO: Describe and show how to build your code and run the tests. 
+## Projects
 
-# Contribute
-TODO: Explain how other users and developers can contribute to make your code better. 
+| Folder | Description |
+|--------|-------------|
+| `es-testing/` | Enrollment Service end-to-end tests (Playwright) |
+| `pipeline-testing/` | Pipeline validation tests |
 
-If you want to learn more about creating good readme files then refer the following [guidelines](https://docs.microsoft.com/en-us/azure/devops/repos/git/create-a-readme?view=azure-devops). You can also seek inspiration from the below readme files:
-- [ASP.NET Core](https://github.com/aspnet/Home)
-- [Visual Studio Code](https://github.com/Microsoft/vscode)
-- [Chakra Core](https://github.com/Microsoft/ChakraCore)
+## Enrollment Service Testing (`es-testing/`)
+
+Comprehensive Playwright-based test automation covering the ICD-D01 V6.0 Enrollment Webservice contract between Blue Compass and MMIS.
+
+### Quick Start
+
+```bash
+cd es-testing
+npm install
+npx playwright install chromium
+npm test
+```
+
+### Test Coverage
+
+- **32 test cases** covering all 11 S100 trigger conditions
+- **IRIS** (28 tests) and **SDPC** (4 tests) programs
+- **24/24 business rules** covered (BR-D01-001 through BR-D01-024)
+- Positive (SU), negative (FL), and edge case (SE) response scenarios
+
+### Test Participant
+
+| Attribute | Value |
+|-----------|-------|
+| Medicaid ID (MA ID) | **1430000013** |
+
+### Documentation
+
+- [Test Strategy](es-testing/.kiro/test-strategy-v1.md) — Automation strategy document
+- [Test Inventory](es-testing/test-cases/TEST_INVENTORY.md) — Complete test case inventory with decision table coverage
+- [Test Participant](es-testing/test-cases/TEST_PARTICIPANT.md) — Shared test participant data profile
+- [Tests README](es-testing/tests/README.md) — Running guide with commands and execution order
+
+## Prerequisites
+
+- Node.js 18+
+- Playwright with Chromium
+- Access to the Blue Compass F2 environment
+- Test participant (MA ID 1430000013) configured in the target environment

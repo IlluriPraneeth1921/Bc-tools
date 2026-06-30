@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-004 |
 | Scenario | Hard Error — FEA Dates Don't Span Enrollment Period |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Decision Table | S100 (Condition 1) → S200 → S220 (Condition 1) → S300 (Column 1) |
 | Business Rules | BR-D01-001, BR-D01-010, BR-D01-020, BR-D01-021 |
 | Trigger | User adds a new IRIS enrollment table entry; status changes to "Enrolled" |
@@ -56,7 +56,7 @@ The following Carity database tables and columns must be populated before test e
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -294,8 +294,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `MmisEffectiveDate` | 2026-01-01 | From response |
 | `MmisEndDate` | 2299-12-31 | From response |
 | `LastSynchronizedTimestamp` | Current datetime2 | Sync was attempted |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent in request |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent in request |
 
 ### 2. `CustomerProgramEnrollmentModule.ProgramEnrollmentExtensionMessages`
 
@@ -348,7 +348,7 @@ WHERE ProgramEnrollmentKey = '{key}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| `Value` | "1430000012" |
+| `Value` | "1430000013" |
 
 ---
 
@@ -431,7 +431,7 @@ These chains show how Blue Compass resolves each request field from the Carity d
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE Active → `Value` = "1430000013" |
 | **WaiverAgencyID** | `PersonModule.PersonLocationAssignment` → WHERE Type = 'ICA' AND active → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
 | **WaiverFEA** | `PersonModule.PersonLocationAssignment` → WHERE Type = 'FEA' → `LocationKey` → `OrganizationModule.LocationIdentifiers` → `Value` |
 | **FEAEffectiveDate** | `PersonModule.PersonLocationAssignment` (FEA) → `EffectiveDateRangeStartDate` = 2026-01-01 |

@@ -6,7 +6,7 @@
 |-----------|-------|
 | Test Case ID | TC-010 |
 | Scenario | Open-Ended Suspension (No End Date) |
-| Test Participant MA ID | **1430000012** |
+| Test Participant MA ID | **1430000013** |
 | Program Type | IRIS |
 | Decision Table | S100 (Condition 3) → S200 → S240 (Condition 2) → S500 + S510 |
 | Business Rules | BR-D01-001, BR-D01-017, BR-D01-019, BR-D01-020, BR-D01-021, BR-D01-022 |
@@ -54,7 +54,7 @@ The following Carity database tables and columns must be in the specified state 
 | Column | Required Value | Notes |
 |--------|----------------|-------|
 | `PersonKey` | {test participant GUID} | FK to Person |
-| `Value` | **"1430000012"** | 10-char Medicaid ID → IdUniqueClient |
+| `Value` | **"1430000013"** | 10-char Medicaid ID → IdUniqueClient |
 | `StatusDisplayName` | "Active" | Must be active |
 | `StatusIdentifier` | (active status code) | |
 | `IsOriginal` | true | |
@@ -278,7 +278,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10) |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10) |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25) |
@@ -362,7 +362,7 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 
 | Field | JSON Element | Expected Value | Validation Rule |
 |-------|-------------|----------------|-----------------|
-| IdUniqueClient | IdUniqueClient | "1430000012" | CHAR(10) |
+| IdUniqueClient | IdUniqueClient | "1430000013" | CHAR(10) |
 | NameLast | NameLast | Participant's last name | CHAR(60) |
 | NameFirst | NameFirst | Participant's first name | CHAR(35) |
 | NameMi | NameMi | Middle name (if exists) | CHAR(25) |
@@ -467,8 +467,8 @@ WHERE ProgramEnrollmentKey = '{ProgramEnrollmentKey}'
 | `ResponseStatusCode` | "SU" | Both transactions successful |
 | `TransactionTypeCode` | "O" | Last transaction type (Span-B open) |
 | `TxnRefId` | {Txn 2 ref ID} | From last transaction |
-| `IdUniqueClientIdentifier` | "1430000012" | From response |
-| `SubmittedClientId` | "1430000012" | What was sent |
+| `IdUniqueClientIdentifier` | "1430000013" | From response |
+| `SubmittedClientId` | "1430000013" | What was sent |
 | `MmisEffectiveDate` | 2026-07-11 (BC suspension start + 1) | From last transaction (Span-B) |
 | `MmisEndDate` | 2299-12-31 | From last transaction (indefinite suspension) |
 | `LastSynchronizedTimestamp` | Current datetime2 | Updated on sync |
@@ -499,8 +499,8 @@ Expected: **2 new rows** (one per MMIS transaction, in addition to any prior TC-
 | `MmisEffectiveDate` | 2026-07-01 (Span-A begin date) |
 | `MmisEndDate` | 2026-07-10 (BC suspension start, no offset) |
 | `ResponseStatusCode` | "SU" |
-| `IdUniqueClientIdentifier` | "1430000012" |
-| `SubmittedClientId` | "1430000012" |
+| `IdUniqueClientIdentifier` | "1430000013" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — full request payload stored |
 | `ResponseJsonTextFile` | NOT NULL |
 | `ChangeTypeCode` | "NewSuspension" (or equivalent) |
@@ -518,8 +518,8 @@ Expected: **2 new rows** (one per MMIS transaction, in addition to any prior TC-
 | `MmisEffectiveDate` | 2026-07-11 (BC suspension start + 1 day) |
 | `MmisEndDate` | 2299-12-31 (NULL end → indefinite) |
 | `ResponseStatusCode` | "SU" |
-| `IdUniqueClientIdentifier` | "1430000012" |
-| `SubmittedClientId` | "1430000012" |
+| `IdUniqueClientIdentifier` | "1430000013" |
+| `SubmittedClientId` | "1430000013" |
 | `RequestJsonTextFile` | NOT NULL — full request payload stored |
 | `ResponseJsonTextFile` | NOT NULL |
 | `ChangeTypeCode` | "NewSuspension" (or equivalent) |
@@ -581,7 +581,7 @@ WHERE PersonKey = '{PersonKey}'
 | Verification | Expected |
 |--------------|----------|
 | Row count | 1 (unchanged) |
-| Active `Value` | "1430000012" (unchanged) |
+| Active `Value` | "1430000013" (unchanged) |
 
 ---
 
@@ -645,7 +645,7 @@ WHERE PersonKey = '{PersonKey}'
 
 | Request Field | Lookup Path |
 |---------------|-------------|
-| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000012" |
+| **IdUniqueClient** | `PersonModule.PersonMedicaidNumbers` → WHERE `StatusDisplayName` = 'Active' → `Value` = "1430000013" |
 | **NameLast** | `PersonModule.Person.NameLastName` |
 | **NameFirst** | `PersonModule.Person.NameFirstName` |
 | **DateBirth** | `PersonModule.Person.BirthDate` |
