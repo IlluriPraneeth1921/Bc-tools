@@ -346,11 +346,21 @@ class IcdD06Stage3Generator:
         Format provider name per ICD-D06 rules.
         Personal (P): source is "Last(1-25) First(26-38) MI(39)" → target is "First MI Last"
         Business (B): stored directly as-is.
+
+        The source data uses fixed-width positional layout within the 50-char field:
+          - Positions 0-24 (25 chars): Last name
+          - Positions 25-37 (13 chars): First name
+          - Position 38 (1 char): Middle initial
+
+        Note: The parser strips trailing whitespace from the field, so the string
+        may be shorter than 39 chars even for Personal names. We use position 25
+        as the boundary — if the string is long enough to contain a first name
+        (len > 25), we extract it positionally.
         """
-        if name_type == "P" and len(raw_name) >= 39:
-            last = raw_name[0:25].strip()
-            first = raw_name[25:38].strip()
-            mi = raw_name[38:39].strip()
+        if name_type == "P":
+            last = raw_name[0:25].strip() if len(raw_name) > 0 else ""
+            first = raw_name[25:38].strip() if len(raw_name) > 25 else ""
+            mi = raw_name[38:39].strip() if len(raw_name) > 38 else ""
             parts = [p for p in [first, mi, last] if p]
             return " ".join(parts)
         return raw_name.strip()

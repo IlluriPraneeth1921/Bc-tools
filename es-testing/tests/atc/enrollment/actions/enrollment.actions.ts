@@ -266,7 +266,7 @@ export async function getSyncStatus(page: Page): Promise<{
   // If no raw code found, check for UI indicators
   if (!responseStatus) {
     // "Succeeded" or "Success" near MMIS context
-    if (/\bSucceeded\b/i.test(pageText)) {
+    if (/\bSucceeded\b|\bSuccess\b/i.test(pageText)) {
       responseStatus = 'SU';
     }
     // Error codes visible (4-digit numbers like 9199, 9156, etc.) = MMIS responded

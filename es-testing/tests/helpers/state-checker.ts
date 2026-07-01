@@ -9,6 +9,7 @@ import { Page } from '@playwright/test';
 
 export type IrisEnrollmentState =
   | 'Enrolled'
+  | 'Suspended'
   | 'Referred'
   | 'Draft'
   | 'Disenrolled'
@@ -47,6 +48,7 @@ export async function getCurrentIrisState(page: Page): Promise<IrisEnrollmentSta
     const rowText = (await rows.nth(i).textContent()) || '';
     if (!rowText.includes('IRIS')) continue;
 
+    if (rowText.includes('Suspended')) return 'Suspended';
     if (rowText.includes('Enrolled') && !rowText.includes('Disenrolled')) return 'Enrolled';
     if (rowText.includes('Referred')) return 'Referred';
     if (rowText.includes('Draft')) return 'Draft';
@@ -99,7 +101,8 @@ export async function getFullEnrollmentState(page: Page): Promise<EnrollmentStat
 
     // IRIS state (first match wins — most recent)
     if (rowText.includes('IRIS') && !irisState) {
-      if (rowText.includes('Enrolled') && !rowText.includes('Disenrolled')) irisState = 'Enrolled';
+      if (rowText.includes('Suspended')) irisState = 'Suspended';
+      else if (rowText.includes('Enrolled') && !rowText.includes('Disenrolled')) irisState = 'Enrolled';
       else if (rowText.includes('Referred')) irisState = 'Referred';
       else if (rowText.includes('Draft')) irisState = 'Draft';
       else if (rowText.includes('Disenrolled')) irisState = 'Disenrolled';
@@ -108,7 +111,8 @@ export async function getFullEnrollmentState(page: Page): Promise<EnrollmentStat
 
     // SDPC state (first match wins)
     if (rowText.includes('SDPC') && !sdpcState) {
-      if (rowText.includes('Enrolled') && !rowText.includes('Disenrolled')) sdpcState = 'Enrolled';
+      if (rowText.includes('Suspended')) sdpcState = 'Suspended';
+      else if (rowText.includes('Enrolled') && !rowText.includes('Disenrolled')) sdpcState = 'Enrolled';
       else if (rowText.includes('Referred')) sdpcState = 'Referred';
       else if (rowText.includes('Draft')) sdpcState = 'Draft';
       else if (rowText.includes('Disenrolled')) sdpcState = 'Disenrolled';

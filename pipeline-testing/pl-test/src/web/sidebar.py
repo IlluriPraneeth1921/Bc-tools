@@ -84,7 +84,15 @@ def render_sidebar():
     # Load from browser localStorage on first session visit
     load_entity_prefix_from_browser()
 
-    # Initialize default
+    # If we haven't finished loading from localStorage yet (JS redirect pending),
+    # show a placeholder and don't render the input or save — avoids overwriting
+    # the real stored value with the default.
+    if not st.session_state.get("entity_id_prefix_loaded_from_browser"):
+        st.sidebar.subheader("QA Settings")
+        st.sidebar.info("Loading saved prefix...")
+        return
+
+    # Initialize default only after load attempt is complete
     if "entity_id_prefix" not in st.session_state:
         st.session_state["entity_id_prefix"] = "000000000"
 

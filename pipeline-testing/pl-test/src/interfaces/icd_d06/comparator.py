@@ -550,7 +550,7 @@ class IcdD06Comparator(BaseComparator):
                         FROM [{schema}].[Organization] o
                         INNER JOIN [{schema}].[OrganizationIdentifiers] oi
                             ON o.OrganizationKey = oi.OrganizationKey
-                        WHERE oi.TypeIdentifier = 1 AND oi.Value LIKE ?""",
+                        WHERE oi.TypeIdentifier = 1000003 AND oi.Value LIKE ?""",
                     (f"{self.entity_id_prefix}%",),
                 )
             elif table_name == "Location":
@@ -560,7 +560,7 @@ class IcdD06Comparator(BaseComparator):
                         FROM [{schema}].[Location] l
                         INNER JOIN [{schema}].[LocationIdentifiers] li
                             ON l.LocationKey = li.LocationKey
-                        WHERE li.TypeIdentifier = 1 AND li.Value LIKE ?""",
+                        WHERE li.TypeIdentifier = 1000003 AND li.Value LIKE ?""",
                     (f"{self.entity_id_prefix}%",),
                 )
             elif table_name == "OrganizationIdentifiers":
@@ -570,7 +570,7 @@ class IcdD06Comparator(BaseComparator):
                     f"""SELECT oi.*, oi2.Value AS _ProviderNumber
                         FROM [{schema}].[OrganizationIdentifiers] oi
                         INNER JOIN [{schema}].[OrganizationIdentifiers] oi2
-                            ON oi.OrganizationKey = oi2.OrganizationKey AND oi2.TypeIdentifier = 1
+                            ON oi.OrganizationKey = oi2.OrganizationKey AND oi2.TypeIdentifier = 1000003
                         WHERE oi2.Value LIKE ?""",
                     (f"{self.entity_id_prefix}%",),
                 )
@@ -580,7 +580,7 @@ class IcdD06Comparator(BaseComparator):
                     f"""SELECT li.*, li2.Value AS _ProviderNumber
                         FROM [{schema}].[LocationIdentifiers] li
                         INNER JOIN [{schema}].[LocationIdentifiers] li2
-                            ON li.LocationKey = li2.LocationKey AND li2.TypeIdentifier = 1
+                            ON li.LocationKey = li2.LocationKey AND li2.TypeIdentifier = 1000003
                         WHERE li2.Value LIKE ?""",
                     (f"{self.entity_id_prefix}%",),
                 )
@@ -590,7 +590,7 @@ class IcdD06Comparator(BaseComparator):
                     f"""SELECT t.*, id.Value AS _ProviderNumber
                         FROM [{schema}].[{table_name}] t
                         INNER JOIN [{schema}].[OrganizationIdentifiers] id
-                            ON t.OrganizationKey = id.OrganizationKey AND id.TypeIdentifier = 1
+                            ON t.OrganizationKey = id.OrganizationKey AND id.TypeIdentifier = 1000003
                         WHERE id.Value LIKE ?""",
                     (f"{self.entity_id_prefix}%",),
                 )
@@ -600,7 +600,7 @@ class IcdD06Comparator(BaseComparator):
                     f"""SELECT t.*, id.Value AS _ProviderNumber
                         FROM [{schema}].[{table_name}] t
                         INNER JOIN [{schema}].[LocationIdentifiers] id
-                            ON t.LocationKey = id.LocationKey AND id.TypeIdentifier = 1
+                            ON t.LocationKey = id.LocationKey AND id.TypeIdentifier = 1000003
                         WHERE id.Value LIKE ?""",
                     (f"{self.entity_id_prefix}%",),
                 )
