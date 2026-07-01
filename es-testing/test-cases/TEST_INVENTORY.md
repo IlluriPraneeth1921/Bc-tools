@@ -75,15 +75,15 @@
 | TC-009 | Disenrolled → Enrolled (Reinstatement) | IRIS    | Disenrolled            | SU       | ✅ (via TC-001) |
 | TC-010 | Open-Ended Suspension (no end date)     | IRIS    | Enrolled               | SU       | ✅ Working      |
 | TC-011 | Suspension < 3 Days (Error)             | IRIS    | Enrolled               | No Txn   | —              |
-| TC-012 | Suspension Deleted                      | IRIS    | Suspended (bounded)    | SU       | —              |
+| TC-012 | Suspension Deleted                      | IRIS    | Suspended (bounded)    | SU       | ✅ Working      |
 | TC-013 | Suspension End: Null → Valid           | IRIS    | Suspended (open-ended) | SU       | ✅ Working      |
 | TC-014 | Address-Only Update (S700)              | IRIS    | Enrolled               | SU       | ✅ Working      |
 | TC-015 | New SDPC Enrollment                     | SDPC    | Pristine               | SU       | —              |
 | TC-016 | FEA Transfer — Close + Open            | IRIS    | Enrolled               | SU       | —              |
-| TC-017 | ICA Transfer During Suspension          | IRIS    | Suspended (bounded)    | SU       | —              |
+| TC-017 | ICA Transfer During Suspension          | IRIS    | Suspended (bounded)    | SU       | ✅ Working      |
 | TC-018 | New SDPC Suspension                     | SDPC    | SDPC Enrolled          | SU       | —              |
-| TC-019 | Begin Date → Earlier                   | IRIS    | Enrolled               | SU       | —              |
-| TC-020 | Begin Date → Later                     | IRIS    | Enrolled               | SU       | —              |
+| TC-019 | Begin Date → Earlier                   | IRIS    | Enrolled               | SU       | ✅ Working      |
+| TC-020 | Begin Date → Later                     | IRIS    | Enrolled               | SU       | ✅ Working      |
 | TC-021 | Suspension Begin → Earlier             | IRIS    | Suspended (bounded)    | SU       | —              |
 | TC-022 | Suspension Begin → Later               | IRIS    | Suspended (bounded)    | SU       | —              |
 | TC-023 | Suspension End → Earlier               | IRIS    | Suspended (bounded)    | SU       | —              |
@@ -121,10 +121,10 @@ Tests are arranged below so each test's output state feeds the next test's requi
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 13   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 14   | TC-017 | ICA Transfer During Suspension | Suspended (bounded, 3 spans) | Suspended (new ICA)          | 3    | SU       | —         |
+| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation  |
+| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ----------- |
+| 13   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working  |
+| 14   | TC-017 | ICA Transfer During Suspension | Suspended (bounded, 3 spans) | Suspended (new ICA)          | 3    | SU       | ✅ Working  |
 
 **[RESET via TC-008 + TC-001]**
 
