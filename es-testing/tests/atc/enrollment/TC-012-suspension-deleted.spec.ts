@@ -50,12 +50,12 @@ test('ATC-ES-053 - Navigate to enrollment detail with active suspension (only if
   const state = await getFullEnrollmentState(page);
   console.log(`[TC-012] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
 
-  if (state.irisState !== 'Enrolled' || !state.hasSuspension) {
-    console.log(`[TC-012] Skipping — precondition not met (need Enrolled + suspension, current: ${state.irisState}, suspension: ${state.hasSuspension})`);
+  if ((state.irisState !== 'Enrolled' && state.irisState !== 'Suspended') || !state.hasSuspension) {
+    console.log(`[TC-012] Skipping — precondition not met (need Enrolled/Suspended + suspension, current: ${state.irisState}, suspension: ${state.hasSuspension})`);
     return;
   }
 
-  const firstRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).first();
+  const firstRow = page.locator('mat-row').filter({ hasText: /Enrolled|Suspended/ }).first();
   await expect(firstRow).toBeVisible({ timeout: 15_000 });
   await firstRow.dblclick();
   await page.waitForTimeout(3000);
@@ -70,43 +70,53 @@ test('ATC-ES-054 - Delete existing suspension record', async () => {
     return;
   }
 
-  // Look for suspension row and delete action
-  const suspensionRow = page.locator('mat-row, tr').filter({ hasText: /Suspend|suspension/i }).first();
-  if (await suspensionRow.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    await suspensionRow.click();
-    await page.waitForTimeout(1000);
-  }
+  // Scroll to Suspensions section
+  const suspensionsHeading = page.locator('span:text("Suspensions")').first();
+  await expect(suspensionsHeading).toBeVisible({ timeout: 15_000 });
+  await suspensionsHeading.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(1000);
 
-  // Look for delete button (trash icon, delete link, or contextual action)
-  const deleteBtn = page.getByRole('button', { name: /Delete|Remove/i }).first();
-  if (await deleteBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await deleteBtn.click({ force: true });
-    await page.waitForTimeout(2000);
-  } else {
-    // Try icon button approach
-    const deleteIcon = page.locator('button[aria-label*="delete"], button[aria-label*="Delete"], [mattooltip*="Delete"]').first();
-    if (await deleteIcon.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await deleteIcon.click({ force: true });
-      await page.waitForTimeout(2000);
+  // The suspension row's three-dot button has aria-label="Expand menu" and class "ellipse-action-menu"
+  const suspensionMenuBtn = page.locator('button.ellipse-action-menu[aria-label="Expand menu"]').first();
+  await expect(suspensionMenuBtn).toBeVisible({ timeout: 10_000 });
+  await suspensionMenuBtn.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await suspensionMenuBtn.click();
+  await page.waitForTimeout(1000);
+
+  // Click "Delete" from the context menu (renders in .cdk-overlay-container)
+  const deleteMenuItem = page.locator('.mat-mdc-menu-content button[mat-menu-item]').filter({ hasText: 'Delete' });
+  await expect(deleteMenuItem).toBeVisible({ timeout: 5_000 });
+  await deleteMenuItem.click();
+  await page.waitForTimeout(2000);
+
+  // Handle confirmation dialog — button text is "Continue"
+  const dialog = page.locator('mat-dialog-container');
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  const continueBtn = dialog.locator('button').filter({ hasText: /Continue/i }).first();
+  await expect(continueBtn).toBeVisible({ timeout: 5_000 });
+  await continueBtn.click();
+  await page.waitForTimeout(3000);
+
+  // Wait for page to process the deletion
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(3000);
+
+  // Verify suspension is gone — the "Expand menu" button for suspension should no longer exist
+  const suspMenuStillVisible = await page.locator('button.ellipse-action-menu[aria-label="Expand menu"]').first()
+    .isVisible({ timeout: 5_000 }).catch(() => false);
+
+  if (suspMenuStillVisible) {
+    // Double-check by looking for the suspension date
+    const pageText = await page.locator('main').textContent().catch(() => '') || '';
+    if (/07\/01\/2026.*09\/14\/2026/s.test(pageText)) {
+      console.error('[TC-012] ERROR: Suspension row is still visible after delete!');
+      // Take a screenshot for debugging
+      throw new Error('Suspension deletion failed — record still visible in UI');
     }
   }
 
-  // Confirm deletion dialog if present
-  const confirmBtn = page.getByRole('button', { name: /Confirm|Yes|OK/i }).first();
-  if (await confirmBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await confirmBtn.click({ force: true });
-    await page.waitForTimeout(2000);
-  }
-
-  // Save if needed
-  const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-  if (await saveBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await saveBtn.click({ force: true });
-    await page.waitForTimeout(5000);
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-  }
-
-  console.log('[TC-012] Suspension delete action completed');
+  console.log('[TC-012] Suspension successfully deleted from UI');
 });
 
 test('ATC-ES-055 - Verify 2 MMIS transactions (S410 + S470)', async () => {
