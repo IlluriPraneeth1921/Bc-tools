@@ -4,10 +4,10 @@ Shared sidebar for the pl-test Streamlit application.
 Provides page_setup() which every page (including app.py) should call as early
 as possible. It sets the page config, checks auth, and renders the sidebar.
 
-Entity ID Prefix is persisted to browser localStorage.
+Entity ID Prefix is persisted to browser localStorage via client-side JS.
 """
 import streamlit as st
-from src.web.local_storage import load_entity_prefix_from_browser, save_entity_prefix_to_browser
+from src.web.local_storage import inject_local_storage_sync, save_entity_prefix_to_browser
 
 
 def page_setup():
@@ -81,18 +81,7 @@ def _render_db_status():
 
 def render_sidebar():
     """Render the sidebar content (QA Settings)."""
-    # Load from browser localStorage on first session visit
-    load_entity_prefix_from_browser()
-
-    # If we haven't finished loading from localStorage yet (JS redirect pending),
-    # show a placeholder and don't render the input or save — avoids overwriting
-    # the real stored value with the default.
-    if not st.session_state.get("entity_id_prefix_loaded_from_browser"):
-        st.sidebar.subheader("QA Settings")
-        st.sidebar.info("Loading saved prefix...")
-        return
-
-    # Initialize default only after load attempt is complete
+    # Initialize default
     if "entity_id_prefix" not in st.session_state:
         st.session_state["entity_id_prefix"] = "000000000"
 
@@ -104,11 +93,16 @@ def render_sidebar():
         help="Your unique test data prefix. Saved in your browser across sessions.",
     )
 
-    # Sync changes and persist to browser
+    # Sync changes to session state
     if entity_id_prefix != st.session_state.get("entity_id_prefix"):
         st.session_state["entity_id_prefix"] = entity_id_prefix
 
+    # Save current value to browser localStorage
     save_entity_prefix_to_browser(st.session_state["entity_id_prefix"])
+
+    # Inject JS to restore value from localStorage on fresh page load
+    # (patches the text input DOM if localStorage has a saved value)
+    inject_local_storage_sync()
 
     st.sidebar.caption(f"Active prefix: `{st.session_state['entity_id_prefix']}`")
     st.sidebar.divider()
