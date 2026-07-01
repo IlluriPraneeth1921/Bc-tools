@@ -24,16 +24,21 @@ import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
 import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
-import { resolveParticipantUuid, getSyncStatus } from './actions/enrollment.actions';
+import { resolveParticipantUuid, openFirstEnrollmentDetail, getSyncStatus } from './actions/enrollment.actions';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
 import { waitForEmptyWaiverEnrollment } from '../../helpers/reset-enrollment';
 import { SCENARIOS } from '../../data/scenario-test-data';
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_008;
 
 // ─── State ────────────────────────────────────────────────────────────────────
+
+
+/** When true, uses database stored procedure to mock MMIS Success response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -53,7 +58,10 @@ test.describe.serial('TC-008: Referral Withdrawn', () => {
     console.log(`[TC-008] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => {
+    if (MOCK_MMIS) await closeDb();
+    await browser.close();
+  });
 
   test('ATC-ES-038 - Precondition: Verify active MMIS waiver enrollment exists', async () => {
     const mmisState = await getMmisSnapshotState(page, participantUuid);
@@ -187,37 +195,57 @@ test.describe.serial('TC-008: Referral Withdrawn', () => {
   });
 
   test('ATC-ES-041 - Verify SU response on enrollment detail', async () => {
-    // Poll for sync completion — MMIS response may take time to arrive
-    // Use page.goto() instead of page.reload() to force Angular to re-fetch data
-    const currentUrl = page.url();
-    const maxAttempts = 12;
-    const pollInterval = 10_000;
-    let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      // Force full navigation (not just reload) to make Angular re-fetch sync state
-      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    if (MOCK_MMIS) {
+      // ─── Mock path: Use database to set MMIS Success ──────────────────────
+      const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+      if (!enrollmentKey) {
+        await navigateToEnrollments(page, participantUuid);
+        await page.waitForTimeout(2000);
+        const opened = await openFirstEnrollmentDetail(page);
+        expect(opened).toBe(true);
+      }
+      const key = enrollmentKey || extractProgramEnrollmentKeyFromUrl(page.url());
+      expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+      await page.waitForTimeout(5000);
+      const mockResult = await mockMmisSuccess(key!);
+      expect(mockResult, 'mockMmisSuccess failed — stored procedure missing?').toBe(true);
+      console.log(`[TC-008] MMIS Success mocked for key: ${key}`);
+      await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
       await page.waitForTimeout(3000);
+      const status = await getSyncStatus(page);
+      expect(status.responseStatus).toBe('SU');
+      expect(status.hasConflict).toBe(false);
+    } else {
+      // ─── Real path: Poll for actual MMIS response ─────────────────────────
+      const currentUrl = page.url();
+      const maxAttempts = 12;
+      const pollInterval = 10_000;
+      let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
 
-      status = await getSyncStatus(page);
-      console.log(`[TC-008] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+        await page.waitForTimeout(3000);
 
-      if (status.responseStatus !== null) {
-        break;
+        status = await getSyncStatus(page);
+        console.log(`[TC-008] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+        if (status.responseStatus !== null) {
+          break;
+        }
+
+        if (attempt < maxAttempts) {
+          console.log(`[TC-008] Still pending — waiting ${pollInterval / 1000}s...`);
+          await page.waitForTimeout(pollInterval);
+        }
       }
 
-      if (attempt < maxAttempts) {
-        console.log(`[TC-008] Still pending — waiting ${pollInterval / 1000}s...`);
-        await page.waitForTimeout(pollInterval);
-      }
+      // Verify MMIS Transaction List is visible
+      await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
+
+      expect(status.responseStatus, 'Expected SU response from MMIS but sync did not complete').toBe('SU');
+      expect(status.hasConflict).toBe(false);
     }
-
-    // Verify MMIS Transaction List is visible
-    await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
-
-    expect(status.responseStatus, 'Expected SU response from MMIS but sync did not complete').toBe('SU');
-    expect(status.hasConflict).toBe(false);
   });
 
   test('ATC-ES-042 - Verify MMIS Snapshot shows no waiver enrollment', async () => {

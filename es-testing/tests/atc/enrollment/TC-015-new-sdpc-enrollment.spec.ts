@@ -16,17 +16,23 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
+  openFirstEnrollmentDetail,
   getSyncStatus,
 } from './actions/enrollment.actions';
 import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
 import { SCENARIOS } from '../../data/scenario-test-data';
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_015;
 const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
+
+
+/** When true, uses database stored procedure to mock MMIS Success response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -42,7 +48,10 @@ test.describe.serial('TC-015: New SDPC Enrollment', () => {
     console.log(`[TC-015] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => {
+    if (MOCK_MMIS) await closeDb();
+    await browser.close();
+  });
 
 /**
  * Helper: Creates a new SDPC enrollment via "+ New Program Enrollment" dialog.
@@ -262,43 +271,69 @@ test('ATC-ES-066 - Verify SDPC enrollment appears in list', async () => {
 });
 
 test('ATC-ES-067 - Verify 1 MMIS transaction and SU response', async () => {
-  const sdpcRow = page.locator('mat-row').filter({ hasText: /SDPC/ }).first();
-  if (!(await sdpcRow.isVisible({ timeout: 5_000 }).catch(() => false))) {
-    console.log('[TC-015] SDPC row not visible — skipping verification');
-    return;
-  }
-  await sdpcRow.dblclick();
-  await page.waitForTimeout(3000);
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-  // Poll for sync completion
-  const currentUrl = page.url();
-  const maxAttempts = 6;
-  const pollInterval = 10_000;
-  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-
-    status = await getSyncStatus(page);
-    console.log(`[TC-015] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
-
-    if (status.responseStatus !== null) break;
-
-    if (attempt < maxAttempts) {
-      await page.waitForTimeout(pollInterval);
+  if (MOCK_MMIS) {
+    // ─── Mock path: Use database to set MMIS Success ──────────────────────
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const sdpcRow = page.locator('mat-row').filter({ hasText: /SDPC/ }).first();
+    if (!(await sdpcRow.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      console.log('[TC-015] SDPC row not visible — skipping mock');
+      return;
     }
+    await sdpcRow.dblclick();
+    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    const key = extractProgramEnrollmentKeyFromUrl(page.url());
+    expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+    await page.waitForTimeout(5000);
+    const mockResult = await mockMmisSuccess(key!);
+    expect(mockResult, 'mockMmisSuccess failed — stored procedure missing?').toBe(true);
+    console.log(`[TC-015] MMIS Success mocked for key: ${key}`);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    const status = await getSyncStatus(page);
+    expect(status.responseStatus).toBe('SU');
+    expect(status.hasConflict).toBe(false);
+  } else {
+    // ─── Real path: Poll for actual MMIS response ─────────────────────────
+    const sdpcRow = page.locator('mat-row').filter({ hasText: /SDPC/ }).first();
+    if (!(await sdpcRow.isVisible({ timeout: 5_000 }).catch(() => false))) {
+      console.log('[TC-015] SDPC row not visible — skipping verification');
+      return;
+    }
+    await sdpcRow.dblclick();
+    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+
+    // Poll for sync completion
+    const currentUrl = page.url();
+    const maxAttempts = 6;
+    const pollInterval = 10_000;
+    let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+
+      status = await getSyncStatus(page);
+      console.log(`[TC-015] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+      if (status.responseStatus !== null) break;
+
+      if (attempt < maxAttempts) {
+        await page.waitForTimeout(pollInterval);
+      }
+    }
+
+    // Verify MMIS Transaction List is visible
+    await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
+
+    const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
+    const count = await transactionRows.count();
+    console.log(`[TC-015] MMIS transaction rows found: ${count}`);
+    expect(count).toBeGreaterThanOrEqual(1);
   }
-
-  // Verify MMIS Transaction List is visible
-  await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
-
-  const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
-  const count = await transactionRows.count();
-  console.log(`[TC-015] MMIS transaction rows found: ${count}`);
-  expect(count).toBeGreaterThanOrEqual(1);
 });
 
 test('ATC-ES-068 - Verify SU response and no conflict', async () => {

@@ -24,6 +24,8 @@ async function getPool(): Promise<sql.ConnectionPool> {
   const config: sql.config = {
     server: DB_SERVER,
     database: DB_NAME,
+    user: process.env.DB_USER,
+    password: process.env.DB_PASSWORD,
     options: {
       encrypt: true,
       trustServerCertificate: true,
@@ -35,23 +37,7 @@ async function getPool(): Promise<sql.ConnectionPool> {
       idleTimeoutMillis: 30_000,
     },
     requestTimeout: 30_000,
-    // Use Windows Integrated Security (trusted connection)
-    authentication: {
-      type: 'ntlm',
-      options: {
-        domain: '',
-        userName: '',
-        password: '',
-      },
-    },
   };
-
-  // If explicit credentials are provided via env, use SQL auth instead
-  if (process.env.DB_USER && process.env.DB_PASSWORD) {
-    delete (config as any).authentication;
-    config.user = process.env.DB_USER;
-    config.password = process.env.DB_PASSWORD;
-  }
 
   pool = await new sql.ConnectionPool(config).connect();
   console.log(`[db] Connected to ${DB_SERVER}/${DB_NAME}`);
@@ -105,6 +91,76 @@ export async function mockMmisSuccess(programEnrollmentKey: string): Promise<boo
       console.error(`[db] ERROR: No ProgramEnrollmentExtension row for key ${programEnrollmentKey}`);
     } else {
       console.error(`[db] ERROR executing mockMmisSuccess: ${err.message}`);
+    }
+    return false;
+  }
+}
+
+/**
+ * Mocks MMIS failed (FL) response with a conflict and error message.
+ * Sets ProgramEnrollmentExtension to Error status with HasConflict = 1.
+ *
+ * @param programEnrollmentKey - The ProgramEnrollmentKey GUID
+ * @param errorCode - MMIS error code (default: '9156')
+ * @param errorDescription - Error description text
+ * @returns true if the procedure executed successfully
+ */
+export async function mockMmisFailed(
+  programEnrollmentKey: string,
+  errorCode: string = '9156',
+  errorDescription: string = 'FEA DATES DO NOT SPAN ENROLLMENT PERIOD'
+): Promise<boolean> {
+  try {
+    const p = await getPool();
+    await p.request()
+      .input('ProgramEnrollmentKey', sql.UniqueIdentifier, programEnrollmentKey)
+      .input('ErrorCode', sql.NVarChar(20), errorCode)
+      .input('ErrorDescription', sql.NVarChar(sql.MAX), errorDescription)
+      .execute('[dbo].[test_SetMMISStatusFailed]');
+
+    console.log(`[db] mockMmisFailed: Set Error for key=${programEnrollmentKey}, code=${errorCode}`);
+    return true;
+  } catch (err: any) {
+    if (err.message?.includes('Could not find stored procedure')) {
+      console.error(`[db] ERROR: Stored procedure [dbo].[test_SetMMISStatusFailed] not found!`);
+      console.error(`[db] Run scripts/createMMISMockProcedures.sql against the database.`);
+    } else {
+      console.error(`[db] ERROR executing mockMmisFailed: ${err.message}`);
+    }
+    return false;
+  }
+}
+
+/**
+ * Mocks MMIS warning (SE) response — success with errors.
+ * Sets ProgramEnrollmentExtension to Warning status with HasConflict = 0.
+ *
+ * @param programEnrollmentKey - The ProgramEnrollmentKey GUID
+ * @param errorCode - Warning/error code (default: '9199')
+ * @param errorDescription - Warning description text
+ * @returns true if the procedure executed successfully
+ */
+export async function mockMmisWarning(
+  programEnrollmentKey: string,
+  errorCode: string = '9199',
+  errorDescription: string = 'ENROLLMENT PROCESSED WITH WARNINGS'
+): Promise<boolean> {
+  try {
+    const p = await getPool();
+    await p.request()
+      .input('ProgramEnrollmentKey', sql.UniqueIdentifier, programEnrollmentKey)
+      .input('ErrorCode', sql.NVarChar(20), errorCode)
+      .input('ErrorDescription', sql.NVarChar(sql.MAX), errorDescription)
+      .execute('[dbo].[test_SetMMISStatusWarning]');
+
+    console.log(`[db] mockMmisWarning: Set Warning for key=${programEnrollmentKey}, code=${errorCode}`);
+    return true;
+  } catch (err: any) {
+    if (err.message?.includes('Could not find stored procedure')) {
+      console.error(`[db] ERROR: Stored procedure [dbo].[test_SetMMISStatusWarning] not found!`);
+      console.error(`[db] Run scripts/createMMISMockProcedures.sql against the database.`);
+    } else {
+      console.error(`[db] ERROR executing mockMmisWarning: ${err.message}`);
     }
     return false;
   }

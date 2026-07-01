@@ -16,17 +16,23 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
+  openFirstEnrollmentDetail,
   getSyncStatus,
 } from './actions/enrollment.actions';
 import {
   getCurrentSdpcState,
 } from '../../helpers/state-checker';
 import { SCENARIOS } from '../../data/scenario-test-data';
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_026;
 const NEW_END_DATE = DATA.bcInput.newEnrollmentEndDate!; // Earlier end date for disenrollment
+
+
+/** When true, uses database stored procedure to mock MMIS Success response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -42,7 +48,10 @@ test.describe.serial('TC-026: SDPC End Date Earlier (Disenrollment)', () => {
     console.log(`[TC-026] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => {
+    if (MOCK_MMIS) await closeDb();
+    await browser.close();
+  });
 
 test('ATC-ES-109 - Navigate to SDPC enrollment detail (only if SDPC Enrolled)', async () => {
   await navigateToEnrollments(page, participantUuid);
@@ -95,6 +104,28 @@ test('ATC-ES-110 - Update SDPC enrollment end date to earlier date', async () =>
 });
 
 test('ATC-ES-111 - Verify 1 MMIS transaction (S340 for SDPC)', async () => {
+  if (MOCK_MMIS) {
+    // --- Mock path: Use database to set MMIS Success ---
+    const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+    if (!enrollmentKey) {
+      await navigateToEnrollments(page, participantUuid);
+      await page.waitForTimeout(2000);
+      const opened = await openFirstEnrollmentDetail(page);
+      expect(opened).toBe(true);
+    }
+    const key = enrollmentKey || extractProgramEnrollmentKeyFromUrl(page.url());
+    expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+    await page.waitForTimeout(5000);
+    const mockResult = await mockMmisSuccess(key!);
+    expect(mockResult, 'mockMmisSuccess failed --- stored procedure missing?').toBe(true);
+    console.log(`[TC-026] MMIS Success mocked for key: ${key}`);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    const status = await getSyncStatus(page);
+    expect(status.responseStatus).toBe('SU');
+    expect(status.hasConflict).toBe(false);
+  } else {
+    // --- Real path: Poll for actual MMIS response ---
   const currentUrl = page.url();
   const maxAttempts = 6;
   const pollInterval = 10_000;
@@ -121,6 +152,7 @@ test('ATC-ES-111 - Verify 1 MMIS transaction (S340 for SDPC)', async () => {
   const count = await transactionRows.count();
   console.log(`[TC-026] MMIS transaction rows found: ${count}`);
   expect(count).toBeGreaterThanOrEqual(1);
+  }
 });
 
 test('ATC-ES-112 - Verify SU response and no conflict', async () => {

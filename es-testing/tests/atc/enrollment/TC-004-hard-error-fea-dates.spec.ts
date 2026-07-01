@@ -26,12 +26,16 @@ import {
 import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
+import { mockMmisFailed, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_004;
 const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
+
+/** When true, uses database stored procedure to mock MMIS Failed response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -47,7 +51,7 @@ test.describe.serial('TC-004: Hard Error: FEA Dates Don\'t Span Enrollment Perio
     console.log(`[TC-004] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => { if (MOCK_MMIS) await closeDb(); await browser.close(); });
 
 /**
  * Helper: Creates a new enrollment via "+ New Program Enrollment" dialog.
@@ -219,28 +223,47 @@ test('ATC-ES-022 - Verify FL response status', async () => {
     return;
   }
 
-  // Wait for sync attempt to complete with polling
-  const currentUrl = page.url();
-  const maxAttempts = 6;
-  const pollInterval = 10_000;
-  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+  if (MOCK_MMIS) {
+    // Mock path: Set MMIS Failed response via database
+    const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+    expect(enrollmentKey, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+    console.log(`[TC-004] ProgramEnrollmentKey: ${enrollmentKey}`);
+    await page.waitForTimeout(5000);
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    const mockResult = await mockMmisFailed(enrollmentKey!, '9156', 'FEA DATES DO NOT SPAN ENROLLMENT PERIOD');
+    expect(mockResult, 'mockMmisFailed failed — run scripts/createMMISMockProcedures.sql').toBe(true);
+    console.log('[TC-004] MMIS Failed response mocked via database');
+
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
     await page.waitForTimeout(3000);
 
-    status = await getSyncStatus(page);
-    console.log(`[TC-004] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+    const status = await getSyncStatus(page);
+    console.log(`[TC-004] Sync status (mocked): ${JSON.stringify(status)}`);
+    expect(status.responseStatus).toBe('FL');
+  } else {
+    // Real path: Poll for actual MMIS FL response
+    const currentUrl = page.url();
+    const maxAttempts = 6;
+    const pollInterval = 10_000;
+    let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
 
-    if (status.responseStatus !== null) break;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
 
-    if (attempt < maxAttempts) {
-      await page.waitForTimeout(pollInterval);
+      status = await getSyncStatus(page);
+      console.log(`[TC-004] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+      if (status.responseStatus !== null) break;
+
+      if (attempt < maxAttempts) {
+        await page.waitForTimeout(pollInterval);
+      }
     }
-  }
 
-  expect(status.responseStatus).toBe('FL');
+    expect(status.responseStatus).toBe('FL');
+  }
 });
 
 test('ATC-ES-023 - Verify conflict badge displayed', async () => {

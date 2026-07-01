@@ -25,11 +25,16 @@ import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
 import { SCENARIOS } from '../../data/scenario-test-data';
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_005;
 const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
+
+
+/** When true, uses database stored procedure to mock MMIS Success response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -45,7 +50,10 @@ test.describe.serial('TC-005: Medicaid ID Mismatch (BR-D01-016)', () => {
     console.log(`[TC-005] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => {
+    if (MOCK_MMIS) await closeDb();
+    await browser.close();
+  });
 
 /**
  * Helper: Creates a new enrollment via "+ New Program Enrollment" dialog.
@@ -180,37 +188,57 @@ test('ATC-ES-026 - Create enrollment triggering Medicaid ID mismatch (only if pa
 });
 
 test('ATC-ES-027 - Verify SU response status', async () => {
-  await navigateToEnrollments(page, participantUuid);
-  await page.waitForTimeout(2000);
-
-  const opened = await openFirstEnrollmentDetail(page);
-  if (!opened) {
-    console.log('[TC-005] Could not open enrollment detail — skipping verification');
-    return;
-  }
-
-  // Wait for sync to complete with polling
-  const currentUrl = page.url();
-  const maxAttempts = 6;
-  const pollInterval = 10_000;
-  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+  if (MOCK_MMIS) {
+    // ─── Mock path: Use database to set MMIS Success ──────────────────────
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const opened = await openFirstEnrollmentDetail(page);
+    expect(opened).toBe(true);
+    const key = extractProgramEnrollmentKeyFromUrl(page.url());
+    expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+    await page.waitForTimeout(5000);
+    const mockResult = await mockMmisSuccess(key!);
+    expect(mockResult, 'mockMmisSuccess failed — stored procedure missing?').toBe(true);
+    console.log(`[TC-005] MMIS Success mocked for key: ${key}`);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
     await page.waitForTimeout(3000);
+    const status = await getSyncStatus(page);
+    expect(status.responseStatus).toBe('SU');
+    expect(status.hasConflict).toBe(false);
+  } else {
+    // ─── Real path: Poll for actual MMIS response ─────────────────────────
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
 
-    status = await getSyncStatus(page);
-    console.log(`[TC-005] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
-
-    if (status.responseStatus !== null) break;
-
-    if (attempt < maxAttempts) {
-      await page.waitForTimeout(pollInterval);
+    const opened = await openFirstEnrollmentDetail(page);
+    if (!opened) {
+      console.log('[TC-005] Could not open enrollment detail — skipping verification');
+      return;
     }
-  }
 
-  expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+    // Wait for sync to complete with polling
+    const currentUrl = page.url();
+    const maxAttempts = 6;
+    const pollInterval = 10_000;
+    let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+
+      status = await getSyncStatus(page);
+      console.log(`[TC-005] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+      if (status.responseStatus !== null) break;
+
+      if (attempt < maxAttempts) {
+        await page.waitForTimeout(pollInterval);
+      }
+    }
+
+    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+  }
 });
 
 test('ATC-ES-028 - Verify no conflict', async () => {

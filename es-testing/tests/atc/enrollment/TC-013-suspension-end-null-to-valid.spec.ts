@@ -16,17 +16,23 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
+  openFirstEnrollmentDetail,
   getSyncStatus,
 } from './actions/enrollment.actions';
 import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
 import { SCENARIOS } from '../../data/scenario-test-data';
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_013;
 const NEW_SUSPENSION_END = DATA.bcInput.newSuspensionEndDate!;
+
+
+/** When true, uses database stored procedure to mock MMIS Success response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -42,7 +48,10 @@ test.describe.serial('TC-013: Suspension End: Null → Valid', () => {
     console.log(`[TC-013] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => {
+    if (MOCK_MMIS) await closeDb();
+    await browser.close();
+  });
 
 test('ATC-ES-057 - Navigate to enrollment detail with open-ended suspension (only if Enrolled + suspension)', async () => {
   await navigateToEnrollments(page, participantUuid);
@@ -106,6 +115,28 @@ test('ATC-ES-058 - Update suspension end date from null to valid date', async ()
 });
 
 test('ATC-ES-059 - Verify 2 MMIS transactions (S440 + S520)', async () => {
+  if (MOCK_MMIS) {
+    // --- Mock path: Use database to set MMIS Success ---
+    const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+    if (!enrollmentKey) {
+      await navigateToEnrollments(page, participantUuid);
+      await page.waitForTimeout(2000);
+      const opened = await openFirstEnrollmentDetail(page);
+      expect(opened).toBe(true);
+    }
+    const key = enrollmentKey || extractProgramEnrollmentKeyFromUrl(page.url());
+    expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+    await page.waitForTimeout(5000);
+    const mockResult = await mockMmisSuccess(key!);
+    expect(mockResult, 'mockMmisSuccess failed --- stored procedure missing?').toBe(true);
+    console.log(`[TC-013] MMIS Success mocked for key: ${key}`);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    const status = await getSyncStatus(page);
+    expect(status.responseStatus).toBe('SU');
+    expect(status.hasConflict).toBe(false);
+  } else {
+    // --- Real path: Poll for actual MMIS response ---
   const currentUrl = page.url();
   const maxAttempts = 6;
   const pollInterval = 10_000;
@@ -139,6 +170,7 @@ test('ATC-ES-059 - Verify 2 MMIS transactions (S440 + S520)', async () => {
   const count = await transactionRows.count();
   console.log(`[TC-013] MMIS transaction rows found: ${count}`);
   expect(count).toBeGreaterThanOrEqual(2);
+  }
 });
 
 test('ATC-ES-060 - Verify SU response and no conflict', async () => {

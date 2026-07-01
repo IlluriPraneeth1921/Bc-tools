@@ -16,6 +16,7 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
+  openFirstEnrollmentDetail,
   getSyncStatus,
   addSuspension,
 } from './actions/enrollment.actions';
@@ -23,12 +24,17 @@ import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
 import { SCENARIOS } from '../../data/scenario-test-data';
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_010;
 const SUSPENSION_START = DATA.bcInput.suspensionStartDate!;
 // No end date — open-ended suspension
+
+
+/** When true, uses database stored procedure to mock MMIS Success response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -44,7 +50,10 @@ test.describe.serial('TC-010: Open-Ended Suspension (No End Date)', () => {
     console.log(`[TC-010] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => {
+    if (MOCK_MMIS) await closeDb();
+    await browser.close();
+  });
 
 test('ATC-ES-045 - Navigate to enrollment detail (only if Enrolled)', async () => {
   await navigateToEnrollments(page, participantUuid);
@@ -88,41 +97,64 @@ test('ATC-ES-046 - Add open-ended suspension (no end date)', async () => {
 });
 
 test('ATC-ES-047 - Verify 2 MMIS transactions (S500 + S510, no Span-C)', async () => {
-  // Poll for sync completion
-  const currentUrl = page.url();
-  const maxAttempts = 6;
-  const pollInterval = 10_000;
-  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
-
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-
-    status = await getSyncStatus(page);
-    console.log(`[TC-010] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
-
-    if (status.responseStatus !== null) break;
-
-    if (attempt < maxAttempts) {
-      await page.waitForTimeout(pollInterval);
+  if (MOCK_MMIS) {
+    // ─── Mock path: Use database to set MMIS Success ──────────────────────
+    const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+    if (!enrollmentKey) {
+      await navigateToEnrollments(page, participantUuid);
+      await page.waitForTimeout(2000);
+      const opened = await openFirstEnrollmentDetail(page);
+      expect(opened).toBe(true);
     }
+    const key = enrollmentKey || extractProgramEnrollmentKeyFromUrl(page.url());
+    expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+    await page.waitForTimeout(5000);
+    const mockResult = await mockMmisSuccess(key!);
+    expect(mockResult, 'mockMmisSuccess failed — stored procedure missing?').toBe(true);
+    console.log(`[TC-010] MMIS Success mocked for key: ${key}`);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    const status = await getSyncStatus(page);
+    expect(status.responseStatus).toBe('SU');
+    expect(status.hasConflict).toBe(false);
+  } else {
+    // ─── Real path: Poll for actual MMIS response ─────────────────────────
+    // Poll for sync completion
+    const currentUrl = page.url();
+    const maxAttempts = 6;
+    const pollInterval = 10_000;
+    let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+
+      status = await getSyncStatus(page);
+      console.log(`[TC-010] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+      if (status.responseStatus !== null) break;
+
+      if (attempt < maxAttempts) {
+        await page.waitForTimeout(pollInterval);
+      }
+    }
+
+    // Verify MMIS Transaction List is visible
+    await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
+
+    const pageText = await page.locator('main').textContent() || '';
+    const hasSyncEvidence = pageText.includes('MMIS') || pageText.includes('Sync') ||
+      pageText.includes('SU') || pageText.includes('Transaction');
+    expect(hasSyncEvidence).toBe(true);
+
+    // Verify exactly 2 transactions (NOT 3 like TC-002)
+    const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
+    const count = await transactionRows.count();
+    console.log(`[TC-010] MMIS transaction rows found: ${count}`);
+    // Open-ended suspension = 2 txns (S500 close + S510 suspended span), no Span-C
+    expect(count).toBeGreaterThanOrEqual(2);
   }
-
-  // Verify MMIS Transaction List is visible
-  await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
-
-  const pageText = await page.locator('main').textContent() || '';
-  const hasSyncEvidence = pageText.includes('MMIS') || pageText.includes('Sync') ||
-    pageText.includes('SU') || pageText.includes('Transaction');
-  expect(hasSyncEvidence).toBe(true);
-
-  // Verify exactly 2 transactions (NOT 3 like TC-002)
-  const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
-  const count = await transactionRows.count();
-  console.log(`[TC-010] MMIS transaction rows found: ${count}`);
-  // Open-ended suspension = 2 txns (S500 close + S510 suspended span), no Span-C
-  expect(count).toBeGreaterThanOrEqual(2);
 });
 
 test('ATC-ES-048 - Verify SU response and no conflict', async () => {

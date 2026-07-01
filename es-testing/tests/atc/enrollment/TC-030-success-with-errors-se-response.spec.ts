@@ -24,12 +24,16 @@ import {
 import {
   getFullEnrollmentState,
 } from '../../helpers/state-checker';
+import { mockMmisWarning, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_030;
 const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
+
+/** When true, uses database stored procedure to mock MMIS Warning (SE) response. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
 let page: Page;
@@ -45,7 +49,7 @@ test.describe.serial('TC-030: SE Response: Enrollment Activated', () => {
     console.log(`[TC-030] Participant UUID: ${participantUuid}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => { if (MOCK_MMIS) await closeDb(); await browser.close(); });
 
 /**
  * Helper: Creates a new enrollment via "+ New Program Enrollment" dialog.
@@ -144,28 +148,45 @@ test('ATC-ES-127 - Verify SE response status', async () => {
     return;
   }
 
-  await page.waitForTimeout(10000);
-  const currentUrl = page.url();
-  const maxAttempts = 6;
-  const pollInterval = 10_000;
-  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+  if (MOCK_MMIS) {
+    const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+    expect(enrollmentKey, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+    await page.waitForTimeout(5000);
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    const mockResult = await mockMmisWarning(enrollmentKey!, '9199', 'ENROLLMENT PROCESSED WITH WARNINGS');
+    expect(mockResult, 'mockMmisWarning failed — run scripts/createMMISMockProcedures.sql').toBe(true);
+    console.log('[TC-030] MMIS Warning (SE) response mocked via database');
+
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
     await page.waitForTimeout(3000);
 
-    status = await getSyncStatus(page);
-    console.log(`[TC-030] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+    const status = await getSyncStatus(page);
+    console.log(`[TC-030] Sync status (mocked): ${JSON.stringify(status)}`);
+    expect(status.responseStatus).toBe('SE');
+  } else {
+    await page.waitForTimeout(10000);
+    const currentUrl = page.url();
+    const maxAttempts = 6;
+    const pollInterval = 10_000;
+    let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
 
-    if (status.responseStatus !== null) break;
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
 
-    if (attempt < maxAttempts) {
-      await page.waitForTimeout(pollInterval);
+      status = await getSyncStatus(page);
+      console.log(`[TC-030] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+      if (status.responseStatus !== null) break;
+
+      if (attempt < maxAttempts) {
+        await page.waitForTimeout(pollInterval);
+      }
     }
-  }
 
-  expect(status.responseStatus).toBe('SE');
+    expect(status.responseStatus).toBe('SE');
+  }
 });
 
 test('ATC-ES-128 - Verify enrollment still activated (SE = success per BR-D01-010)', async () => {
