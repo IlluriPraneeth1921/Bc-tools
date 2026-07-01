@@ -71,36 +71,91 @@ test('ATC-ES-135 - Navigate to disenrolled participant (only if Disenrolled)', a
 });
 
 test('ATC-ES-136 - Update address on disenrolled participant', async () => {
-  if (!page.url().includes('/programenrollment/')) {
-    console.log('[TC-032] Skipping — previous step was skipped');
-    return;
-  }
+  // Address updates are done on Person → Profile → Addresses section (same as TC-014)
+  const BASE = process.env.BASE_URL || 'https://widhs-f2-carity.lower-widhs.aws.feisystems.com';
+  const profileUrl = `${BASE}/#/persons/person/${participantUuid}/record/profile`;
 
-  const addressTab = page.getByText(/Address|Residential|Location/i).first();
-  if (await addressTab.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await addressTab.click();
-    await page.waitForTimeout(2000);
-  }
+  await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(5000);
 
-  const addressInput = page.locator(
-    'input[aria-label*="Address"], input[id*="address"], input[id*="street"]'
-  ).first();
-  if (await addressInput.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    await addressInput.click({ force: true });
-    await addressInput.fill('', { force: true });
-    await addressInput.fill('789 No Span Test Avenue', { force: true });
-    await addressInput.evaluate((el) => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await addressInput.press('Tab');
+  // Wait for the address content to fully render
+  const addressText = page.locator('text=Brooklyn').first();
+  await expect(addressText).toBeVisible({ timeout: 30_000 });
+  await addressText.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(2000);
+
+  // Hover over the address card to reveal the pencil icon
+  const addressCard = addressText.locator('xpath=ancestor::*[contains(@class,"address") or contains(@class,"card") or contains(@class,"panel") or contains(@class,"section")][1]');
+  if (await addressCard.count() > 0) {
+    await addressCard.first().hover();
+  } else {
+    await addressText.hover();
+  }
+  await page.waitForTimeout(1000);
+
+  // Click the edit icon near the address
+  const addressEditBtn = page.locator('button[aria-label*="Edit Address"], button[aria-label*="edit address"]').first();
+  let editClicked = false;
+
+  if (await addressEditBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await addressEditBtn.scrollIntoViewIfNeeded();
     await page.waitForTimeout(500);
+    await addressEditBtn.evaluate((el: HTMLElement) => el.click());
+    editClicked = true;
+  } else {
+    const addressSection = page.locator('text=Addresses').first().locator('xpath=ancestor::*[3]');
+    const sectionEditBtn = addressSection.locator('button:has(mat-icon:text("edit"))').first();
+    if (await sectionEditBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await sectionEditBtn.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(500);
+      await sectionEditBtn.evaluate((el: HTMLElement) => el.click());
+      editClicked = true;
+    } else {
+      const allEditBtns = page.locator('button:has(mat-icon:text("edit"))');
+      const count = await allEditBtns.count();
+      for (let i = 0; i < count; i++) {
+        const ariaLabel = await allEditBtns.nth(i).getAttribute('aria-label').catch(() => '');
+        if (ariaLabel && !ariaLabel.includes('Name')) {
+          await allEditBtns.nth(i).scrollIntoViewIfNeeded();
+          await page.waitForTimeout(500);
+          await allEditBtns.nth(i).evaluate((el: HTMLElement) => el.click());
+          editClicked = true;
+          break;
+        }
+      }
+    }
   }
 
+  expect(editClicked, 'Could not find or click the address edit button').toBe(true);
+  await page.waitForTimeout(3000);
+
+  // The "Edit Address" form should now be open with "Street Address 1" field
+  const streetInput = page.getByLabel(/Street Address 1/i).first();
+  await expect(streetInput).toBeVisible({ timeout: 10_000 });
+
+  // Toggle the address value to trigger a change
+  const currentValue = await streetInput.inputValue();
+  const newValue = currentValue.startsWith('66') ? currentValue.replace('66', '67') : currentValue.replace('67', '66');
+
+  // Use pressSequentially to properly trigger Angular change detection
+  await streetInput.click();
+  await streetInput.selectText();
+  await page.waitForTimeout(300);
+  await streetInput.pressSequentially(newValue, { delay: 50 });
+  await page.waitForTimeout(500);
+  await streetInput.press('Tab');
+  await page.waitForTimeout(500);
+
+  // Verify the input holds the new value
+  const updatedValue = await streetInput.inputValue();
+  expect(updatedValue).toBe(newValue);
+  console.log(`[TC-032] Street address changed: "${currentValue}" → "${newValue}"`);
+
+  // Click Save
   const saveBtn = page.getByRole('button', { name: 'Save' }).first();
   await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-  await saveBtn.click({ force: true });
+  await saveBtn.click();
   await page.waitForTimeout(5000);
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
 
@@ -108,10 +163,25 @@ test('ATC-ES-136 - Update address on disenrolled participant', async () => {
 });
 
 test('ATC-ES-137 - Verify no new MMIS transaction generated', async () => {
-  const currentUrl = page.url();
-  await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
+  // Navigate to the Disenrolled enrollment detail to check MMIS status
+  await navigateToEnrollments(page, participantUuid);
+  await page.waitForTimeout(2000);
+
+  const disenrolledRow = page.locator('mat-row').filter({ hasText: /Disenrolled/ }).first();
+  if (await disenrolledRow.isVisible({ timeout: 10_000 }).catch(() => false)) {
+    await disenrolledRow.dblclick();
+    await page.waitForURL(/\/programenrollment\//, { timeout: 15_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+  } else {
+    // Try first row
+    const firstRow = page.locator('mat-row').first();
+    if (await firstRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await firstRow.dblclick();
+      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    }
+  }
 
   const transactionList = page.getByText('MMIS Transaction List').first();
   const hasTransactionList = await transactionList.isVisible({ timeout: 5_000 }).catch(() => false);

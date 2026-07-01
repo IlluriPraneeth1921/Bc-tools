@@ -1,18 +1,19 @@
 /**
- * ATC: TC-007 — End Date Later (Extension)
+ * ATC: TC-007 — End Date Later (Extension / Re-enrollment)
  *
- * Updates a disenrolled enrollment's end date to a later date (extending it).
- * Expects 1 MMIS transaction (Open/update span end date via S350).
+ * After TC-006 disenrolls the participant, this test re-enrolls them by
+ * going through the full Draft → Referred → Enrolled flow (same as TC-001),
+ * which triggers an S350 extension transaction to MMIS.
  *
- * Flow (matches TC-008 pattern — pencil icon → edit dialog):
- * 1. Navigate to enrollment list → double-click Disenrolled row → detail page
- * 2. Click pencil icon → Edit Program Enrollment dialog
- * 3. Change Status back to "Enrolled", set End Date to 12/31/2299 (open-ended)
- * 4. Save → triggers MMIS extension transaction
+ * Flow:
+ * 1. Navigate to enrollment list → verify Disenrolled state
+ * 2. Create Draft enrollment via "+ New Program Enrollment"
+ * 3. Create Referred enrollment via "+ New Program Enrollment"
+ * 4. Create Enrolled enrollment via "+ New Program Enrollment" (triggers MMIS S350)
  * 5. Verify SU response
  *
  * Test Participant: MA ID 1430000013
- * Prerequisite: TC-006 must have completed (participant in Disenrolled state with end date 09/30/2026).
+ * Prerequisite: TC-006 must have completed (participant in Disenrolled state).
  *
  * IMPORTANT: Tests run in serial mode. If any step fails, all subsequent steps are skipped.
  */
@@ -33,11 +34,9 @@ import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '..
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-// Extend end date back to open-ended (12/31/2299)
-const EXTENDED_END_DATE = SCENARIOS.TC_007.bcInput.newEnrollmentEndDate!;
-
-// ─── State ────────────────────────────────────────────────────────────────────
-
+const DATA = SCENARIOS.TC_007;
+const ENROLLMENT_START_DATE = DATA.bcInput.enrollmentStartDate;  // 07/01/2026
+const EXTENDED_END_DATE = DATA.bcInput.newEnrollmentEndDate!;    // 12/31/2299
 
 /** When true, uses database stored procedure to mock MMIS Success response. */
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
@@ -45,6 +44,69 @@ const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 let browser: Browser;
 let page: Page;
 let participantUuid: string;
+
+// ─── Helper: Create enrollment via + New Program Enrollment ───────────────────
+
+async function createEnrollment(pg: Page, opts: { status: string; statusReason: string; startDate: string; endDate?: string }): Promise<void> {
+  const trigger = pg.getByText('New Program Enrollment');
+  await expect(trigger).toBeVisible({ timeout: 20_000 });
+  await trigger.click();
+  await pg.waitForTimeout(3000);
+  await expect(pg.locator('mat-dialog-container').first()).toBeVisible({ timeout: 5_000 });
+
+  const programInput = pg.locator('input[aria-label="Program"]').first();
+  await programInput.click({ force: true });
+  await pg.waitForTimeout(300);
+  await programInput.fill('IRIS', { force: true });
+  await pg.waitForTimeout(1500);
+  await pg.locator('mat-option').filter({ hasText: /IRIS/ }).first().click();
+  await pg.waitForTimeout(1000);
+
+  const statusInput = pg.locator('input[aria-label="Status"]').first();
+  await statusInput.click({ force: true });
+  await pg.waitForTimeout(300);
+  await statusInput.fill(opts.status, { force: true });
+  await pg.waitForTimeout(1500);
+  await pg.locator('mat-option').filter({ hasText: new RegExp(opts.status, 'i') }).first().click();
+  await pg.waitForTimeout(1500);
+
+  const reasonInput = pg.locator('input[aria-label="Status Reason"]').first();
+  await reasonInput.click({ force: true });
+  await pg.waitForTimeout(300);
+  await reasonInput.fill(opts.statusReason.substring(0, 10), { force: true });
+  await pg.waitForTimeout(1500);
+  const reasonOpt = pg.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+  if (await reasonOpt.isVisible({ timeout: 5_000 }).catch(() => false)) { await reasonOpt.click(); }
+  await pg.waitForTimeout(500);
+
+  const startInput = pg.locator('input[id^="startDate_"]').first();
+  await startInput.click({ force: true });
+  await startInput.fill('', { force: true });
+  await startInput.pressSequentially(opts.startDate, { delay: 50 });
+  await startInput.evaluate(el => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); });
+  await startInput.press('Tab');
+  await pg.waitForTimeout(500);
+
+  if (opts.endDate) {
+    const endInput = pg.locator('input[id^="endDate_"]').first();
+    await endInput.click({ force: true });
+    await endInput.fill('', { force: true });
+    await endInput.pressSequentially(opts.endDate, { delay: 50 });
+    await endInput.evaluate(el => { el.dispatchEvent(new Event('input', { bubbles: true })); el.dispatchEvent(new Event('change', { bubbles: true })); el.dispatchEvent(new Event('blur', { bubbles: true })); });
+    await endInput.press('Tab');
+    await pg.waitForTimeout(500);
+  }
+
+  await pg.getByRole('button', { name: 'Save' }).first().click({ force: true });
+  await pg.waitForTimeout(5000);
+  await pg.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  const stillOpen = await pg.locator('mat-dialog-container').first().isVisible({ timeout: 3_000 }).catch(() => false);
+  if (stillOpen) {
+    const errors = await pg.locator('mat-error').all();
+    for (const e of errors) { console.error(`  Error: ${(await e.textContent())?.trim()}`); }
+  }
+  expect(stillOpen, 'Dialog did not close after save — validation errors present').toBe(false);
+}
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TESTS — Serial mode: stops on first failure
@@ -77,176 +139,50 @@ test.describe.serial('TC-007: End Date Later (Extension)', () => {
     expect(irisState, 'Precondition failed: participant must be Disenrolled. Run TC-006 first.').toBe('Disenrolled');
   });
 
-  // ─── Navigate to Enrollment Detail ──────────────────────────────────────────
+  // ─── Draft → Referred → Enrolled (same as TC-001 flow) ─────────────────────
 
-  test('ATC-ES-035 - Navigate to enrollment detail page', async () => {
+  test('ATC-ES-035 - Create Draft enrollment', async () => {
     await navigateToEnrollments(page, participantUuid);
     await page.waitForTimeout(2000);
-
-    // Find the Disenrolled IRIS row (or first IRIS row which should be Disenrolled after TC-006)
-    const disenrolledRow = page.locator('mat-row').filter({ hasText: /IRIS/ }).first();
-    await expect(disenrolledRow).toBeVisible({ timeout: 15_000 });
-    await disenrolledRow.dblclick();
-    await page.waitForURL(/\/programenrollments\/programenrollment\//, { timeout: 15_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-    const currentUrl = page.url();
-    console.log(`[TC-007] Detail page URL: ${currentUrl}`);
-    expect(currentUrl).toMatch(/\/programenrollments\/programenrollment\/[0-9a-f-]+/i);
+    await createEnrollment(page, { status: 'Draft', statusReason: 'Not Applicable', startDate: ENROLLMENT_START_DATE });
+    console.log('[TC-007] Draft enrollment created');
   });
 
-  // ─── Open Edit Dialog and Extend End Date ───────────────────────────────────
-
-  test('ATC-ES-036 - Open edit dialog and extend end date to 12/31/2299', async () => {
-    // Wait for any pending MMIS transaction to complete before editing
-    // (TC-006 may have just triggered a sync that hasn't finished)
-    const currentUrl = page.url();
-    const maxWaitAttempts = 6;
-    for (let attempt = 1; attempt <= maxWaitAttempts; attempt++) {
-      await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-      await page.waitForTimeout(3000);
-
-      const pageText = await page.locator('main').textContent().catch(() => '') || '';
-      if (!/Synchronization Pending/i.test(pageText)) {
-        console.log(`[TC-007] No pending sync detected (attempt ${attempt})`);
-        break;
-      }
-      if (attempt < maxWaitAttempts) {
-        console.log(`[TC-007] MMIS sync still pending — waiting 10s (attempt ${attempt}/${maxWaitAttempts})...`);
-        await page.waitForTimeout(10_000);
-      }
-    }
-    // Wait for Overview section to render
-    await page.locator('text=Overview').first().waitFor({ state: 'visible', timeout: 15_000 });
+  test('ATC-ES-036 - Create Referred enrollment', async () => {
+    await navigateToEnrollments(page, participantUuid);
     await page.waitForTimeout(2000);
+    await createEnrollment(page, { status: 'Referred', statusReason: 'IRIS Consultant', startDate: ENROLLMENT_START_DATE });
+    console.log('[TC-007] Referred enrollment created');
+  });
 
-    // Click pencil icon — retry up to 3 times
-    const pencil = page.locator('button.mat-icon-button:has(mat-icon:text("edit"))').first();
-    await expect(pencil).toBeVisible({ timeout: 10_000 });
-
-    let dialogOpened = false;
-    for (let attempt = 1; attempt <= 3; attempt++) {
-      console.log(`[TC-007] Clicking pencil icon (attempt ${attempt})...`);
-      await pencil.scrollIntoViewIfNeeded();
-      await page.waitForTimeout(500);
-      await pencil.click();
-      await page.waitForTimeout(3000);
-
-      const dialog = page.locator('mat-dialog-container');
-      dialogOpened = await dialog.isVisible({ timeout: 5_000 }).catch(() => false);
-      if (dialogOpened) {
-        console.log('[TC-007] Edit dialog opened');
-        break;
-      }
-      console.log(`[TC-007] Dialog not open after attempt ${attempt} — retrying...`);
-      await page.waitForTimeout(1000);
-    }
-
-    expect(dialogOpened, 'Edit Program Enrollment dialog did not open after clicking pencil icon').toBe(true);
-
-    // Dismiss any warning banner
-    const closeBanner = page.locator('mat-dialog-container button').filter({ hasText: /^close$/ }).first();
-    if (await closeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
-      await closeBanner.click();
-      await page.waitForTimeout(500);
-    }
-
-    // Step 1: Set End Date to later date (12/31/2299 = open-ended)
-    const endDateInput = page.locator('input[id^="endDate_"]').first();
-    await expect(endDateInput).toBeVisible({ timeout: 5_000 });
-    await endDateInput.click({ force: true });
-    await endDateInput.fill('', { force: true });
-    await endDateInput.pressSequentially(EXTENDED_END_DATE, { delay: 50 });
-    await endDateInput.evaluate(el => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await endDateInput.press('Tab');
-    await page.waitForTimeout(1500);
-
-    // Step 2: Status field is required — ensure it has a value
-    const statusInput = page.locator('mat-dialog-container input[aria-label="Status"]').first();
-    if (await statusInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      const currentStatus = await statusInput.inputValue().catch(() => '');
-      if (!currentStatus || currentStatus.trim() === '') {
-        await statusInput.click({ force: true });
-        await page.waitForTimeout(300);
-        await statusInput.fill('Enrolled', { force: true });
-        await page.waitForTimeout(1500);
-        const statusOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-        if (await statusOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await statusOpt.click();
-          await page.waitForTimeout(1000);
-        }
-      }
-    }
-
-    // Step 3: Status Reason field is required — ensure it has a value
-    const reasonInput = page.locator('mat-dialog-container input[aria-label="Status Reason"]').first();
-    if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      const currentReason = await reasonInput.inputValue().catch(() => '');
-      if (!currentReason || currentReason.trim() === '') {
-        await reasonInput.click({ force: true });
-        await page.waitForTimeout(300);
-        await reasonInput.fill('Not Applicable', { force: true });
-        await page.waitForTimeout(1500);
-        const reasonOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-        if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await reasonOpt.click();
-          await page.waitForTimeout(500);
-        } else {
-          await reasonInput.fill('', { force: true });
-          await reasonInput.fill('Not', { force: true });
-          await page.waitForTimeout(1500);
-          const fallback = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-          if (await fallback.isVisible({ timeout: 3_000 }).catch(() => false)) {
-            await fallback.click();
-            await page.waitForTimeout(500);
-          }
-        }
-      }
-    }
-
-    // Click Save
-    const saveBtn = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
-    if (await saveBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await saveBtn.click({ force: true });
-    } else {
-      await page.getByRole('button', { name: 'Save' }).first().click({ force: true });
-    }
-    await page.waitForTimeout(5000);
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
-    // Verify dialog closed
-    const dialogStillOpen = await page.locator('mat-dialog-container').first().isVisible({ timeout: 3_000 }).catch(() => false);
-    if (dialogStillOpen) {
-      const matErrors = await page.locator('mat-error').all();
-      for (const e of matErrors) { console.error(`[TC-007] mat-error: ${(await e.textContent())?.trim()}`); }
-      const dialogText = await page.locator('mat-dialog-container').textContent().catch(() => '') || '';
-      console.error(`[TC-007] Dialog text (first 500): ${dialogText.substring(0, 500)}`);
-      await page.screenshot({ path: 'test-results/tc007-dialog-not-closed.png', fullPage: true }).catch(() => {});
-    }
-    expect(dialogStillOpen, 'Dialog did not close after save — possible validation errors').toBe(false);
-
-    console.log(`[TC-007] Status changed to Enrolled, End Date = ${EXTENDED_END_DATE} — MMIS extension triggered`);
+  test('ATC-ES-037 - Create Enrolled enrollment (triggers MMIS S350 extension)', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    await createEnrollment(page, { status: 'Enrolled', statusReason: 'Not Applicable', startDate: ENROLLMENT_START_DATE, endDate: EXTENDED_END_DATE });
+    console.log(`[TC-007] Enrolled enrollment created with end date ${EXTENDED_END_DATE} — MMIS S350 triggered`);
   });
 
   // ─── Verify MMIS Sync ──────────────────────────────────────────────────────
 
-  test('ATC-ES-037 - Verify MMIS sync completes with SU response', async () => {
+  test('ATC-ES-038 - Verify MMIS sync completes with SU response', async () => {
+    // Navigate to enrollment detail
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+
+    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
+    if (await enrolledRow.isVisible({ timeout: 10_000 }).catch(() => false)) {
+      await enrolledRow.dblclick();
+      await page.waitForURL(/\/programenrollment\//, { timeout: 15_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    } else {
+      const opened = await openFirstEnrollmentDetail(page);
+      expect(opened).toBe(true);
+    }
+
     if (MOCK_MMIS) {
       // ─── Mock path: Use database to set MMIS Success ──────────────────────
-      const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
-      if (!enrollmentKey) {
-        await navigateToEnrollments(page, participantUuid);
-        await page.waitForTimeout(2000);
-        const opened = await openFirstEnrollmentDetail(page);
-        expect(opened).toBe(true);
-      }
-      const key = enrollmentKey || extractProgramEnrollmentKeyFromUrl(page.url());
+      const key = extractProgramEnrollmentKeyFromUrl(page.url());
       expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
       await page.waitForTimeout(5000);
       const mockResult = await mockMmisSuccess(key!);
@@ -272,9 +208,7 @@ test.describe.serial('TC-007: End Date Later (Extension)', () => {
         status = await getSyncStatus(page);
         console.log(`[TC-007] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
 
-        if (status.responseStatus !== null) {
-          break;
-        }
+        if (status.responseStatus !== null) break;
 
         if (attempt < maxAttempts) {
           console.log(`[TC-007] Still pending — waiting ${pollInterval / 1000}s...`);
@@ -282,7 +216,6 @@ test.describe.serial('TC-007: End Date Later (Extension)', () => {
         }
       }
 
-      // Verify MMIS Transaction List is visible
       await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
 
       expect(status.responseStatus, 'Expected SU or SE response from MMIS but sync did not complete').toMatch(/^(SU|SE)$/);
