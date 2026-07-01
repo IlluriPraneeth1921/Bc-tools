@@ -40,6 +40,7 @@
     "test:tc030": "npx playwright test tests/atc/enrollment/TC-030-success-with-errors-se-response.spec.ts --project=atc",
     "test:tc031": "npx playwright test tests/atc/enrollment/TC-031-ica-transfer-with-existing-span-c.spec.ts --project=atc",
     "test:tc032": "npx playwright test tests/atc/enrollment/TC-032-address-update-no-current-span.spec.ts --project=atc",
+    "test:tc033": "npx playwright test tests/atc/enrollment/TC-033-disenrolled-span-real-reason-code.spec.ts --project=atc",
     "test:prereq": "npx playwright test tests/atc/enrollment/PREREQ-disenroll.spec.ts --project=atc",
     "test:auth-setup": "npx playwright test tests/auth.setup.ts --project=atc",
     "test:phase1": "npx playwright test tests/ujt/enrollment/phase-1-baseline.spec.ts --project=ujt",
