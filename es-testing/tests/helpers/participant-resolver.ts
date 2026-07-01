@@ -1,5 +1,18 @@
 import { Page } from '@playwright/test';
-import { BASE } from './login';
+import { BASE, loginAndSelectContext } from './login';
+
+/**
+ * Checks if the app has redirected to login/context selection and re-authenticates if needed.
+ */
+async function ensureAuthenticated(page: Page): Promise<boolean> {
+  const currentUrl = page.url();
+  if (currentUrl.includes('choose-context') || currentUrl.includes('amazoncognito.com') || currentUrl.includes('/auth')) {
+    console.log('[participant-resolver] Session expired — re-authenticating...');
+    await loginAndSelectContext(page);
+    return true;
+  }
+  return false;
+}
 
 /**
  * Searches for a participant using the global search bar (top header).
@@ -71,6 +84,17 @@ export async function navigateToParticipant(page: Page, uuid: string): Promise<b
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(3000);
 
+  // Check if session expired and we got redirected
+  const reAuthenticated = await ensureAuthenticated(page);
+  if (reAuthenticated) {
+    await page.goto(`${BASE}/#/persons/person/${uuid}/dashboard`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+  }
+
   // Check multiple indicators that the person page loaded
   const indicators = [
     page.locator('main.app-root'),
@@ -100,6 +124,17 @@ export async function navigateToEnrollments(page: Page, uuid: string): Promise<v
   });
   await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
   await page.waitForTimeout(2000);
+
+  // Check if session expired and we got redirected
+  const reAuthenticated = await ensureAuthenticated(page);
+  if (reAuthenticated) {
+    await page.goto(`${BASE}/#/persons/person/${uuid}/programenrollments`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(2000);
+  }
 
   // Wait for page to render — try multiple selectors
   const rendered = await page.locator('main.app-root').first().isVisible({ timeout: 5_000 }).catch(() => false) ||

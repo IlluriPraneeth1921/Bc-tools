@@ -8,7 +8,21 @@
  * URL pattern: /#/persons/person/{uuid}/record/mmis-data
  */
 import { Page } from '@playwright/test';
-import { BASE } from './login';
+import { BASE, loginAndSelectContext } from './login';
+
+/**
+ * Checks if the app has redirected to login/context selection and re-authenticates if needed.
+ * Returns true if a re-login was performed.
+ */
+async function ensureAuthenticated(page: Page): Promise<boolean> {
+  const currentUrl = page.url();
+  if (currentUrl.includes('choose-context') || currentUrl.includes('amazoncognito.com') || currentUrl.includes('/auth')) {
+    console.log('[mmis-snapshot] Session expired — re-authenticating...');
+    await loginAndSelectContext(page);
+    return true;
+  }
+  return false;
+}
 
 export interface WaiverEnrollmentRecord {
   waiverProgram: string;
@@ -43,6 +57,15 @@ export async function getMmisSnapshotState(page: Page, participantUuid: string):
   await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(5000);
+
+  // Check if session expired and we got redirected to login/context page
+  const reAuthenticated = await ensureAuthenticated(page);
+  if (reAuthenticated) {
+    // Re-navigate after login
+    await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 45_000 });
+    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(5000);
+  }
 
   // Wait for the page content to render — try multiple indicators
   // The Angular app may show different text depending on version/config

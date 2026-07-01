@@ -1,22 +1,18 @@
 /**
  * ATC: TC-001 — New IRIS Enrollment Happy Path
  *
- * Lifecycle: Pristine Check → (Reset if needed) → Draft → Referred → Enrolled (verify MMIS sync)
+ * Lifecycle: Pristine Check → (Reset if needed) → Draft → Referred → Enrolled → Verify MMIS sync
  *
  * Behavior:
  * - Checks MMIS Snapshot to determine if participant has an active waiver enrollment.
- * - If active enrollment exists in MMIS, performs TC-008 (Referral Withdrawn) to reset
- *   the participant to pristine state before proceeding.
+ * - If active enrollment exists in MMIS, performs TC-008 (Referral Withdrawn) to reset.
  * - Then runs full Draft → Referred → Enrolled flow.
+ * - Verifies MMIS sync via real MMIS or mocked response (controlled by MOCK_MMIS flag).
  *
  * IMPORTANT: Tests run in serial mode. If any step fails, all subsequent steps are skipped.
  *
  * Test Participant: MA ID 1430000013 (THREE TESTFEI)
  * Person UUID: c7a3862e-f166-466d-a5fb-b4670130aebd
- * Enrollment Start Date: 07/01/2026 (must match ISP start date)
- *
- * TODO: Automate Carity database cleanup (currently manual).
- *       See tasklist.md for details.
  */
 import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
@@ -25,6 +21,7 @@ import { navigateToParticipant, navigateToEnrollments } from '../../helpers/part
 import { resolveParticipantUuid, openFirstEnrollmentDetail, getSyncStatus } from './actions/enrollment.actions';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
 import { ensurePristineState } from '../../helpers/reset-enrollment';
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
@@ -32,6 +29,9 @@ import { SCENARIOS } from '../../data/scenario-test-data';
 const DATA = SCENARIOS.TC_001;
 const ISP_START_DATE = DATA.bcInput.enrollmentStartDate;
 const ENROLLMENT_END_DATE = DATA.bcInput.enrollmentEndDate;
+
+/** When true, uses database stored procedure to mock MMIS Success response instead of waiting for real MMIS. */
+const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -115,20 +115,6 @@ async function verifyFirstRowState(pg: Page, expectedTexts: string[], label: str
   for (const t of expectedTexts) { expect(rowText).toContain(t); }
 }
 
-async function verifySyncOnDetail(pg: Page, label: string): Promise<void> {
-  await navigateToEnrollments(pg, participantUuid);
-  await pg.waitForTimeout(2000);
-  const opened = await openFirstEnrollmentDetail(pg);
-  expect(opened).toBe(true);
-  await pg.waitForTimeout(5000);
-  const status = await getSyncStatus(pg);
-  console.log(`[${label}] Sync: ${JSON.stringify(status)}`);
-  const valid = status.hasPending || status.responseStatus !== null || status.statusText.includes('Success') || status.statusText.includes('Succeeded') || status.statusText.includes('Pending');
-  expect(valid).toBe(true);
-  expect(status.hasConflict).toBe(false);
-  await expect(pg.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 10_000 });
-}
-
 // ═══════════════════════════════════════════════════════════════════════════════
 // TESTS — Serial mode: stops on first failure
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -141,9 +127,13 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     await loginAndSelectContext(page);
     participantUuid = await resolveParticipantUuid(page);
     console.log(`[TC-001] UUID: ${participantUuid}`);
+    console.log(`[TC-001] MOCK_MMIS: ${MOCK_MMIS}`);
   });
   test.setTimeout(300_000);
-  test.afterAll(async () => { await browser.close(); });
+  test.afterAll(async () => {
+    if (MOCK_MMIS) await closeDb();
+    await browser.close();
+  });
 
   test('ATC-ES-001 - Precondition: Participant is accessible', async () => {
     const accessible = await navigateToParticipant(page, participantUuid);
@@ -189,6 +179,7 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     await navigateToEnrollments(page, participantUuid);
     await page.waitForTimeout(2000);
     await createEnrollment(page, { status: 'Draft', statusReason: 'Not Applicable', startDate: ISP_START_DATE });
+    console.log('[TC-001] Draft enrollment created');
   });
 
   test('ATC-ES-005 - State check: First row is Draft', async () => {
@@ -199,16 +190,18 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     await navigateToEnrollments(page, participantUuid);
     await page.waitForTimeout(2000);
     await createEnrollment(page, { status: 'Referred', statusReason: 'IRIS Consultant', startDate: ISP_START_DATE });
+    console.log('[TC-001] Referred enrollment created');
   });
 
   test('ATC-ES-007 - State check: First row is Referred', async () => {
     await verifyFirstRowState(page, ['IRIS', 'Referred'], 'ATC-ES-007');
   });
 
-  test('ATC-ES-008 - Create Enrolled enrollment (triggers MMIS)', async () => {
+  test('ATC-ES-008 - Create Enrolled enrollment (triggers MMIS sync)', async () => {
     await navigateToEnrollments(page, participantUuid);
     await page.waitForTimeout(2000);
     await createEnrollment(page, { status: 'Enrolled', statusReason: 'Not Applicable', startDate: ISP_START_DATE, endDate: ENROLLMENT_END_DATE });
+    console.log('[TC-001] Enrolled enrollment created — MMIS sync triggered');
   });
 
   test('ATC-ES-009 - Verify: First row is Enrolled with sync badge', async () => {
@@ -217,8 +210,62 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     expect(rowText.includes('Success') || rowText.includes('Warning') || rowText.includes('Pending')).toBe(true);
   });
 
-  test('ATC-ES-010 - Verify: Enrolled detail — MMIS sync, no conflict', async () => {
-    await verifySyncOnDetail(page, 'ATC-ES-010');
+  test('ATC-ES-010 - Verify: Enrolled detail — MMIS sync success, no conflict', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const opened = await openFirstEnrollmentDetail(page);
+    expect(opened).toBe(true);
+
+    if (MOCK_MMIS) {
+      // ─── Mock path: Use database to set MMIS Success ──────────────────────
+      const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+      expect(enrollmentKey, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
+      console.log(`[TC-001] ProgramEnrollmentKey: ${enrollmentKey}`);
+
+      // Wait for the app to create the ProgramEnrollmentExtension row
+      await page.waitForTimeout(5000);
+
+      const mockResult = await mockMmisSuccess(enrollmentKey!);
+      expect(mockResult, 'mockMmisSuccess failed — check stored procedure exists in database').toBe(true);
+      console.log('[TC-001] MMIS Success response mocked via database');
+
+      // Refresh the page to pick up the mocked status
+      await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+
+      const status = await getSyncStatus(page);
+      console.log(`[TC-001] Sync status (mocked): ${JSON.stringify(status)}`);
+      expect(status.responseStatus).toBe('SU');
+      expect(status.hasConflict).toBe(false);
+    } else {
+      // ─── Real path: Poll for actual MMIS response ─────────────────────────
+      const currentUrl = page.url();
+      const maxAttempts = 12;
+      const pollInterval = 10_000;
+      let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+        await page.waitForTimeout(3000);
+
+        status = await getSyncStatus(page);
+        console.log(`[TC-001] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+
+        if (status.responseStatus !== null) break;
+
+        if (attempt < maxAttempts) {
+          await page.waitForTimeout(pollInterval);
+        }
+      }
+
+      expect(status.responseStatus, 'Expected SU or SE response from MMIS').toMatch(/^(SU|SE)$/);
+      expect(status.hasConflict).toBe(false);
+    }
+
+    // Verify MMIS Transaction List section is visible
+    await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 10_000 });
+    console.log('[TC-001] ✓ Enrollment created and MMIS sync verified');
   });
 
 });

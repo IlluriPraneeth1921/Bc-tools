@@ -549,7 +549,42 @@ test.describe.serial('TC-XXX: Title', () => {
 
 ---
 
-## 19. Maintenance & Self-Update Policy
+## 19. MMIS Mock (Database Bypass)
+
+When the real MMIS system is unavailable, use the database helper to mock success responses:
+
+```typescript
+import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
+
+// After triggering a sync action (create enrollment, add suspension, etc.):
+// 1. Extract the ProgramEnrollmentKey from the detail page URL
+const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
+
+// 2. Call the mock to set MMIS response to Success
+const success = await mockMmisSuccess(enrollmentKey!);
+expect(success).toBe(true);
+
+// 3. Refresh the page to pick up the new status
+await page.reload({ waitUntil: 'networkidle' });
+await page.waitForTimeout(3000);
+
+// 4. Verify the UI now shows Success
+const status = await getSyncStatus(page);
+expect(status.responseStatus).toBe('SU');
+```
+
+### When to use mock vs real MMIS:
+- **Use mock**: When MMIS is down, for faster test execution, or when testing UI behavior independent of MMIS
+- **Use real MMIS**: For end-to-end validation of the full sync pipeline, payload verification
+
+### Important:
+- Always call `closeDb()` in `test.afterAll()` to clean up the connection pool
+- The stored procedure `[dbo].[test_SetMMISStatusSuccess]` must exist in the database
+- If it's missing, the helper logs a clear error message during test execution
+
+---
+
+## 20. Maintenance & Self-Update Policy
 
 > **IMPORTANT**: When writing or debugging tests and you discover a UI pattern, selector,
 > or interaction flow that is NOT documented in this file, **update this steering file
