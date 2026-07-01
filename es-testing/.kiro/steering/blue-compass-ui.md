@@ -137,11 +137,98 @@ await pencil.click();
 ### Fields in Edit Dialog
 Same as Create dialog: Status, Status Reason, Start/End Date autocomplete/inputs.
 
+**CRITICAL — Status Options in Edit Dialog Are LIMITED:**
+- The Edit Enrollment dialog (pencil icon) only offers: **"Enrolled"** and **"Referral Withdrawn"**
+- **"Disenrolled" is NOT available** in the edit dialog
+- To set a "Disenrolled" status, use **"+ New Program Enrollment"** button instead (see Section 5a)
+- To trigger an MMIS closure (S340), just set the End Date via the edit dialog — the MMIS transaction fires based on the end date change, not the status field
+
 ### Dismiss Warning Banner (if present)
 ```typescript
 const closeBanner = page.locator('mat-dialog-container button').filter({ hasText: /^close$/ }).first();
 if (await closeBanner.isVisible()) await closeBanner.click();
 ```
+
+---
+
+## 5a. Enrollment Status Change Patterns
+
+### Setting End Date (Disenrollment trigger — TC-006)
+To trigger an MMIS disenrollment (S340 closure transaction), you must create a NEW enrollment record with "Disenrolled" status via the "+ New Program Enrollment" button. The edit dialog (pencil icon) does NOT offer "Disenrolled" as a status option.
+
+**Correct Flow:**
+1. Navigate to enrollment list
+2. Click **"+ New Program Enrollment"** button
+3. Set Program = "IRIS", Status = "Disenrolled", Status Reason = "Not Applicable"
+4. Set End Date to the desired earlier date
+5. Save → triggers S340 MMIS closure transaction
+
+```typescript
+// Navigate to enrollment list
+await navigateToEnrollments(page, participantUuid);
+// Click + New Program Enrollment
+await page.getByText('New Program Enrollment').first().click();
+await page.waitForTimeout(3000);
+// Set Status to Disenrolled (available in Create dialog, NOT in Edit dialog)
+const statusInput = page.locator('input[aria-label="Status"]').first();
+await statusInput.click({ force: true });
+await statusInput.fill('', { force: true });
+await statusInput.fill('Disenrolled', { force: true });
+await page.waitForTimeout(2000);
+const statusOpt = page.locator('mat-option').filter({ hasText: /Disenrolled/i }).first();
+await statusOpt.click();
+// Set end date
+const endDateInput = page.locator('input[id^="endDate_"]').first();
+await endDateInput.click({ force: true });
+await endDateInput.fill('', { force: true });
+await endDateInput.pressSequentially('09/30/2026', { delay: 50 });
+await endDateInput.press('Tab');
+// Save
+const saveBtn = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
+await saveBtn.click({ force: true });
+```
+
+### Creating Disenrolled Enrollment (via + New Program Enrollment)
+To explicitly create an enrollment with "Disenrolled" status:
+1. Navigate to enrollment list page
+2. Click **"+ New Program Enrollment"** button
+3. In the Create dialog, set Status to "Disenrolled"
+4. Fill required fields (Program, Status Reason, Start Date, End Date)
+5. Save
+
+```typescript
+// Click + New Program Enrollment
+await page.getByText('New Program Enrollment').click();
+await page.waitForTimeout(2000);
+// Set fields in create dialog
+const statusInput = page.locator('input[aria-label="Status"]').first();
+await statusInput.click({ force: true });
+await statusInput.fill('', { force: true });
+await statusInput.fill('Disenrolled', { force: true });
+await page.waitForTimeout(1500);
+const statusOpt = page.locator('mat-option').filter({ hasText: /Disenrolled/i }).first();
+await statusOpt.click();
+```
+
+### Changing Begin Date (TC-019, TC-020)
+To change an enrollment's begin date (triggers S310 delete + S300 recreate):
+1. Open Edit dialog via pencil icon
+2. Change the Start Date field
+3. Save
+
+```typescript
+const startDateInput = page.locator('mat-dialog-container input[id^="startDate_"], mat-dialog-container input[id*="startDate"], mat-dialog-container input[aria-label*="Start Date"]').first();
+await startDateInput.click({ force: true });
+await startDateInput.fill('', { force: true });
+await startDateInput.pressSequentially('06/15/2026', { delay: 50 });
+await startDateInput.press('Tab');
+```
+
+### Key Insight: MMIS Transactions Trigger by Field Change, Not Status
+- **End date set/changed** → S340 (closure) or S350 (extend) — status stays "Enrolled"
+- **Begin date changed** → S310 (delete) + S300 (recreate) — status stays "Enrolled"  
+- **Status → Referral Withdrawn** → S310 (delete) — via edit dialog
+- **Status → Disenrolled** → Only via "+ New Program Enrollment" button
 
 ---
 
