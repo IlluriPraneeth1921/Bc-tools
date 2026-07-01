@@ -75,41 +75,74 @@ async function selectAutocomplete(page: Page, inputSelector: string, value: stri
 export async function loginAndSelectContext(page: Page) {
   await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 60_000 });
 
-  // Wait to see where we land — Cognito, context page, or app home
-  // Use a longer initial wait since BC can be slow to redirect
+  // Wait for the page to settle — it will either redirect to Cognito or land on the app
+  // The redirect can take several seconds
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(3000);
-  const currentUrl = page.url();
 
-  // ─── Step 1: Cognito login (if redirected) ─────────────────────────────────
-  if (currentUrl.includes('amazoncognito.com') || currentUrl.includes('auth') || await page.locator('input[placeholder="Username"], #signInFormUsername').first().isVisible({ timeout: 10_000 }).catch(() => false)) {
+  // Re-check URL after settling — may have redirected
+  let currentUrl = page.url();
+
+  // ─── Step 1: Cognito login (if redirected or still redirecting) ─────────────
+  // Check both the current URL and whether a login form is visible
+  const onCognito = currentUrl.includes('amazoncognito.com') || currentUrl.includes('/auth');
+  const loginFormVisible = await page.locator('#signInFormUsername, input[placeholder="Username"], input[name="username"]').first().isVisible({ timeout: 15_000 }).catch(() => false);
+
+  if (onCognito || loginFormVisible) {
+    // Wait for the login form to fully render — Cognito hosted UI can be slow
+    // The Cognito hosted UI has TWO forms (mobile + desktop) — only one is visible based on viewport
+    // Use force:true to interact regardless of visibility, or find the visible one
+    const usernameField = page.locator('#signInFormUsername, input[placeholder="Username"], input[name="username"]').first();
+    await usernameField.waitFor({ state: 'attached', timeout: 60_000 });
+    await page.waitForTimeout(1000);
+
     // Try the standard Cognito hosted UI form first
     const form = page.locator(
       '.modal-content-mobile.visible-md form[name="cognitoSignInForm"], ' +
       '.modal-content-desktop form[name="cognitoSignInForm"]'
     ).first();
-    const formFound = await form.isVisible({ timeout: 10_000 }).catch(() => false);
+    const formFound = await form.isVisible({ timeout: 5_000 }).catch(() => false);
 
     if (formFound) {
       await form.locator('#signInFormUsername').fill(process.env.TEST_USER!, { force: true });
       await form.locator('#signInFormPassword').fill(process.env.TEST_PASSWORD!, { force: true });
       await form.locator('input[name="signInSubmitButton"]').click({ force: true });
     } else {
-      // Fallback: simpler Cognito login form (different layout)
-      const usernameInput = page.locator('input[placeholder="Username"], input[name="username"], #signInFormUsername').first();
-      const passwordInput = page.locator('input[placeholder="Password"], input[name="password"], #signInFormPassword').first();
-      const signInBtn = page.locator('button:has-text("Sign in"), input[name="signInSubmitButton"], button[type="submit"]').first();
+      // Fallback: fill the inputs directly with force (bypasses visibility checks)
+      // The Cognito page may have hidden forms; force interaction
+      const allUserInputs = page.locator('input[name="username"]');
+      const allPassInputs = page.locator('input[name="password"]');
+      const allSubmitBtns = page.locator('input[name="signInSubmitButton"]');
 
-      await usernameInput.waitFor({ state: 'visible', timeout: 15_000 });
-      await usernameInput.fill(process.env.TEST_USER!, { force: true });
-      await passwordInput.fill(process.env.TEST_PASSWORD!, { force: true });
-      await signInBtn.click({ force: true });
+      // Fill ALL username/password fields (both mobile and desktop forms)
+      const userCount = await allUserInputs.count();
+      for (let i = 0; i < userCount; i++) {
+        await allUserInputs.nth(i).fill(process.env.TEST_USER!, { force: true });
+      }
+      const passCount = await allPassInputs.count();
+      for (let i = 0; i < passCount; i++) {
+        await allPassInputs.nth(i).fill(process.env.TEST_PASSWORD!, { force: true });
+      }
+      // Click the first submit button (force bypasses hidden check)
+      await allSubmitBtns.first().click({ force: true });
     }
 
     // Wait for redirect back to the app — can take a while
     await page.waitForURL(
       url => url.href.includes(new URL(BASE).hostname),
       { waitUntil: 'domcontentloaded', timeout: 60_000 }
-    );
+    ).catch(async () => {
+      // Retry: maybe the click didn't register — try submitting again
+      console.log('[login] First login attempt may have failed — retrying submit...');
+      const retryBtn = page.locator('input[name="signInSubmitButton"], button:has-text("Sign in"), button[type="submit"]').first();
+      if (await retryBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await retryBtn.click({ force: true });
+        await page.waitForURL(
+          url => url.href.includes(new URL(BASE).hostname),
+          { waitUntil: 'domcontentloaded', timeout: 30_000 }
+        ).catch(() => {});
+      }
+    });
     await page.waitForLoadState('networkidle', { timeout: 45_000 }).catch(() => {});
   }
 
@@ -180,6 +213,10 @@ export async function loginAndSelectContext(page: Page) {
   // Final check — make sure we're not stuck on login or context page
   const finalUrl = page.url();
   if (finalUrl.includes('amazoncognito.com') || finalUrl.includes('choose-context')) {
+    // Capture screenshot for debugging before failing
+    await page.screenshot({ path: 'test-results/login-failed-debug.png', fullPage: true }).catch(() => {});
+    const pageText = await page.locator('body').textContent().catch(() => '') || '';
+    console.error(`[login] Page text (first 300): ${pageText.substring(0, 300)}`);
     throw new Error(`[login] Failed to complete login. Stuck at: ${finalUrl}`);
   }
 }

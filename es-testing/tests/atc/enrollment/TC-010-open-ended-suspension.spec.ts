@@ -82,18 +82,120 @@ test('ATC-ES-046 - Add open-ended suspension (no end date)', async () => {
     return;
   }
 
-  const result = await addSuspension(page, {
-    startDate: SUSPENSION_START,
-    // No endDate — open-ended suspension
-    reason: 'Participant Requested',
-  });
+  // Wait for "Suspensions" section to be visible
+  const suspensionsHeading = page.locator('text=Suspensions').first();
+  await expect(suspensionsHeading).toBeVisible({ timeout: 20_000 });
+  await suspensionsHeading.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(2000);
 
-  if (!result) {
-    console.log('[TC-010] Direct suspension add not found, trying alternative approach');
+  // Click "+ Add Suspension"
+  const addSuspBtn = page.locator('button, a, span').filter({ hasText: /\+?\s*Add Suspension/i }).first();
+  await expect(addSuspBtn).toBeVisible({ timeout: 10_000 });
+  await addSuspBtn.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(500);
+  await addSuspBtn.click();
+  await page.waitForTimeout(3000);
+
+  // Check if a dialog opened
+  const dialog = page.locator('mat-dialog-container');
+  const dialogVisible = await dialog.isVisible({ timeout: 5_000 }).catch(() => false);
+
+  if (dialogVisible) {
+    console.log('[TC-010] Suspension dialog opened');
+
+    // Fill suspension start date ONLY (no end date = open-ended)
+    const startInput = page.locator('mat-dialog-container input[id*="startDate"], mat-dialog-container input[id*="Start"], mat-dialog-container input[aria-label*="Start"]').first();
+    await expect(startInput).toBeVisible({ timeout: 10_000 });
+    await startInput.click({ force: true });
+    await startInput.fill('', { force: true });
+    await startInput.pressSequentially(SUSPENSION_START, { delay: 50 });
+    await startInput.evaluate(el => {
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new Event('blur', { bubbles: true }));
+    });
+    await startInput.press('Tab');
+    await page.waitForTimeout(500);
+
+    // Do NOT fill end date — leave it empty for open-ended suspension
+
+    // Fill reason (required field)
+    const reasonInput = page.locator('mat-dialog-container input[aria-label*="Reason"]').first();
+    if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await reasonInput.click({ force: true });
+      await page.waitForTimeout(300);
+      await reasonInput.fill('Moved to ineligible', { force: true });
+      await page.waitForTimeout(1500);
+      const reasonOpt = page.locator('mat-option').filter({ hasText: /Moved to ineligible/i }).first();
+      if (await reasonOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await reasonOpt.click();
+        await page.waitForTimeout(500);
+      } else {
+        // Try shorter search
+        await reasonInput.fill('', { force: true });
+        await reasonInput.fill('Participant', { force: true });
+        await page.waitForTimeout(1500);
+        const altOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+        if (await altOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          await altOpt.click();
+          await page.waitForTimeout(500);
+        } else {
+          // Last resort: open dropdown and pick first available
+          await reasonInput.fill('', { force: true });
+          await reasonInput.click({ force: true });
+          await reasonInput.press('ArrowDown');
+          await page.waitForTimeout(1500);
+          const fallbackOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+          if (await fallbackOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            await fallbackOpt.click();
+            await page.waitForTimeout(500);
+          }
+        }
+      }
+    }
+
+    // Save the dialog
+    const saveBtn = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
+    if (await saveBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await saveBtn.click({ force: true });
+    } else {
+      await page.getByRole('button', { name: 'Save' }).first().click({ force: true });
+    }
+  } else {
+    console.log('[TC-010] Suspension inline form (no dialog)');
+
+    const startInput = page.locator('input[id*="startDate"], input[id*="suspensionStart"], input[aria-label*="Start Date"]').first();
+    await expect(startInput).toBeVisible({ timeout: 10_000 });
+    await startInput.click({ force: true });
+    await startInput.fill('', { force: true });
+    await startInput.pressSequentially(SUSPENSION_START, { delay: 50 });
+    await startInput.evaluate(el => {
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+      el.dispatchEvent(new Event('blur', { bubbles: true }));
+    });
+    await startInput.press('Tab');
+    await page.waitForTimeout(500);
+
+    // No end date for open-ended
+
+    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
+    await expect(saveBtn).toBeVisible({ timeout: 10_000 });
+    await saveBtn.click({ force: true });
   }
 
   await page.waitForTimeout(5000);
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+
+  // Verify dialog closed (if dialog was used)
+  const dialogStillOpen = await page.locator('mat-dialog-container').first().isVisible({ timeout: 3_000 }).catch(() => false);
+  if (dialogStillOpen) {
+    const errors = await page.locator('mat-error').all();
+    for (const e of errors) { console.error(`[TC-010] Error: ${(await e.textContent())?.trim()}`); }
+    expect(dialogStillOpen, 'Suspension dialog did not close — possible validation errors').toBe(false);
+  }
+
+  console.log(`[TC-010] Open-ended suspension added: ${SUSPENSION_START} → (no end date) — MMIS sync triggered`);
 });
 
 test('ATC-ES-047 - Verify 2 MMIS transactions (S500 + S510, no Span-C)', async () => {
