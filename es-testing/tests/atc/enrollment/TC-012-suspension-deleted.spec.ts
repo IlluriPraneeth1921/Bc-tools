@@ -57,20 +57,45 @@ test('ATC-ES-053 - Navigate to enrollment detail with active suspension (only if
   await page.waitForTimeout(2000);
 
   const state = await getFullEnrollmentState(page);
-  console.log(`[TC-012] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
+  console.log(`[TC-012] State: IRIS=${state.irisState}, Suspension(list)=${state.hasSuspension}`);
 
-  if ((state.irisState !== 'Enrolled' && state.irisState !== 'Suspended') || !state.hasSuspension) {
-    console.log(`[TC-012] Skipping — precondition not met (need Enrolled/Suspended + suspension, current: ${state.irisState}, suspension: ${state.hasSuspension})`);
+  if (state.irisState !== 'Enrolled' && state.irisState !== 'Suspended') {
+    console.log(`[TC-012] Skipping — precondition not met (need Enrolled/Suspended, current: ${state.irisState})`);
     return;
   }
 
-  const firstRow = page.locator('mat-row').filter({ hasText: /Enrolled|Suspended/ }).first();
-  await expect(firstRow).toBeVisible({ timeout: 15_000 });
-  await firstRow.dblclick();
+  // Navigate to enrollment detail to check for suspension records
+  const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled|Suspended/ }).filter({ hasNotText: /Disenrolled/ }).first();
+  await expect(enrolledRow).toBeVisible({ timeout: 15_000 });
+  await enrolledRow.dblclick();
   await page.waitForTimeout(3000);
   await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
 
   expect(page.url()).toContain('/programenrollment/');
+
+  // Check for suspension on the detail page — look for the Suspensions section with actual records
+  const suspensionsHeading = page.locator('span:text("Suspensions")').first();
+  await expect(suspensionsHeading).toBeVisible({ timeout: 15_000 });
+  await suspensionsHeading.scrollIntoViewIfNeeded();
+  await page.waitForTimeout(2000);
+
+  // Check if there's an actual suspension row (not just the empty "No Suspension record(s) available" message)
+  const suspMenuBtn = page.locator('button.ellipse-action-menu[aria-label="Expand menu"]').first();
+  const hasSuspensionOnDetail = await suspMenuBtn.isVisible({ timeout: 5_000 }).catch(() => false);
+
+  if (!hasSuspensionOnDetail) {
+    // Also check by looking for suspension dates in the section
+    const pageText = await page.locator('body').textContent().catch(() => '') || '';
+    const hasSuspDates = /\d{2}\/\d{2}\/\d{4}.*\d{2}\/\d{2}\/\d{4}.*(?:Moved|ineligible|reason)/i.test(pageText);
+    if (!hasSuspDates) {
+      console.log('[TC-012] Skipping — no suspension record found on enrollment detail page');
+      // Reset URL so next test knows to skip
+      await page.goto('about:blank');
+      return;
+    }
+  }
+
+  console.log('[TC-012] Suspension record found on enrollment detail — proceeding with delete');
 });
 
 test('ATC-ES-054 - Delete existing suspension record', async () => {
