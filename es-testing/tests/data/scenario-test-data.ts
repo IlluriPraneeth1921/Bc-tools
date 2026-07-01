@@ -50,6 +50,10 @@ export interface ScenarioData {
     newSuspensionEndDate?: string | null;
     statusChange?: string;
     statusReason?: string;
+    /** For create-enrollment flows (TC-001, TC-004, TC-005, TC-009, TC-015, TC-029, TC-030) */
+    enrollmentStatus?: string;
+    /** Specific disenrollment/status reason code for reason-code tests (TC-033) */
+    disenrollmentReason?: string;
     agencyChange?: { oldAgency: string; newAgency: string; effectiveDate: string };
   };
 
@@ -80,7 +84,9 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     expectedResponse: 'SU',
     bcInput: {
       enrollmentStartDate: '07/01/2026',
-      enrollmentEndDate: '',
+      enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
+      statusReason: 'Not Applicable',
     },
     mmisBefore: [],
     mmisAfter: [
@@ -166,6 +172,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '01/01/2026',
       enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
+      statusReason: 'Not Applicable',
     },
     mmisBefore: [],
     mmisAfter: [], // No span created — rejected
@@ -188,6 +196,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '07/01/2026',
       enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
+      statusReason: 'Not Applicable',
     },
     mmisBefore: [],
     mmisAfter: [
@@ -292,9 +302,11 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     transactionCount: 1,
     expectedResponse: 'SU',
     bcInput: {
-      enrollmentStartDate: '07/01/2026',
+      enrollmentStartDate: '10/01/2026',
       enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
       statusChange: 'Enrolled',
+      statusReason: 'Not Applicable',
     },
     mmisBefore: [], // Disenrolled — no MMIS span
     mmisAfter: [
@@ -465,6 +477,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '07/01/2026',
       enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
+      statusReason: 'Not Applicable',
     },
     mmisBefore: [],
     mmisAfter: [
@@ -909,6 +923,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '01/01/2026',
       enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
+      statusReason: 'Not Applicable',
     },
     mmisBefore: [],
     mmisAfter: [], // Rejected
@@ -931,6 +947,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '07/01/2026',
       enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
+      statusReason: 'Not Applicable',
     },
     mmisBefore: [],
     mmisAfter: [
@@ -999,6 +1017,36 @@ export const SCENARIOS: Record<string, ScenarioData> = {
       { label: 'Span-B', status: 'A', beginDate: '07/01/2026', endDate: '09/30/2026' }, // Unchanged
     ],
     transactions: [], // No transactions sent
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-033: Disenrolled Span Created — Real Reason Code (S345)
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_033: {
+    testCaseId: 'TC-033',
+    scenarioId: 'S220_008_IRIS',
+    title: 'Disenrolled Span Created — Real Reason Code Sent (S345)',
+    program: 'IRIS',
+    decisionTablePath: 'S100(2)→S200→S220(8)→S345',
+    transactionCount: 1,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '07/01/2026',
+      enrollmentEndDate: '09/30/2026',
+      enrollmentStatus: 'Disenrolled',
+      statusChange: 'Disenrolled',
+      statusReason: 'Deceased',
+      disenrollmentReason: 'Deceased',
+    },
+    mmisBefore: [
+      { label: 'Span-B', status: 'A', beginDate: '07/01/2026', endDate: '09/30/2026' },
+    ],
+    mmisAfter: [
+      { label: 'Span-B', status: 'A', beginDate: '07/01/2026', endDate: '09/30/2026' }, // Same dates, new reason codes
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S345', type: 'C', status: 'A', startReason: '64', stopReason: '64', description: 'Re-send closure with real disenrollment reason code' },
+    ],
   },
 };
 

@@ -27,6 +27,11 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import { resolveParticipantUuid, getSyncStatus } from './actions/enrollment.actions';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
 import { waitForEmptyWaiverEnrollment } from '../../helpers/reset-enrollment';
+import { SCENARIOS } from '../../data/scenario-test-data';
+
+// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
+
+const DATA = SCENARIOS.TC_008;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 

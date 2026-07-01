@@ -21,14 +21,13 @@ import {
 } from './actions/enrollment.actions';
 import {
   getCurrentIrisState,
-  computeTestDates,
 } from '../../helpers/state-checker';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
-const now = new Date();
-const ISP_START_DATE = `${String(now.getMonth() + 1).padStart(2, '0')}/01/${now.getFullYear()}`;
-const dates = computeTestDates(ISP_START_DATE);
+// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
-const NEW_BEGIN_DATE = '06/15/2026'; // Later than original 06/01/2026
+const DATA = SCENARIOS.TC_020;
+const NEW_BEGIN_DATE = DATA.bcInput.newEnrollmentStartDate!; // Later than original 06/01/2026
 
 let browser: Browser;
 let page: Page;

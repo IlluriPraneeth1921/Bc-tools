@@ -20,14 +20,13 @@ import {
 } from './actions/enrollment.actions';
 import {
   getFullEnrollmentState,
-  computeTestDates,
 } from '../../helpers/state-checker';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
-const now = new Date();
-const ISP_START_DATE = `${String(now.getMonth() + 1).padStart(2, '0')}/01/${now.getFullYear()}`;
-const dates = computeTestDates(ISP_START_DATE);
+// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
-const NEW_SUSPENSION_BEGIN = '07/10/2026'; // Later than original
+const DATA = SCENARIOS.TC_022;
+const NEW_SUSPENSION_BEGIN = DATA.bcInput.newSuspensionStartDate!; // Later than original
 
 let browser: Browser;
 let page: Page;

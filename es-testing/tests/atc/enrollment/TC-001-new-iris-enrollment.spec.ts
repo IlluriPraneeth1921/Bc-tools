@@ -25,10 +25,13 @@ import { navigateToParticipant, navigateToEnrollments } from '../../helpers/part
 import { resolveParticipantUuid, openFirstEnrollmentDetail, getSyncStatus } from './actions/enrollment.actions';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
 import { ensurePristineState } from '../../helpers/reset-enrollment';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
-const ISP_START_DATE = '07/01/2026';
+const DATA = SCENARIOS.TC_001;
+const ISP_START_DATE = DATA.bcInput.enrollmentStartDate;
+const ENROLLMENT_END_DATE = DATA.bcInput.enrollmentEndDate;
 
 // ─── State ────────────────────────────────────────────────────────────────────
 
@@ -205,7 +208,7 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
   test('ATC-ES-008 - Create Enrolled enrollment (triggers MMIS)', async () => {
     await navigateToEnrollments(page, participantUuid);
     await page.waitForTimeout(2000);
-    await createEnrollment(page, { status: 'Enrolled', statusReason: 'Not Applicable', startDate: ISP_START_DATE, endDate: '12/31/2299' });
+    await createEnrollment(page, { status: 'Enrolled', statusReason: 'Not Applicable', startDate: ISP_START_DATE, endDate: ENROLLMENT_END_DATE });
   });
 
   test('ATC-ES-009 - Verify: First row is Enrolled with sync badge', async () => {

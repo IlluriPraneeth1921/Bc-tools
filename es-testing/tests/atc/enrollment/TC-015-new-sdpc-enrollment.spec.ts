@@ -20,14 +20,13 @@ import {
 } from './actions/enrollment.actions';
 import {
   getFullEnrollmentState,
-  computeTestDates,
 } from '../../helpers/state-checker';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
-const now = new Date();
-const ISP_START_DATE = `${String(now.getMonth() + 1).padStart(2, '0')}/01/${now.getFullYear()}`;
-const dates = computeTestDates(ISP_START_DATE);
+// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
-const ENROLLMENT_START = '06/01/2026';
+const DATA = SCENARIOS.TC_015;
+const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
 
 let browser: Browser;
 let page: Page;
@@ -191,7 +190,7 @@ test('ATC-ES-065a - Create SDPC Assessing enrollment', async () => {
     program: 'SDPC',
     status: 'Assessing',
     statusReason: 'Not Applicable',
-    startDate: '07/01/2026',
+    startDate: DATA.bcInput.enrollmentStartDate,
   });
   console.log('[TC-015] SDPC Assessing created');
 });
@@ -215,7 +214,7 @@ test('ATC-ES-065b - Create SDPC Referred enrollment', async () => {
     program: 'SDPC',
     status: 'Referred',
     statusReason: 'Not Applicable',
-    startDate: '07/01/2026',
+    startDate: DATA.bcInput.enrollmentStartDate,
   });
   console.log('[TC-015] SDPC Referred created');
 });
@@ -240,8 +239,8 @@ test('ATC-ES-065c - Create SDPC Enrolled enrollment (triggers MMIS)', async () =
     program: 'SDPC',
     status: 'Enrolled',
     statusReason: 'Not Applicable',
-    startDate: '07/01/2026',
-    endDate: '12/31/2299',
+    startDate: DATA.bcInput.enrollmentStartDate,
+    endDate: DATA.bcInput.enrollmentEndDate,
   });
   console.log('[TC-015] SDPC Enrolled created — MMIS sync triggered');
 });

@@ -20,14 +20,13 @@ import {
 } from './actions/enrollment.actions';
 import {
   getCurrentSdpcState,
-  computeTestDates,
 } from '../../helpers/state-checker';
+import { SCENARIOS } from '../../data/scenario-test-data';
 
-const now = new Date();
-const ISP_START_DATE = `${String(now.getMonth() + 1).padStart(2, '0')}/01/${now.getFullYear()}`;
-const dates = computeTestDates(ISP_START_DATE);
+// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
-const NEW_END_DATE = '07/15/2026'; // Earlier end date for disenrollment
+const DATA = SCENARIOS.TC_026;
+const NEW_END_DATE = DATA.bcInput.newEnrollmentEndDate!; // Earlier end date for disenrollment
 
 let browser: Browser;
 let page: Page;
