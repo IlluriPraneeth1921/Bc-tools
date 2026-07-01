@@ -81,26 +81,72 @@ test('ATC-ES-082 - Change enrollment begin date to earlier date', async () => {
     return;
   }
 
-  const startDateInput = page.locator('input[id*="startDate"], input[id*="StartDate"], input[id*="beginDate"], input[aria-label*="Start Date"], input[aria-label*="Begin Date"]').first();
-  if (await startDateInput.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    await startDateInput.click({ force: true });
-    await startDateInput.fill('', { force: true });
-    await startDateInput.pressSequentially(NEW_BEGIN_DATE, { delay: 50 });
-    await startDateInput.evaluate((el) => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await startDateInput.press('Tab');
+  // Wait for Overview section to render on the enrollment detail page
+  await page.locator('text=Overview').first().waitFor({ state: 'visible', timeout: 15_000 });
+  await page.waitForTimeout(2000);
+
+  // Click pencil icon to open the Edit Program Enrollment dialog — retry up to 3 times
+  const pencil = page.locator('button.mat-icon-button:has(mat-icon:text("edit"))').first();
+  await expect(pencil).toBeVisible({ timeout: 10_000 });
+
+  let dialogOpened = false;
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    console.log(`[TC-019] Clicking pencil icon (attempt ${attempt})...`);
+    await pencil.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    await pencil.click();
+    await page.waitForTimeout(3000);
+
+    const dialog = page.locator('mat-dialog-container');
+    dialogOpened = await dialog.isVisible({ timeout: 5_000 }).catch(() => false);
+    if (dialogOpened) {
+      console.log('[TC-019] Edit dialog opened');
+      break;
+    }
+    console.log(`[TC-019] Dialog not open after attempt ${attempt} — retrying...`);
+    await page.waitForTimeout(1000);
+  }
+
+  expect(dialogOpened, 'Edit Program Enrollment dialog did not open after clicking pencil icon').toBe(true);
+
+  // Dismiss any warning banner (close button)
+  const closeBanner = page.locator('mat-dialog-container button').filter({ hasText: /^close$/ }).first();
+  if (await closeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await closeBanner.click();
     await page.waitForTimeout(500);
   }
 
-  // Save changes
-  const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-  await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-  await saveBtn.click({ force: true });
+  // Change the Start Date to the earlier date
+  const startDateInput = page.locator('mat-dialog-container input[id^="startDate_"], mat-dialog-container input[id^="StartDate_"], mat-dialog-container input[id*="startDate"], mat-dialog-container input[aria-label*="Start Date"], mat-dialog-container input[aria-label*="Begin Date"]').first();
+  await expect(startDateInput).toBeVisible({ timeout: 10_000 });
+  await startDateInput.click({ force: true });
+  await startDateInput.fill('', { force: true });
+  await startDateInput.pressSequentially(NEW_BEGIN_DATE, { delay: 50 });
+  await startDateInput.evaluate(el => {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  });
+  await startDateInput.press('Tab');
+  await page.waitForTimeout(1500);
+  console.log(`[TC-019] Start date set to: ${NEW_BEGIN_DATE}`);
+
+  // Click Save within the dialog
+  const saveBtn = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
+  if (await saveBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    await saveBtn.click({ force: true });
+  } else {
+    await page.getByRole('button', { name: 'Save' }).first().click({ force: true });
+  }
   await page.waitForTimeout(5000);
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+
+  // Verify dialog closed (save succeeded)
+  const dialogStillOpen = await page.locator('mat-dialog-container').isVisible({ timeout: 3_000 }).catch(() => false);
+  if (dialogStillOpen) {
+    const errorMsg = await page.locator('mat-dialog-container .mat-error, mat-dialog-container [role="alert"]').first().textContent().catch(() => '');
+    console.log(`[TC-019] WARNING: Dialog still open after Save. Errors: "${errorMsg}"`);
+  }
 
   console.log('[TC-019] Enrollment begin date changed to earlier — delete+recreate triggered');
 });

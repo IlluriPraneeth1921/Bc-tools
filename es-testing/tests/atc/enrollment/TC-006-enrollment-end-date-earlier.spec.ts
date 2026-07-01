@@ -136,56 +136,53 @@ test.describe.serial('TC-006: End Date Earlier (Disenrollment)', () => {
     // Step 2: Set End Date to earlier date (09/30/2026)
     const endDateInput = page.locator('input[id^="endDate_"]').first();
     await expect(endDateInput).toBeVisible({ timeout: 5_000 });
-    await endDateInput.click({ force: true });
-    await endDateInput.fill('', { force: true });
+    await endDateInput.click();
+    await endDateInput.selectText();
+    await page.waitForTimeout(200);
     await endDateInput.pressSequentially(NEW_END_DATE, { delay: 50 });
-    await endDateInput.evaluate(el => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
     await endDateInput.press('Tab');
     await page.waitForTimeout(1500);
 
-    // Step 3: Status field is required — ensure it has a value
-    const statusInput = page.locator('mat-dialog-container input[aria-label="Status"]').first();
-    if (await statusInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      const currentStatus = await statusInput.inputValue().catch(() => '');
-      if (!currentStatus || currentStatus.trim() === '') {
-        await statusInput.click({ force: true });
-        await page.waitForTimeout(300);
-        await statusInput.fill('Enrolled', { force: true });
-        await page.waitForTimeout(1500);
-        const statusOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-        if (await statusOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await statusOpt.click();
-          await page.waitForTimeout(1000);
-        }
-      }
-    }
+    // Step 3: Change Status to "Disenrolled"
+    // Using the same pattern as TC-008 which works: fill('') then fill(value) triggers mat-autocomplete
+    const statusInput = page.locator('input[aria-label="Status"]').first();
+    await expect(statusInput).toBeVisible({ timeout: 5_000 });
+    await statusInput.click({ force: true });
+    await page.waitForTimeout(300);
+    await statusInput.fill('', { force: true });
+    await statusInput.fill('Disenrolled', { force: true });
+    await page.waitForTimeout(2000);
+    // Wait for and click the mat-option from the autocomplete dropdown
+    const statusOpt = page.locator('mat-option').filter({ hasText: /Disenrolled/i }).filter({ hasNotText: /No option/i }).first();
+    await expect(statusOpt).toBeVisible({ timeout: 5_000 });
+    await statusOpt.click();
+    await page.waitForTimeout(1500);
+    // Verify the input actually holds "Disenrolled"
+    const statusValue = await statusInput.inputValue();
+    console.log(`[TC-006] Status field value after selection: "${statusValue}"`);
+    expect(statusValue.toLowerCase()).toContain('disenrolled');
 
-    // Step 4: Status Reason field is required — ensure it has a value
-    const reasonInput = page.locator('mat-dialog-container input[aria-label="Status Reason"]').first();
+    // Step 4: Set Status Reason to "Not Applicable" (required for Disenrolled)
+    const reasonInput = page.locator('input[aria-label="Status Reason"]').first();
     if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      const currentReason = await reasonInput.inputValue().catch(() => '');
-      if (!currentReason || currentReason.trim() === '') {
-        await reasonInput.click({ force: true });
-        await page.waitForTimeout(300);
-        await reasonInput.fill('Not Applicable', { force: true });
-        await page.waitForTimeout(1500);
-        const reasonOpt = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-        if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
-          await reasonOpt.click();
+      await reasonInput.click({ force: true });
+      await page.waitForTimeout(300);
+      await reasonInput.fill('', { force: true });
+      await reasonInput.fill('Not Applicable', { force: true });
+      await page.waitForTimeout(2000);
+      const reasonOpt = page.locator('mat-option').filter({ hasText: /Not Applicable/i }).filter({ hasNotText: /No option/i }).first();
+      if (await reasonOpt.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await reasonOpt.click();
+        await page.waitForTimeout(500);
+      } else {
+        // Fallback: try partial match
+        await reasonInput.fill('', { force: true });
+        await reasonInput.fill('Not', { force: true });
+        await page.waitForTimeout(2000);
+        const fallback = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
+        if (await fallback.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await fallback.click();
           await page.waitForTimeout(500);
-        } else {
-          await reasonInput.fill('', { force: true });
-          await reasonInput.fill('Not', { force: true });
-          await page.waitForTimeout(1500);
-          const fallback = page.locator('mat-option').filter({ hasNotText: /No option/i }).first();
-          if (await fallback.isVisible({ timeout: 3_000 }).catch(() => false)) {
-            await fallback.click();
-            await page.waitForTimeout(500);
-          }
         }
       }
     }
@@ -219,6 +216,15 @@ test.describe.serial('TC-006: End Date Earlier (Disenrollment)', () => {
       await page.screenshot({ path: 'test-results/tc006-dialog-not-closed.png', fullPage: true }).catch(() => {});
     }
     expect(dialogStillOpen, 'Dialog did not close after save — possible validation errors').toBe(false);
+
+    // Post-save verification: confirm the enrollment status actually changed on the detail page
+    await page.waitForTimeout(2000);
+    const pageText = await page.locator('body').textContent().catch(() => '') || '';
+    if (!pageText.includes('Disenrolled')) {
+      console.error('[TC-006] WARNING: "Disenrolled" not found on page after save — status may not have changed');
+      await page.screenshot({ path: 'test-results/tc006-post-save-status.png', fullPage: true }).catch(() => {});
+    }
+    expect(pageText, 'Status did not change to Disenrolled after save').toContain('Disenrolled');
 
     console.log(`[TC-006] Status changed to Disenrolled, End Date = ${NEW_END_DATE} — MMIS closure triggered`);
   });

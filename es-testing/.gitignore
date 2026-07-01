@@ -4,3 +4,6 @@ reports/
 playwright-report/
 dist/
 .env
+
+# Auth tokens (contain secrets — never commit)
+.auth/

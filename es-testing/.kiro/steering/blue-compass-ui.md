@@ -356,23 +356,91 @@ page.locator('table tr, mat-row')
 
 ---
 
-## 13. Address Update (Person Record)
+## 13. Address Update (Person Record — TC-014)
 
+Address updates are done on the **Person Profile** page, not the enrollment detail page.
+
+### Navigation
 ```typescript
-// Navigate to addresses
-await page.goto(`${BASE}/#/persons/person/${uuid}/record/addresses`);
-
-// Find residential address row
-page.locator('mat-row, tr').filter({ hasText: /Residential|Primary/i }).first()
-
-// Edit via double-click or pencil icon
-await row.dblclick();
-// OR
-await page.locator('button.mat-icon-button:has(mat-icon:text("edit"))').first().click();
-
-// Street address input
-page.locator('input[aria-label*="Street"], input[aria-label*="Address"]').first()
+// Person → Profile tab (left sidebar) → Addresses section
+await page.goto(`${BASE}/#/persons/person/${uuid}/record/profile`);
+// OR click "Person" in left nav, then "Profile" sub-item
 ```
+
+### URL Pattern
+```
+/#/persons/person/{uuid}/record/profile
+```
+
+### Page Structure
+- Left sidebar: Profile | Contacts | Employment | Cost Share | Budget Ledgers | MMIS Snapshot
+- Main content: Profile page with "Addresses" section (collapsible, marked with ▼ Addresses)
+- Address card shows: Source, Date Range, Street, City/State/Zip, County, Lat/Long, Address Type
+
+### Edit Address Flow
+1. **Hover over address card** — a pencil (edit) icon appears on hover
+2. **Click pencil icon** — opens "Edit Address" dialog/panel (NOT a mat-dialog — it's an inline edit panel or slide-out)
+3. **Edit "Street Address 1"** field — contains the street value (e.g., "66 E Brooklyn St")
+4. **Click Save** — saves and triggers S700 if enrollment is active
+
+### Edit Address Selectors
+```typescript
+// Navigate to profile
+await page.goto(`${BASE}/#/persons/person/${uuid}/record/profile`);
+await page.waitForLoadState('networkidle');
+
+// Wait for Addresses section
+const addressSection = page.locator('text=Addresses').first();
+await addressSection.scrollIntoViewIfNeeded();
+
+// Hover over the address card to reveal the edit pencil
+const addressCard = page.locator('text=66 E Brooklyn St').first().locator('xpath=ancestor::*[4]');
+await addressCard.hover();
+await page.waitForTimeout(500);
+
+// Click pencil/edit icon (appears on hover)
+const editBtn = page.locator('button:has(mat-icon:text("edit"))').first();
+await editBtn.click({ force: true });
+await page.waitForTimeout(2000);
+
+// Edit "Street Address 1" field in the Edit Address form
+// The field label is "Street Address 1*" (required)
+const streetInput = page.locator('input').filter({ has: page.locator('xpath=preceding-sibling::*[contains(text(),"Street Address 1")]') }).first();
+// Alternative selectors for the street field:
+//   page.getByLabel('Street Address 1')
+//   page.locator('input[aria-label*="Street Address"]')
+
+// Modify the value (toggle a char to trigger change detection)
+const currentValue = await streetInput.inputValue();
+const newValue = currentValue.endsWith('.') ? currentValue.slice(0, -1) : currentValue + '.';
+await streetInput.fill(newValue);
+
+// Save
+await page.getByRole('button', { name: 'Save' }).click();
+await page.waitForTimeout(3000);
+```
+
+### Edit Address Dialog Fields
+```
+Title: "Edit Address"
+Fields:
+  - Address Type* (dropdown): Residential
+  - Current* (dropdown): Yes
+  - Date Range: Start Date / End Date (MM/DD/YYYY)
+  - Street Address 1* (text input): "66 E Brooklyn St"
+  - Street Address 2 (text input)
+  - Care Of (text input)
+  - City* (text input): "Chilton"
+  - State/Province* (dropdown): "Wisconsin"
+  - County Area (dropdown): "Calumet County"
+Buttons: Save | Cancel
+```
+
+### Important Notes
+- The edit icon only appears on **hover** — use `element.hover()` before clicking
+- After saving, the S700 transaction is triggered if the participant has an active enrollment with a current MMIS span
+- The address edit is on the Person Profile page, NOT the enrollment detail page
+- After address save, navigate back to enrollment detail to verify MMIS sync status
 
 ---
 

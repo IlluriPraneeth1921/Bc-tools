@@ -1,6 +1,13 @@
 import { Page } from '@playwright/test';
+import { authenticateWithTokenInjection } from './auth-tokens';
 
 const BASE = process.env.BASE_URL || 'https://widhs-f2-carity.lower-widhs.aws.feisystems.com';
+
+/**
+ * Whether to attempt token injection before falling back to UI login.
+ * Set USE_TOKEN_INJECTION=false in .env to disable.
+ */
+const USE_TOKEN_INJECTION = process.env.USE_TOKEN_INJECTION !== 'false';
 
 /**
  * Fills a mat-autocomplete field by typing and selecting from the dropdown.
@@ -70,18 +77,76 @@ async function selectAutocomplete(page: Page, inputSelector: string, value: stri
  * - Already authenticated but needs context (skip Cognito)
  * - Fully authenticated (skip everything)
  *
+ * If USE_TOKEN_INJECTION is enabled (default), attempts to inject previously
+ * saved tokens first, falling back to full UI login if they're expired.
+ *
  * Designed to be resilient against slow page loads on Blue Compass.
  */
 export async function loginAndSelectContext(page: Page) {
-  await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 60_000 });
+  // Try token injection first (unless disabled)
+  if (USE_TOKEN_INJECTION) {
+    const result = await authenticateWithTokenInjection(page, {
+      onLoginRequired: (p) => performFullLogin(p),
+    });
+    if (result.method === 'injected') {
+      // Tokens worked — still need to handle Acknowledge + Context if present
+      await handlePostAuthSteps(page);
+      return;
+    }
+    // If login was performed via fallback, tokens are already captured
+    return;
+  }
 
-  // Wait for the page to settle — it will either redirect to Cognito or land on the app
-  // The redirect can take several seconds
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
+  // Direct UI login (token injection disabled)
+  await performFullLogin(page);
+}
 
-  // Re-check URL after settling — may have redirected
+/**
+ * Handles post-authentication steps (Acknowledge dialog + Context selection)
+ * that may still be needed even after token injection.
+ */
+async function handlePostAuthSteps(page: Page) {
+  await page.waitForTimeout(2000);
+
+  // Check for Acknowledge dialog
+  const ack = page.getByRole('button', { name: 'Acknowledge' });
+  const ackVisible = await ack.isVisible({ timeout: 5_000 }).catch(() => false);
+  if (ackVisible) {
+    await page.waitForTimeout(500);
+    await page.evaluate(() => {
+      const b = Array.from(document.querySelectorAll('button'))
+        .find(el => el.textContent?.trim() === 'Acknowledge');
+      if (b) (b as HTMLButtonElement).click();
+    });
+    await ack.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
+    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  }
+
+  // Check for context selection page
+  const onContextPage = page.url().includes('choose-context');
+  const orgInput = page.locator('input[id^="organization_"]').first();
+  const orgVisible = await orgInput.isVisible({ timeout: 5_000 }).catch(() => false);
+
+  if (onContextPage || orgVisible) {
+    await performContextSelection(page);
+  }
+}
+
+/**
+ * Performs the full UI login flow (Cognito + Acknowledge + Context).
+ * This is the original loginAndSelectContext implementation.
+ */
+async function performFullLogin(page: Page) {
+  // Check if we're already on the Cognito page (from token verification failure)
   let currentUrl = page.url();
+  const alreadyOnCognito = currentUrl.includes('amazoncognito.com') || currentUrl.includes('/auth');
+
+  if (!alreadyOnCognito) {
+    await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    currentUrl = page.url();
+  }
 
   // ─── Step 1: Cognito login (if redirected or still redirecting) ─────────────
   // Check both the current URL and whether a login form is visible
@@ -169,42 +234,7 @@ export async function loginAndSelectContext(page: Page) {
   const orgVisible = await orgInput.isVisible({ timeout: 10_000 }).catch(() => false);
 
   if (onContextPage || orgVisible) {
-    // Wait for the context page to fully render — organization input must be interactive
-    await orgInput.waitFor({ state: 'visible', timeout: 60_000 });
-
-    // Additional wait for Angular to finish initializing the form
-    // The autocomplete components need their data sources to be loaded
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-    await page.waitForTimeout(2000);
-
-    // Select Organization (first in cascade — must succeed before Location loads)
-    await selectAutocomplete(page, 'input[id^="organization_"]', process.env.TEST_ORG!);
-
-    // Wait for Location dropdown to load (cascading dependency on Organization)
-    const locationInput = page.locator('input[id^="location_"]').first();
-    await locationInput.waitFor({ state: 'visible', timeout: 30_000 });
-    await page.waitForTimeout(1500);
-
-    // Select Location
-    await selectAutocomplete(page, 'input[id^="location_"]', process.env.TEST_LOCATION!);
-
-    // Wait for Staff dropdown to load (cascading dependency on Location)
-    const staffInput = page.locator('input[id^="staffDelegation_"]').first();
-    await staffInput.waitFor({ state: 'visible', timeout: 30_000 });
-    await page.waitForTimeout(1500);
-
-    // Select Staff
-    await selectAutocomplete(page, 'input[id^="staffDelegation_"]', process.env.TEST_STAFF!);
-
-    // Click "Log In" button
-    const loginBtn = page.getByRole('button', { name: /log in/i });
-    await loginBtn.waitFor({ state: 'visible', timeout: 10_000 });
-    await page.waitForTimeout(500);
-    await loginBtn.click();
-
-    // Wait for navigation away from context page
-    await page.waitForURL(url => !url.href.includes('choose-context'), { timeout: 45_000 });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+    await performContextSelection(page);
   }
 
   // ─── Step 4: Verify we're in the app ───────────────────────────────────────
@@ -219,6 +249,50 @@ export async function loginAndSelectContext(page: Page) {
     console.error(`[login] Page text (first 300): ${pageText.substring(0, 300)}`);
     throw new Error(`[login] Failed to complete login. Stuck at: ${finalUrl}`);
   }
+}
+
+/**
+ * Performs context selection (Organization → Location → Staff → Log In).
+ * Extracted for reuse in both full login and post-injection flows.
+ */
+async function performContextSelection(page: Page) {
+  const orgInput = page.locator('input[id^="organization_"]').first();
+
+  // Wait for the context page to fully render — organization input must be interactive
+  await orgInput.waitFor({ state: 'visible', timeout: 60_000 });
+
+  // Additional wait for Angular to finish initializing the form
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(2000);
+
+  // Select Organization (first in cascade — must succeed before Location loads)
+  await selectAutocomplete(page, 'input[id^="organization_"]', process.env.TEST_ORG!);
+
+  // Wait for Location dropdown to load (cascading dependency on Organization)
+  const locationInput = page.locator('input[id^="location_"]').first();
+  await locationInput.waitFor({ state: 'visible', timeout: 30_000 });
+  await page.waitForTimeout(1500);
+
+  // Select Location
+  await selectAutocomplete(page, 'input[id^="location_"]', process.env.TEST_LOCATION!);
+
+  // Wait for Staff dropdown to load (cascading dependency on Location)
+  const staffInput = page.locator('input[id^="staffDelegation_"]').first();
+  await staffInput.waitFor({ state: 'visible', timeout: 30_000 });
+  await page.waitForTimeout(1500);
+
+  // Select Staff
+  await selectAutocomplete(page, 'input[id^="staffDelegation_"]', process.env.TEST_STAFF!);
+
+  // Click "Log In" button
+  const loginBtn = page.getByRole('button', { name: /log in/i });
+  await loginBtn.waitFor({ state: 'visible', timeout: 10_000 });
+  await page.waitForTimeout(500);
+  await loginBtn.click();
+
+  // Wait for navigation away from context page
+  await page.waitForURL(url => !url.href.includes('choose-context'), { timeout: 45_000 });
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
 }
 
 export { BASE };

@@ -104,20 +104,20 @@ Tests are arranged below so each test's output state feeds the next test's requi
 
 ### Cascade A: IRIS Enrollment Lifecycle
 
-| Step | TC #   | Scenario                                | Starting State                      | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | --------------------------------------- | ----------------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 1    | TC-001 | New IRIS Enrollment — Happy Path       | Pristine (no enrollment)            | Enrolled (active, SU synced) | 1    | SU       | ✅ Working |
-| 2    | TC-014 | Address-Only Update (S700 Cond 1)       | Enrolled (active, SU synced)        | Enrolled (unchanged)         | 1    | SU       | ✅ Working |
-| 3    | TC-003 | ICA Transfer — Active Span             | Enrolled (active, SU synced)        | Enrolled (new ICA agency)    | 2    | SU       | ✅ Working |
-| 4    | TC-016 | FEA Transfer — Close + Open            | Enrolled (active, SU synced)        | Enrolled (new FEA agency)    | 2    | SU       | —         |
-| 5    | TC-019 | Begin Date → Earlier (Delete+Recreate) | Enrolled (active, SU synced)        | Enrolled (earlier begin)     | 2    | SU       | —         |
-| 6    | TC-020 | Begin Date → Later (Delete+Recreate)   | Enrolled (active, SU synced)        | Enrolled (later begin)       | 2    | SU       | —         |
-| 7    | TC-006 | End Date → Earlier (Disenrollment)     | Enrolled (active, SU synced)        | Disenrolled (end-dated)      | 1    | SU       | ✅ Working |
-| 8    | TC-033 | Disenrolled Span — Real Reason Code    | Disenrolled (placeholder 2W codes)  | Disenrolled (real reason)    | 1    | SU       | —         |
-| 9    | TC-032 | Address Update — No Current Span       | Disenrolled (no active span)        | Disenrolled (unchanged)      | 0    | No Txn   | ✅ Working |
-| 10   | TC-007 | End Date → Later (Extension)           | Disenrolled (end-dated)             | Enrolled (re-opened)         | 1    | SU       | ✅ Working |
-| 11   | TC-002 | Enrolled → Suspended (with end date)   | Enrolled (active, SU synced)        | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 12   | TC-012 | Suspension Deleted                      | Suspended (bounded, 3 spans synced) | Enrolled (spans merged)      | 2    | SU       | —         |
+| Step | TC #   | Scenario                                | Starting State                      | Output State                 | Txns | Expected | Automation  |
+| ---- | ------ | --------------------------------------- | ----------------------------------- | ---------------------------- | ---- | -------- | ----------- |
+| 1    | TC-001 | New IRIS Enrollment — Happy Path       | Pristine (no enrollment)            | Enrolled (active, SU synced) | 1    | SU       | ✅ Working  |
+| 2    | TC-014 | Address-Only Update (S700 Cond 1)       | Enrolled (active, SU synced)        | Enrolled (unchanged)         | 1    | SU       | ✅ Working  |
+| 3    | TC-003 | ICA Transfer — Active Span             | Enrolled (active, SU synced)        | Enrolled (new ICA agency)    | 2    | SU       | ✅ Working  |
+| 4    | TC-016 | FEA Transfer — Close + Open            | Enrolled (active, SU synced)        | Enrolled (new FEA agency)    | 2    | SU       | ✅ Working  |
+| 5    | TC-019 | Begin Date → Earlier (Delete+Recreate) | Enrolled (active, SU synced)        | Enrolled (earlier begin)     | 2    | SU       | ✅ Working  |
+| 6    | TC-020 | Begin Date → Later (Delete+Recreate)   | Enrolled (active, SU synced)        | Enrolled (later begin)       | 2    | SU       | ✅ Working  |
+| 7    | TC-006 | End Date → Earlier (Disenrollment)     | Enrolled (active, SU synced)        | Disenrolled (end-dated)      | 1    | SU       | ✅ Working  |
+| 8    | TC-033 | Disenrolled Span — Real Reason Code    | Disenrolled (placeholder 2W codes)  | Disenrolled (real reason)    | 1    | SU       | —          |
+| 9    | TC-032 | Address Update — No Current Span       | Disenrolled (no active span)        | Disenrolled (unchanged)      | 0    | No Txn   | ✅ Working  |
+| 10   | TC-007 | End Date → Later (Extension)           | Disenrolled (end-dated)             | Enrolled (re-opened)         | 1    | SU       | ✅ Working  |
+| 11   | TC-002 | Enrolled → Suspended (with end date)   | Enrolled (active, SU synced)        | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working  |
+| 12   | TC-012 | Suspension Deleted                      | Suspended (bounded, 3 spans synced) | Enrolled (spans merged)      | 2    | SU       | —          |
 
 **[RESET via TC-008 + TC-001]**
 
@@ -170,10 +170,10 @@ Tests are arranged below so each test's output state feeds the next test's requi
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                            | Starting State                  | Output State                    | Txns | Expected | Automation  |
-| ---- | ------ | ----------------------------------- | ------------------------------- | ------------------------------- | ---- | -------- | ----------- |
-| 27   | TC-010 | Open-Ended Suspension (no end date) | Enrolled (active, SU synced)    | Suspended (open-ended, 2 spans) | 2    | SU       | ✅ Working  |
-| 28   | TC-013 | Suspension End: Null → Valid       | Suspended (open-ended, 2 spans) | Suspended (bounded, 3 spans)    | 2    | SU       | ✅ Working  |
+| Step | TC #   | Scenario                            | Starting State                  | Output State                    | Txns | Expected | Automation |
+| ---- | ------ | ----------------------------------- | ------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 27   | TC-010 | Open-Ended Suspension (no end date) | Enrolled (active, SU synced)    | Suspended (open-ended, 2 spans) | 2    | SU       | ✅ Working |
+| 28   | TC-013 | Suspension End: Null → Valid       | Suspended (open-ended, 2 spans) | Suspended (bounded, 3 spans)    | 2    | SU       | ✅ Working |
 
 **[RESET via TC-008 + TC-001]**
 

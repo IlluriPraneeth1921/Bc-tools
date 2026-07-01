@@ -74,70 +74,118 @@ test('ATC-ES-061 - Navigate to enrollment detail (only if Enrolled)', async () =
 });
 
 test('ATC-ES-062 - Update participant residential address', async () => {
-  // Address updates are done on the Person record, not the enrollment detail page.
-  // Navigate to the participant's demographics/addresses section.
+  // Address updates are done on Person → Profile → Addresses section
   const BASE = process.env.BASE_URL || 'https://widhs-f2-carity.lower-widhs.aws.feisystems.com';
-  const addressUrl = `${BASE}/#/persons/person/${participantUuid}/record/addresses`;
-  
-  await page.goto(addressUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
+  const profileUrl = `${BASE}/#/persons/person/${participantUuid}/record/profile`;
 
-  // Wait for the address section to render — look for address-related content
-  const addressContent = page.locator('text=Address').first();
-  await addressContent.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(5000);
+
+  // Wait for the Addresses section AND the actual address content to fully render
+  // The profile page loads progressively — Addresses section appears after other sections
+  const addressText = page.locator('text=Brooklyn').first();
+  await expect(addressText).toBeVisible({ timeout: 30_000 });
+  await addressText.scrollIntoViewIfNeeded();
   await page.waitForTimeout(2000);
 
-  // Find the residential address row and click to edit, or find an edit button
-  const residentialRow = page.locator('mat-row, tr, [class*="row"]').filter({ hasText: /Residential|Primary/i }).first();
-  if (await residentialRow.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    await residentialRow.dblclick();
-    await page.waitForTimeout(3000);
+  // Hover over the address card to reveal the pencil icon
+  // The address card is a container that includes "66 E Brooklyn St"
+  const addressCard = addressText.locator('xpath=ancestor::*[contains(@class,"address") or contains(@class,"card") or contains(@class,"panel") or contains(@class,"section")][1]');
+  if (await addressCard.count() > 0) {
+    await addressCard.first().hover();
   } else {
-    // Try clicking a pencil/edit icon on the address section
-    const editBtn = page.locator('button.mat-icon-button:has(mat-icon:text("edit")), button[aria-label*="edit"]').first();
-    if (await editBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-      await editBtn.click();
-      await page.waitForTimeout(3000);
+    // Fallback: hover over the text itself
+    await addressText.hover();
+  }
+  await page.waitForTimeout(1000);
+
+  // Click the edit icon near the address (NOT the "Edit Name" button at the top)
+  // Look for an edit button that is near/after the address text
+  const addressEditBtn = page.locator('button[aria-label*="Edit Address"], button[aria-label*="edit address"]').first();
+  let editClicked = false;
+
+  if (await addressEditBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await addressEditBtn.scrollIntoViewIfNeeded();
+    await page.waitForTimeout(500);
+    // Use JS click to bypass viewport check
+    await addressEditBtn.evaluate((el: HTMLElement) => el.click());
+    editClicked = true;
+  } else {
+    // Try finding edit button within the address section (after the "Addresses" heading)
+    const addressSection = page.locator('text=Addresses').first().locator('xpath=ancestor::*[3]');
+    const sectionEditBtn = addressSection.locator('button:has(mat-icon:text("edit"))').first();
+    if (await sectionEditBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      await sectionEditBtn.scrollIntoViewIfNeeded();
+      await page.waitForTimeout(500);
+      await sectionEditBtn.evaluate((el: HTMLElement) => el.click());
+      editClicked = true;
+    } else {
+      // Last resort: find ALL edit buttons and pick the one closest to the address text
+      const allEditBtns = page.locator('button:has(mat-icon:text("edit"))');
+      const count = await allEditBtns.count();
+      for (let i = 0; i < count; i++) {
+        const ariaLabel = await allEditBtns.nth(i).getAttribute('aria-label').catch(() => '');
+        if (ariaLabel && !ariaLabel.includes('Name')) {
+          await allEditBtns.nth(i).scrollIntoViewIfNeeded();
+          await page.waitForTimeout(500);
+          await allEditBtns.nth(i).evaluate((el: HTMLElement) => el.click());
+          editClicked = true;
+          break;
+        }
+      }
     }
   }
 
-  // Look for address input field (street address) — could be in a dialog or inline
-  const streetInput = page.locator('input[aria-label*="Street"], input[aria-label*="Address"], input[id*="street"], input[id*="address"]').first();
-  if (await streetInput.isVisible({ timeout: 10_000 }).catch(() => false)) {
-    const currentValue = await streetInput.inputValue().catch(() => '');
-    // Toggle between two values to ensure a change is detected
-    const newValue = currentValue.includes('456') ? '123 MAIN ST' : '456 UPDATED TEST ST';
-    await streetInput.click({ force: true });
-    await streetInput.fill('', { force: true });
-    await streetInput.fill(newValue, { force: true });
-    await streetInput.evaluate(el => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await streetInput.press('Tab');
-    await page.waitForTimeout(500);
-    console.log(`[TC-014] Street address updated to: ${newValue}`);
-  } else {
-    console.log('[TC-014] Street address input not found — trying alternative approach');
-  }
+  expect(editClicked, 'Could not find or click the address edit button').toBe(true);
+  await page.waitForTimeout(3000);
 
-  // Save changes — look for Save button in dialog or on page
-  const dialogSave = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
-  const pageSave = page.getByRole('button', { name: 'Save' }).first();
-  
-  if (await dialogSave.isVisible({ timeout: 3_000 }).catch(() => false)) {
-    await dialogSave.click({ force: true });
-  } else if (await pageSave.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await pageSave.click({ force: true });
-  } else {
-    console.log('[TC-014] No Save button found — address may have auto-saved');
-  }
+  // The "Edit Address" form should now be open with "Street Address 1" field
+  const streetInput = page.getByLabel(/Street Address 1/i).first();
+  await expect(streetInput).toBeVisible({ timeout: 10_000 });
 
+  // Get current value and toggle it with a valid address change
+  const currentValue = await streetInput.inputValue();
+  // Toggle between "66 E Brooklyn St" and "67 E Brooklyn St" (valid address change)
+  const newValue = currentValue.startsWith('66') ? currentValue.replace('66', '67') : currentValue.replace('67', '66');
+
+  // Clear and type the new value character-by-character to trigger Angular's ngModel/reactive form bindings.
+  // Using fill() with force:true can bypass Angular's change detection, resulting in
+  // a visual update but no actual model change — the form stays "pristine" and Save is a no-op.
+  await streetInput.click();
+  await streetInput.selectText();
+  await page.waitForTimeout(300);
+  await streetInput.pressSequentially(newValue, { delay: 50 });
+  await page.waitForTimeout(500);
+
+  // Tab out to trigger blur/change events that Angular listens for
+  await streetInput.press('Tab');
+  await page.waitForTimeout(500);
+
+  // Verify the input actually holds the new value before saving
+  const updatedValue = await streetInput.inputValue();
+  expect(updatedValue).toBe(newValue);
+  console.log(`[TC-014] Street address changed: "${currentValue}" → "${newValue}"`);
+
+  // Click Save on the Edit Address form
+  const saveBtn = page.getByRole('button', { name: 'Save' }).first();
+  await expect(saveBtn).toBeVisible({ timeout: 5_000 });
+  await saveBtn.click();
   await page.waitForTimeout(5000);
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-  console.log('[TC-014] Address updated — S700 MMIS transaction should be triggered');
+
+  // Verify the address persisted by confirming the edit form closed and the new value is displayed
+  // If the form is still open, Save may have failed silently (validation error or no dirty fields)
+  const formStillOpen = await streetInput.isVisible({ timeout: 3_000 }).catch(() => false);
+  if (formStillOpen) {
+    // Check for any validation error messages
+    const errorMsg = await page.locator('.mat-error, .error-message, [role="alert"]').first().textContent().catch(() => '');
+    throw new Error(`Address edit form still open after Save — change may not have persisted. Errors: "${errorMsg}"`);
+  }
+
+  // Confirm the updated address text appears on the profile page
+  await expect(page.locator(`text=${newValue}`).first()).toBeVisible({ timeout: 10_000 });
+  console.log('[TC-014] Address saved and verified on profile — S700 MMIS transaction should be triggered');
 });
 
 test('ATC-ES-063 - Verify 1 MMIS transaction (S700 address update)', async () => {
