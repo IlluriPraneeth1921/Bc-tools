@@ -28,8 +28,15 @@ import { navigateToParticipant, navigateToEnrollments } from '../../helpers/part
 import {
   resolveParticipantUuid,
   openFirstEnrollmentDetail,
+  openEnrollmentByText,
   getSyncStatus,
+  addIrisEnrollment,
+  editEnrollment,
   addSuspension,
+  deleteSuspension,
+  performIcaTransfer,
+  performFeaTransfer,
+  pollForMmisResponse,
   hasConflictBadge,
   isResubmitVisible,
   getMMISErrors,
@@ -273,10 +280,35 @@ async function verifySuspended(tcLabel: string): Promise<boolean> {
   await navigateToEnrollments(page, participantUuid);
   await page.waitForTimeout(2000);
   const state = await getFullEnrollmentState(page);
-  if (state.irisState !== 'Enrolled' || !state.hasSuspension) {
+
+  // The enrollment list may still show "Enrolled" even with an active bounded suspension.
+  // If the list doesn't show "Suspended" but irisState is Enrolled, drill into the detail
+  // page to check for suspension presence there.
+  if (state.irisState === 'Enrolled' && !state.hasSuspension) {
+    console.log(`[${tcLabel}] List shows Enrolled without suspension indicator — checking detail page...`);
+    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
+    if (await enrolledRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      await enrolledRow.dblclick();
+      await page.waitForTimeout(3000);
+      await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+      const suspOnDetail = await hasActiveSuspension(page);
+      if (suspOnDetail) {
+        console.log(`[${tcLabel}] ✓ Suspension confirmed on detail page`);
+        // Navigate back to list so caller is on expected page
+        await navigateToEnrollments(page, participantUuid);
+        await page.waitForTimeout(2000);
+        return true;
+      }
+    }
+    console.log(`[${tcLabel}] Skipping — need Enrolled + suspension (current: ${state.irisState}, susp: false, detail: false)`);
+    return false;
+  }
+
+  if (state.irisState !== 'Enrolled') {
     console.log(`[${tcLabel}] Skipping — need Enrolled + suspension (current: ${state.irisState}, susp: ${state.hasSuspension})`);
     return false;
   }
+
   return true;
 }
 
@@ -339,14 +371,22 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
     const ok = await verifyEnrolled('TC-003');
     expect(ok).toBe(true);
 
-    // Navigate to enrollment detail
-    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
-    await enrolledRow.dblclick();
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    // Navigate to enrollment detail and perform ICA transfer
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
 
-    // Verify on detail page
-    expect(page.url()).toContain('/programenrollment');
+    const transferred = await performIcaTransfer(page);
+    expect(transferred).toBe(true);
+
+    // Wait for sync
+    await page.waitForTimeout(10_000);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    const status = await getSyncStatus(page);
+    console.log(`[TC-003] Sync: ${JSON.stringify(status)}`);
+    expect(status.hasConflict).toBe(false);
+
     console.log('[TC-003] ICA transfer on active span — expects 2 MMIS txns (S600 + S610)');
     console.log('[TC-003] Output state: Enrolled (new ICA agency) — ready for Step 4');
   });
@@ -358,12 +398,22 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
     const ok = await verifyEnrolled('TC-016');
     expect(ok).toBe(true);
 
-    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
-    await enrolledRow.dblclick();
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    // Navigate to enrollment detail and perform FEA transfer
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
 
-    expect(page.url()).toContain('/programenrollment');
+    const transferred = await performFeaTransfer(page);
+    expect(transferred).toBe(true);
+
+    // Wait for sync
+    await page.waitForTimeout(10_000);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    const status = await getSyncStatus(page);
+    console.log(`[TC-016] Sync: ${JSON.stringify(status)}`);
+    expect(status.hasConflict).toBe(false);
+
     console.log('[TC-016] FEA transfer — expects 2 MMIS txns (S600 + S610)');
     console.log('[TC-016] Output state: Enrolled (new FEA agency) — ready for Step 5');
   });
@@ -375,12 +425,27 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
     const ok = await verifyEnrolled('TC-019');
     expect(ok).toBe(true);
 
-    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
-    await enrolledRow.dblclick();
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    // Navigate to enrollment detail and edit begin date
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
 
-    expect(page.url()).toContain('/programenrollment');
+    // Move begin date 5 days earlier
+    const startParts = dates.enrollmentStart.split('/').map(Number);
+    const earlierDate = new Date(startParts[2], startParts[0] - 1, startParts[1] - 5);
+    const earlierStr = `${String(earlierDate.getMonth() + 1).padStart(2, '0')}/${String(earlierDate.getDate()).padStart(2, '0')}/${earlierDate.getFullYear()}`;
+
+    const edited = await editEnrollment(page, { startDate: earlierStr });
+    expect(edited, 'Edit dialog did not close — validation errors').toBe(true);
+
+    // Wait for sync
+    await page.waitForTimeout(10_000);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    const status = await getSyncStatus(page);
+    console.log(`[TC-019] Sync: ${JSON.stringify(status)}`);
+    expect(status.hasConflict).toBe(false);
+
     console.log('[TC-019] Begin date moved earlier — expects 2 MMIS txns (S310 + S300)');
     console.log('[TC-019] Output state: Enrolled (earlier begin) — ready for Step 6');
   });
@@ -392,12 +457,23 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
     const ok = await verifyEnrolled('TC-020');
     expect(ok).toBe(true);
 
-    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
-    await enrolledRow.dblclick();
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    // Navigate to enrollment detail and edit begin date
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
 
-    expect(page.url()).toContain('/programenrollment');
+    // Move begin date back to original (later than what Step 5 set)
+    const edited = await editEnrollment(page, { startDate: dates.enrollmentStart });
+    expect(edited, 'Edit dialog did not close — validation errors').toBe(true);
+
+    // Wait for sync
+    await page.waitForTimeout(10_000);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    const status = await getSyncStatus(page);
+    console.log(`[TC-020] Sync: ${JSON.stringify(status)}`);
+    expect(status.hasConflict).toBe(false);
+
     console.log('[TC-020] Begin date moved later — expects 2 MMIS txns (S310 + S300)');
     console.log('[TC-020] Output state: Enrolled (later begin) — ready for Step 7');
   });
@@ -409,12 +485,32 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
     const ok = await verifyEnrolled('TC-006');
     expect(ok).toBe(true);
 
-    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
-    await enrolledRow.dblclick();
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    // Create a Disenrolled enrollment via "+ New Program Enrollment" dialog
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
 
-    expect(page.url()).toContain('/programenrollment');
+    const saved = await addIrisEnrollment(page, {
+      program: 'IRIS',
+      status: 'Disenrolled',
+      statusReason: 'Not Applicable',
+      startDate: dates.enrollmentStart,
+      endDate: dates.disenrollStart,
+    });
+    expect(saved, 'Disenrollment dialog did not close — validation errors').toBe(true);
+
+    // Verify Disenrolled appears on page
+    await page.waitForTimeout(2000);
+    const pageText = await page.locator('body').textContent().catch(() => '') || '';
+    expect(pageText, 'Disenrolled status not found after save').toContain('Disenrolled');
+
+    // Wait for MMIS sync and verify
+    await page.waitForTimeout(10_000);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+
+    const status = await getSyncStatus(page);
+    console.log(`[TC-006] Sync status: ${JSON.stringify(status)}`);
+    expect(status.hasConflict).toBe(false);
+
     console.log('[TC-006] End date set earlier (disenrollment) — expects 1 MMIS txn (S340)');
     console.log('[TC-006] Output state: Disenrolled (end-dated) — ready for Step 9');
   });
@@ -533,13 +629,24 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
     expect(ok).toBe(true);
 
     // Open enrollment detail
-    const enrolledRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).filter({ hasNotText: /Disenrolled/ }).first();
-    await enrolledRow.dblclick();
-    await page.waitForTimeout(3000);
-    await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
+    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
 
     const hasSusp = await hasActiveSuspension(page);
-    expect(hasSusp).toBe(true);
+    expect(hasSusp, 'No active suspension found on detail page').toBe(true);
+
+    // Delete the suspension
+    const deleted = await deleteSuspension(page);
+    expect(deleted, 'Suspension deletion failed').toBe(true);
+
+    // Wait for sync
+    await page.waitForTimeout(10_000);
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    const status = await getSyncStatus(page);
+    console.log(`[TC-012] Sync: ${JSON.stringify(status)}`);
+    expect(status.hasConflict).toBe(false);
 
     console.log('[TC-012] Suspension deletion — expects 2 MMIS txns (S410+S470)');
     console.log('[TC-012] Output state: Enrolled (spans merged) — end of initial sequence');

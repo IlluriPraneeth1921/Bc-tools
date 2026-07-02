@@ -1,12 +1,8 @@
 /**
  * ATC: TC-020 — Begin Date Later (Delete + Recreate)
  *
- * Changes the enrollment begin date to a later date, causing a
- * delete + recreate transaction pair.
+ * Changes the enrollment begin date to a later date via the Edit dialog.
  * Expects 2 MMIS transactions: S310 (delete) + S300 (recreate).
- *
- * State-aware: Checks that participant is Enrolled before attempting the action.
- * Skips gracefully if preconditions not met.
  *
  * Test Participant: MA ID 1430000013
  * Prerequisite: TC-001 must have completed successfully (active IRIS enrollment with SU sync).
@@ -17,8 +13,9 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
-  openFirstEnrollmentDetail,
-  getSyncStatus,
+  openEnrollmentByText,
+  editEnrollment,
+  verifyMmisSync,
 } from './actions/enrollment.actions';
 import {
   getCurrentIrisState,
@@ -26,13 +23,11 @@ import {
 import { SCENARIOS } from '../../data/scenario-test-data';
 import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
-// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
+// ─── Configuration ────────────────────────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_020;
-const NEW_BEGIN_DATE = DATA.bcInput.newEnrollmentStartDate!; // Later than original 06/01/2026
+const NEW_BEGIN_DATE = DATA.bcInput.newEnrollmentStartDate!;
 
-
-/** When true, uses database stored procedure to mock MMIS Success response. */
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
@@ -54,161 +49,38 @@ test.describe.serial('TC-020: Begin Date Later (Delete + Recreate)', () => {
     await browser.close();
   });
 
-test('ATC-ES-085 - Navigate to enrollment detail (only if Enrolled)', async () => {
-  await navigateToEnrollments(page, participantUuid);
-  await page.waitForTimeout(2000);
+  test('ATC-ES-085 - Precondition: Participant is Enrolled', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
 
-  const irisState = await getCurrentIrisState(page);
-  console.log(`[TC-020] State: IRIS=${irisState}`);
-
-  if (irisState !== 'Enrolled') {
-    console.log(`[TC-020] Skipping — precondition not met (current: ${irisState})`);
-    return;
-  }
-
-  const firstRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).first();
-  await expect(firstRow).toBeVisible({ timeout: 15_000 });
-  await firstRow.dblclick();
-  await page.waitForTimeout(3000);
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-  expect(page.url()).toContain('/programenrollment/');
-});
-
-test('ATC-ES-086 - Change enrollment begin date to later date', async () => {
-  if (!page.url().includes('/programenrollment/')) {
-    console.log('[TC-020] Skipping — previous step was skipped');
-    return;
-  }
-
-  // Wait for Overview section to render on the enrollment detail page
-  await page.locator('text=Overview').first().waitFor({ state: 'visible', timeout: 15_000 });
-  await page.waitForTimeout(2000);
-
-  // Click pencil icon to open the Edit Program Enrollment dialog — retry up to 3 times
-  const pencil = page.locator('button.mat-icon-button:has(mat-icon:text("edit"))').first();
-  await expect(pencil).toBeVisible({ timeout: 10_000 });
-
-  let dialogOpened = false;
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    console.log(`[TC-020] Clicking pencil icon (attempt ${attempt})...`);
-    await pencil.scrollIntoViewIfNeeded();
-    await page.waitForTimeout(500);
-    await pencil.click();
-    await page.waitForTimeout(3000);
-
-    const dialog = page.locator('mat-dialog-container');
-    dialogOpened = await dialog.isVisible({ timeout: 5_000 }).catch(() => false);
-    if (dialogOpened) {
-      console.log('[TC-020] Edit dialog opened');
-      break;
-    }
-    console.log(`[TC-020] Dialog not open after attempt ${attempt} — retrying...`);
-    await page.waitForTimeout(1000);
-  }
-
-  expect(dialogOpened, 'Edit Program Enrollment dialog did not open after clicking pencil icon').toBe(true);
-
-  // Dismiss any warning banner (close button)
-  const closeBanner = page.locator('mat-dialog-container button').filter({ hasText: /^close$/ }).first();
-  if (await closeBanner.isVisible({ timeout: 2_000 }).catch(() => false)) {
-    await closeBanner.click();
-    await page.waitForTimeout(500);
-  }
-
-  // Change the Start Date to the later date
-  const startDateInput = page.locator('mat-dialog-container input[id^="startDate_"], mat-dialog-container input[id^="StartDate_"], mat-dialog-container input[id*="startDate"], mat-dialog-container input[aria-label*="Start Date"], mat-dialog-container input[aria-label*="Begin Date"]').first();
-  await expect(startDateInput).toBeVisible({ timeout: 10_000 });
-  await startDateInput.click({ force: true });
-  await startDateInput.fill('', { force: true });
-  await startDateInput.pressSequentially(NEW_BEGIN_DATE, { delay: 50 });
-  await startDateInput.evaluate(el => {
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
-    el.dispatchEvent(new Event('blur', { bubbles: true }));
+    const irisState = await getCurrentIrisState(page);
+    console.log(`[TC-020] State: IRIS=${irisState}`);
+    expect(irisState, 'Precondition failed: participant must be Enrolled.').toBe('Enrolled');
   });
-  await startDateInput.press('Tab');
-  await page.waitForTimeout(1500);
-  console.log(`[TC-020] Start date set to: ${NEW_BEGIN_DATE}`);
 
-  // Click Save within the dialog
-  const saveBtn = page.locator('mat-dialog-container button').filter({ hasText: /^Save$/ }).first();
-  if (await saveBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await saveBtn.click({ force: true });
-  } else {
-    await page.getByRole('button', { name: 'Save' }).first().click({ force: true });
-  }
-  await page.waitForTimeout(5000);
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  test('ATC-ES-086 - Change enrollment begin date to later date', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.waitForTimeout(2000);
 
-  // Verify dialog closed (save succeeded)
-  const dialogStillOpen = await page.locator('mat-dialog-container').isVisible({ timeout: 3_000 }).catch(() => false);
-  if (dialogStillOpen) {
-    const errorMsg = await page.locator('mat-dialog-container .mat-error, mat-dialog-container [role="alert"]').first().textContent().catch(() => '');
-    console.log(`[TC-020] WARNING: Dialog still open after Save. Errors: "${errorMsg}"`);
-  }
+    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
 
-  console.log('[TC-020] Enrollment begin date changed to later — delete+recreate triggered');
-});
+    const edited = await editEnrollment(page, { startDate: NEW_BEGIN_DATE });
+    expect(edited, 'Edit dialog did not close — validation errors').toBe(true);
+    console.log(`[TC-020] Begin date changed to: ${NEW_BEGIN_DATE}`);
+  });
 
-test('ATC-ES-087 - Verify 2 MMIS transactions (S310 delete + S300 recreate)', async () => {
-  if (MOCK_MMIS) {
-    // --- Mock path: Use database to set MMIS Success ---
-    const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
-    if (!enrollmentKey) {
-      await navigateToEnrollments(page, participantUuid);
-      await page.waitForTimeout(2000);
-      const opened = await openFirstEnrollmentDetail(page);
-      expect(opened).toBe(true);
-    }
-    const key = enrollmentKey || extractProgramEnrollmentKeyFromUrl(page.url());
-    expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
-    await page.waitForTimeout(5000);
-    const mockResult = await mockMmisSuccess(key!);
-    expect(mockResult, 'mockMmisSuccess failed --- stored procedure missing?').toBe(true);
-    console.log(`[TC-020] MMIS Success mocked for key: ${key}`);
-    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-    const status = await getSyncStatus(page);
-    expect(status.responseStatus).toBe('SU');
+  test('ATC-ES-087 - Verify MMIS sync (2 transactions: S310 + S300)', async () => {
+    const status = await verifyMmisSync(page, {
+      participantUuid,
+      mockMmis: MOCK_MMIS,
+      mockFn: mockMmisSuccess,
+      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+    });
+
+    expect(status.responseStatus, 'Expected SU or SE response').toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
-  } else {
-    // --- Real path: Poll for actual MMIS response ---
-  const currentUrl = page.url();
-  const maxAttempts = 6;
-  const pollInterval = 10_000;
-  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
+    console.log(`[TC-020] ✓ MMIS sync completed (${status.responseStatus})`);
+  });
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-
-    status = await getSyncStatus(page);
-    console.log(`[TC-020] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
-
-    if (status.responseStatus !== null) break;
-
-    if (attempt < maxAttempts) {
-      await page.waitForTimeout(pollInterval);
-    }
-  }
-
-  await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
-
-  const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
-  const count = await transactionRows.count();
-  console.log(`[TC-020] MMIS transaction rows found: ${count}`);
-  expect(count).toBeGreaterThanOrEqual(2);
-  }
 });
-
-test('ATC-ES-088 - Verify SU response and no conflict', async () => {
-  const status = await getSyncStatus(page);
-  console.log(`[TC-020] Sync status: ${JSON.stringify(status)}`);
-
-  expect(status.responseStatus).toMatch(/^(SU|SE)$/);
-  expect(status.hasConflict).toBe(false);
-});
-
-}); // end describe.serial
