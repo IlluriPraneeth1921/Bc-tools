@@ -46,10 +46,13 @@ import { withdrawReferralToReset, ensurePristineState } from '../../helpers/rese
 
 // ─── Date computation ─────────────────────────────────────────────────────────
 
+// Use previous month to ensure ISP start date is in the past (avoids MMIS error 9199:
+// "RECERTIFICATION COMPLETION DATE CANNOT BE IN THE FUTURE").
+// The ISP in the database must also be updated to match this date — see scripts/update-isp-date.sql.
 const now = new Date();
-const currentMonth = String(now.getMonth() + 1).padStart(2, '0');
-const currentYear = now.getFullYear();
-let ISP_START_DATE = `${currentMonth}/01/${currentYear}`;
+const prevMonth = now.getMonth() === 0 ? 12 : now.getMonth(); // 1-based previous month
+const prevYear = now.getMonth() === 0 ? now.getFullYear() - 1 : now.getFullYear();
+let ISP_START_DATE = `${String(prevMonth).padStart(2, '0')}/01/${prevYear}`;
 const DISENROLL_END_DATE = '12/31/2299';
 const dates = computeTestDates(ISP_START_DATE);
 
@@ -134,13 +137,32 @@ async function createProgramEnrollment(
     await pg.waitForTimeout(500);
   }
 
-  // Save
-  await pg.getByRole('button', { name: 'Save' }).first().click({ force: true });
-  await pg.waitForTimeout(5000);
-  await pg.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  // Save — wait for button to be enabled, then click and wait for dialog to close
+  const saveBtn = pg.getByRole('button', { name: 'Save' }).first();
+  await expect(saveBtn).toBeEnabled({ timeout: 10_000 });
+  await saveBtn.click({ force: true });
+  await pg.waitForTimeout(2000);
 
-  const stillOpen = await pg.locator('mat-dialog-container').first().isVisible({ timeout: 3_000 }).catch(() => false);
-  expect(stillOpen).toBe(false);
+  // Wait for the dialog to close (up to 30s) — if it doesn't, capture diagnostics
+  const dialogLocator = pg.locator('mat-dialog-container').first();
+  try {
+    await expect(dialogLocator).not.toBeVisible({ timeout: 30_000 });
+  } catch {
+    // Dialog still open — check for validation errors
+    const errorMessages = await pg.locator('mat-error, .mat-mdc-form-field-error, .error-message, [role="alert"]')
+      .allTextContents().catch(() => [] as string[]);
+    const snackbar = await pg.locator('snack-bar-container, simple-snack-bar, .mat-mdc-snack-bar-label')
+      .textContent({ timeout: 2_000 }).catch(() => '');
+
+    const diagnostics = [
+      errorMessages.length ? `Validation errors: ${errorMessages.join('; ')}` : '',
+      snackbar ? `Snackbar: ${snackbar}` : '',
+    ].filter(Boolean).join(' | ');
+
+    throw new Error(
+      `Dialog did not close after Save. ${diagnostics || 'No visible error messages found — check screenshot.'}`
+    );
+  }
 }
 
 // ─── Helper: Establish fresh Enrolled state (Draft → Referred → Enrolled) ─────

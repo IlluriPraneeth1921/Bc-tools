@@ -80,7 +80,8 @@ async function selectAutocomplete(page: Page, inputSelector: string, value: stri
  * If USE_TOKEN_INJECTION is enabled (default), attempts to inject previously
  * saved tokens first, falling back to full UI login if they're expired.
  *
- * Designed to be resilient against slow page loads on Blue Compass.
+ * When this function returns, the page is guaranteed to be fully inside the
+ * app (verified by reaching /#/home). If authentication fails, it throws.
  */
 export async function loginAndSelectContext(page: Page) {
   // Try token injection first (unless disabled)
@@ -89,47 +90,18 @@ export async function loginAndSelectContext(page: Page) {
       onLoginRequired: (p) => performFullLogin(p),
     });
     if (result.method === 'injected') {
-      // Tokens worked — still need to handle Acknowledge + Context if present
-      await handlePostAuthSteps(page);
+      // authenticateWithTokenInjection already verified we can reach /#/home
+      // No additional post-auth steps needed
       return;
     }
-    // If login was performed via fallback, tokens are already captured
+    // If login was performed via fallback (performFullLogin), it already
+    // handled Acknowledge + Context, and authenticateWithTokenInjection
+    // verified /#/home is reachable
     return;
   }
 
   // Direct UI login (token injection disabled)
   await performFullLogin(page);
-}
-
-/**
- * Handles post-authentication steps (Acknowledge dialog + Context selection)
- * that may still be needed even after token injection.
- */
-async function handlePostAuthSteps(page: Page) {
-  await page.waitForTimeout(2000);
-
-  // Check for Acknowledge dialog
-  const ack = page.getByRole('button', { name: 'Acknowledge' });
-  const ackVisible = await ack.isVisible({ timeout: 5_000 }).catch(() => false);
-  if (ackVisible) {
-    await page.waitForTimeout(500);
-    await page.evaluate(() => {
-      const b = Array.from(document.querySelectorAll('button'))
-        .find(el => el.textContent?.trim() === 'Acknowledge');
-      if (b) (b as HTMLButtonElement).click();
-    });
-    await ack.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-  }
-
-  // Check for context selection page
-  const onContextPage = page.url().includes('choose-context');
-  const orgInput = page.locator('input[id^="organization_"]').first();
-  const orgVisible = await orgInput.isVisible({ timeout: 5_000 }).catch(() => false);
-
-  if (onContextPage || orgVisible) {
-    await performContextSelection(page);
-  }
 }
 
 /**
@@ -142,10 +114,29 @@ async function performFullLogin(page: Page) {
   const alreadyOnCognito = currentUrl.includes('amazoncognito.com') || currentUrl.includes('/auth');
 
   if (!alreadyOnCognito) {
+    // Clear ALL auth state to force a completely fresh Cognito login.
+    // NOTE: If addInitScript was used for token injection, it will re-inject
+    // stale tokens on every page.goto(). We must clear storage AFTER navigation.
+    await page.context().clearCookies();
     await page.goto(BASE + '/', { waitUntil: 'domcontentloaded', timeout: 60_000 });
+    // Clear storage AFTER navigation (counteracts addInitScript re-injection)
+    await page.evaluate(() => {
+      try { localStorage.clear(); } catch {}
+      try { sessionStorage.clear(); } catch {}
+    });
+    console.log('[login] Cleared storage + ALL cookies — forcing full Cognito redirect...');
+
+    // Reload — now with clean storage AND no cookies, should redirect to Cognito
+    await page.reload({ waitUntil: 'domcontentloaded', timeout: 60_000 });
+    // Clear again after reload (addInitScript fires again on reload)
+    await page.evaluate(() => {
+      try { localStorage.clear(); } catch {}
+      try { sessionStorage.clear(); } catch {}
+    }).catch(() => {});
     await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
+    await page.waitForTimeout(5000);
     currentUrl = page.url();
+    console.log(`[login] After clearing all state — URL: ${currentUrl}`);
   }
 
   // ─── Step 1: Cognito login (if redirected or still redirecting) ─────────────
@@ -212,26 +203,57 @@ async function performFullLogin(page: Page) {
   }
 
   // ─── Step 2: Acknowledge dialog (if present) ──────────────────────────────
+  // Blue Compass shows this on first login of the day. Click once and wait.
+  // Do NOT spam clicks — it restarts background processing.
+  await page.waitForTimeout(2000);
+
   const ack = page.getByRole('button', { name: 'Acknowledge' });
-  const ackVisible = await ack.isVisible({ timeout: 10_000 }).catch(() => false);
+  let ackVisible = await ack.isVisible({ timeout: 10_000 }).catch(() => false);
+
   if (ackVisible) {
-    await page.waitForTimeout(500);
-    await page.evaluate(() => {
-      const b = Array.from(document.querySelectorAll('button'))
-        .find(el => el.textContent?.trim() === 'Acknowledge');
-      if (b) (b as HTMLButtonElement).click();
-    });
-    await ack.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
+    console.log('[login] Acknowledge dialog detected — clicking...');
+    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+
+    // Click once, wait up to 90s
+    await ack.click({ timeout: 10_000 }).catch(() => {});
+    let dismissed = await ack.waitFor({ state: 'hidden', timeout: 90_000 }).then(() => true).catch(() => false);
+
+    if (!dismissed) {
+      // One retry
+      console.log('[login] Acknowledge still visible — retrying...');
+      await page.waitForTimeout(3000);
+      await ack.click({ timeout: 10_000 }).catch(() => {});
+      dismissed = await ack.waitFor({ state: 'hidden', timeout: 90_000 }).then(() => true).catch(() => false);
+    }
+
+    if (!dismissed) {
+      throw new Error('[login] FATAL: Acknowledge dialog could not be dismissed. Aborting.');
+    }
+
+    console.log(`[login] Acknowledge dismissed — URL: ${page.url()}`);
     await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
   }
 
   // ─── Step 3: Context selection (if present) ────────────────────────────────
-  // Blue Compass context page can take a very long time to fully load.
-  // Wait generously for the organization input to become visible.
   await page.waitForTimeout(2000);
-  const onContextPage = page.url().includes('choose-context');
+
+  let onContextPage = page.url().includes('choose-context');
   const orgInput = page.locator('input[id^="organization_"]').first();
-  const orgVisible = await orgInput.isVisible({ timeout: 10_000 }).catch(() => false);
+  let orgVisible = await orgInput.isVisible({ timeout: 10_000 }).catch(() => false);
+
+  // If stuck at root without context page, try navigating to choose-context
+  if (!onContextPage && !orgVisible) {
+    const stuckAtRoot = page.url().endsWith('/#/') || page.url().endsWith('/#/home');
+    if (stuckAtRoot) {
+      console.log('[login] At root without context — navigating to choose-context...');
+      await page.goto(BASE + '/#/choose-context', { waitUntil: 'domcontentloaded', timeout: 30_000 });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(2000);
+      onContextPage = page.url().includes('choose-context');
+      orgVisible = await orgInput.isVisible({ timeout: 10_000 }).catch(() => false);
+    }
+  }
 
   if (onContextPage || orgVisible) {
     await performContextSelection(page);

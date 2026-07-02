@@ -1,16 +1,22 @@
 import { Page } from '@playwright/test';
 import { BASE, loginAndSelectContext } from './login';
+import { ensureSessionAlive } from './auth-tokens';
 
 /**
  * Checks if the app has redirected to login/context selection and re-authenticates if needed.
+ * This is a quick URL-only check for obvious redirects. For deeper detection
+ * (silent token expiry), use `ensureSessionAlive` from auth-tokens.
  */
 async function ensureAuthenticated(page: Page): Promise<boolean> {
   const currentUrl = page.url();
+
+  // Obvious redirect-based detection
   if (currentUrl.includes('choose-context') || currentUrl.includes('amazoncognito.com') || currentUrl.includes('/auth')) {
-    console.log('[participant-resolver] Session expired — re-authenticating...');
+    console.log('[participant-resolver] Session expired (URL redirect) — re-authenticating...');
     await loginAndSelectContext(page);
     return true;
   }
+
   return false;
 }
 
@@ -111,7 +117,21 @@ export async function navigateToParticipant(page: Page, uuid: string): Promise<b
   }
 
   // Fallback: check if URL contains person UUID (navigation succeeded)
-  return page.url().includes(uuid);
+  if (page.url().includes(uuid)) return true;
+
+  // Page didn't render — check for silent session expiry via centralized detection
+  const recovered = await ensureSessionAlive(page);
+  if (recovered) {
+    await page.goto(`${BASE}/#/persons/person/${uuid}/dashboard`, {
+      waitUntil: 'domcontentloaded',
+      timeout: 30_000,
+    });
+    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+    await page.waitForTimeout(3000);
+    return page.url().includes(uuid);
+  }
+
+  return false;
 }
 
 /**
@@ -143,7 +163,19 @@ export async function navigateToEnrollments(page: Page, uuid: string): Promise<v
     page.url().includes(uuid);
 
   if (!rendered) {
-    // One more attempt
-    await page.waitForTimeout(3000);
+    // Detect silent session expiry via centralized detection
+    const recovered = await ensureSessionAlive(page);
+    if (recovered) {
+      // Re-navigate after fresh login
+      await page.goto(`${BASE}/#/persons/person/${uuid}/programenrollments`, {
+        waitUntil: 'domcontentloaded',
+        timeout: 30_000,
+      });
+      await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+      await page.waitForTimeout(3000);
+    } else {
+      // Not a token issue — just slow loading, give it more time
+      await page.waitForTimeout(3000);
+    }
   }
 }

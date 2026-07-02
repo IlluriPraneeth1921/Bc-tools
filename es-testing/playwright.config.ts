@@ -20,7 +20,7 @@ export default defineConfig({
   outputDir: path.resolve(__dirname, 'test-results'),
   fullyParallel: false,
   retries: 0,
-  timeout: 180_000,
+  timeout: 300_000,
   workers: 1,
 
   reporter: [

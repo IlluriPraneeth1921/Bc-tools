@@ -23,6 +23,56 @@ bcInput: {
     ],
 ```
 
-How do I verify this? 
+How do I verify this? and why I am not seeing the bands in MMIS. Secondly how to create a new plan? What does this mean? 
+
+What is ITC? 
+
+What are valid agencies to select from
 
 same for TC-016, TC-019, TC-020
+
+
+
+Must add a test step to make sure that benefit plan and othe pieces as show bellow must be populated. How do we make sure that this is populated? FSIA record will populate these section. 
+
+![1782997795730](image/Questions/1782997795730.png)
+
+![1782997902441](image/Questions/1782997902441.png)
+
+![1782997919968](image/Questions/1782997919968.png)
+
+This is how you add or revise an existing ISP
+
+![1782998278315](image/Questions/1782998278315.png)
+
+
+When you create a future enrollment, this is expected result check for warning or success only FL is failure. 
+
+![1782998997784](image/Questions/1782998997784.png)
+
+Possible Bug: deleted suspecsion and the MMIS hasn't reset the span. We need to verify our code to make sure that we are sending correct data.,
+
+![1783000014101](image/Questions/1783000014101.png)
+
+use this to fix the End Date before doing any other transaction. The Enrollment End date set to blank. 
+
+![1783000292397](image/Questions/1783000292397.png)
+
+
+
+TC-003 How do we change Agency, Assignment Type and Active must be unique. 
+
+![1783000434936](image/Questions/1783000434936.png)
+
+To trigger TC-003 following must be set.
+
+![1783000762683](image/Questions/1783000762683.png)
+
+
+To solve this error ==>
+
+| Error Code | Error Description                   |
+| ---------- | ----------------------------------- |
+| 9133       | THE WORKER ID IS INVALID OR MISSING |
+
+![1783001293822](image/Questions/1783001293822.png)
