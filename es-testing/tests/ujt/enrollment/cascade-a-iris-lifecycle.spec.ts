@@ -88,13 +88,16 @@ async function createProgramEnrollment(
   await pg.locator('mat-option').filter({ hasText: new RegExp(program, 'i') }).first().click();
   await pg.waitForTimeout(1000);
 
-  // Status
+  // Status — clear, type, and wait for filtered options to load
   const statusInput = pg.locator('input[aria-label="Status"]').first();
   await statusInput.click({ force: true });
   await pg.waitForTimeout(300);
+  await statusInput.fill('', { force: true });
+  await pg.waitForTimeout(300);
   await statusInput.fill(status, { force: true });
-  await pg.waitForTimeout(1500);
-  await pg.locator('mat-option').filter({ hasText: new RegExp(status, 'i') }).first().click();
+  const statusOption = pg.locator('mat-option').filter({ hasText: new RegExp(`^\\s*${status}\\s*$`, 'i') }).first();
+  await expect(statusOption).toBeVisible({ timeout: 10_000 });
+  await statusOption.click();
   await pg.waitForTimeout(1500);
 
   // Status Reason
