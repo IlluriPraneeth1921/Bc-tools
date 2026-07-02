@@ -25,16 +25,57 @@ GO
 
 CREATE OR ALTER PROCEDURE dbo.test_ResetPersonToPristineState
     @PersonKey UNIQUEIDENTIFIER,
+    @BlueprintPersonKey UNIQUEIDENTIFIER = '1829357f-3e6c-44df-a0a9-b47b00f112e4',
     @DryRun BIT = 1
 AS
 BEGIN
     SET NOCOUNT ON;
     SET XACT_ABORT ON;
 
-    -- Blueprint person (pristine reference)
-    DECLARE @BlueprintPersonKey UNIQUEIDENTIFIER = '1829357f-3e6c-44df-a0a9-b47b00f112e4';
-    DECLARE @BlueprintCaseKey UNIQUEIDENTIFIER = '304F388C-DF86-4DC2-8CDF-B47B00F11335';
-    DECLARE @BlueprintPcpKey UNIQUEIDENTIFIER = '7C0ECDC3-24FA-4CD7-B916-B47B00F376C5';
+    -- Derive blueprint keys dynamically
+    DECLARE @BlueprintCaseKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintCaseKey = CaseKey FROM CaseModule.[Case] WHERE PersonKey = @BlueprintPersonKey;
+    IF @BlueprintCaseKey IS NULL BEGIN PRINT 'ERROR: Blueprint Case not found.'; RETURN -1; END
+
+    DECLARE @BlueprintPcpKey UNIQUEIDENTIFIER;
+    SELECT TOP 1 @BlueprintPcpKey = PersonCenteredPlanKey
+    FROM PersonCenteredPlanModule.PersonCenteredPlan
+    WHERE CaseKey = @BlueprintCaseKey AND TypeDisplayName = 'Initial'
+    ORDER BY EntityCreatedTimestamp DESC;
+    IF @BlueprintPcpKey IS NULL BEGIN PRINT 'ERROR: Blueprint ISP not found.'; RETURN -1; END
+
+    -- Derive other blueprint keys dynamically
+    DECLARE @BlueprintPcpExtKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintPcpExtKey = PersonCenteredPlanExtensionKey
+    FROM CustomerPersonCenteredPlanModule.PersonCenteredPlanExtension WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
+    DECLARE @BlueprintEBPKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintEBPKey = EmergencyBackupPlanKey
+    FROM CustomerPersonCenteredPlanModule.EmergencyBackupPlan WHERE PersonCenteredPlanExtensionKey = @BlueprintPcpExtKey;
+
+    DECLARE @BlueprintMeetingKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintMeetingKey = MeetingKey
+    FROM PersonCenteredPlanModule.Meeting WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
+    DECLARE @BlueprintSAKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintSAKey = ServiceAuthorizationKey
+    FROM ServiceAuthorizationModule.ServiceAuthorization WHERE CaseKey = @BlueprintCaseKey;
+
+    DECLARE @BlueprintSLKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintSLKey = ServiceLineKey
+    FROM ServiceAuthorizationModule.ServiceLine WHERE ServiceAuthorizationKey = @BlueprintSAKey;
+
+    DECLARE @BlueprintBudgetLedgerKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintBudgetLedgerKey = BudgetLedgerKey
+    FROM BudgetManagementModule.BudgetLedger WHERE CaseKey = @BlueprintCaseKey AND IsDiscarded = 0;
+
+    DECLARE @BlueprintCompCtxKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintCompCtxKey = CompletionContextKey
+    FROM CompletionModule.CompletionContext WHERE AggregateKeyReference = @BlueprintPcpKey;
+
+    DECLARE @BlueprintSigCtxKey UNIQUEIDENTIFIER;
+    SELECT @BlueprintSigCtxKey = SignatureContextKey
+    FROM PersonCenteredPlanModule.PersonCenteredPlan WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
 
     -- Validate target
     IF @PersonKey IS NULL BEGIN RAISERROR('PersonKey cannot be NULL.', 16, 1); RETURN -1; END
@@ -141,20 +182,7 @@ BEGIN
         BEGIN
             -- Delete CaseActivityInstance records for entities being removed
             DELETE FROM CaseActivityModule.CaseActivityInstance
-            WHERE CaseKey = @CaseKey AND ClrTypeDisplayName IN ('Person Centered Plan', 'Budget Ledger', 'Service Authorization');
-
-            -- Delete extra CaseCustomFormInstances (keep only IRIS Intake + LTC Needs Assessment like blueprint)
-            DELETE FROM CaseActivityModule.CaseActivityInstance
-            WHERE CaseKey = @CaseKey AND ClrTypeDisplayName = 'Case Custom Form Instance'
-              AND CaseActivityKeyReference IN (
-                  SELECT CaseCustomFormInstanceKey FROM CustomFormModule.CaseCustomFormInstance
-                  WHERE CaseKey = @CaseKey AND FormTypeDisplayName NOT IN ('IRIS Intake', 'LTC Needs Assessment')
-              );
-            UPDATE CustomFormModule.CaseCustomFormInstance SET PreviousCaseCustomFormInstanceKey = NULL
-            WHERE CaseKey = @CaseKey AND FormTypeDisplayName NOT IN ('IRIS Intake', 'LTC Needs Assessment');
-            DELETE FROM CustomFormModule.CaseCustomFormInstance
-            WHERE CaseKey = @CaseKey AND FormTypeDisplayName NOT IN ('IRIS Intake', 'LTC Needs Assessment');
-            PRINT '  Extra forms removed';
+            WHERE CaseKey = @CaseKey AND ClrTypeDisplayName IN ('Person Centered Plan', 'Budget Ledger', 'Service Authorization', 'Program Enrollment');
 
             -- Clear Meeting.AppointmentKey before deleting Appointments (FK_Meeting_Appointment)
             UPDATE PersonCenteredPlanModule.Meeting SET AppointmentKey = NULL
@@ -408,42 +436,335 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM BudgetManagementModule.BudgetEntry
-        WHERE BudgetLedgerKey = 'FA583AB6-229A-4DE9-B3ED-B47B00F1323B';
+        WHERE BudgetLedgerKey = @BlueprintBudgetLedgerKey;
         PRINT '  BudgetEntry: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
         PRINT '';
 
         -- ==========================================================
-        -- PART C: RESET LOCATION ASSIGNMENTS
+        -- PART B3: DELETE AND REBUILD FORMS (CaseCustomFormInstance)
         -- ==========================================================
-        PRINT '--- Part C: LocationAssignment Cleanup ---';
-        DECLARE @KeepLoc TABLE (K UNIQUEIDENTIFIER);
-        INSERT INTO @KeepLoc SELECT TOP 1 PersonLocationAssignmentKey
-        FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey AND PersonLocationAssignmentTypeDisplayName = 'ICA' ORDER BY EntityCreatedTimestamp ASC;
-        INSERT INTO @KeepLoc SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey AND PersonLocationAssignmentTypeDisplayName = 'FEA';
-        INSERT INTO @KeepLoc SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey AND PersonLocationAssignmentTypeDisplayName = 'Waiver Service Provider';
+        PRINT '--- Part B3: Forms Cleanup & Rebuild ---';
 
-        UPDATE PersonModule.PersonLocationAssignment SET TransferredFromPersonLocationAssignmentKey = NULL WHERE CaseKey = @CaseKey AND TransferredFromPersonLocationAssignmentKey NOT IN (SELECT K FROM @KeepLoc);
-        UPDATE IntakeReferralModule.IntakeReferral SET ReferralSourcePersonLocationAssignmentKey = NULL WHERE ReferralSourcePersonLocationAssignmentKey IN (SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey AND PersonLocationAssignmentKey NOT IN (SELECT K FROM @KeepLoc));
-        DELETE FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey AND PersonLocationAssignmentKey NOT IN (SELECT K FROM @KeepLoc);
-        PRINT '  Extra removed: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
-        UPDATE PersonModule.PersonLocationAssignment SET EffectiveDateRangeEndDate = NULL, TransferredFromPersonLocationAssignmentKey = NULL
-        WHERE PersonLocationAssignmentKey IN (SELECT K FROM @KeepLoc) AND PersonLocationAssignmentTypeDisplayName = 'ICA' AND EffectiveDateRangeEndDate IS NOT NULL;
-        PRINT '  ICA reopened';
+        -- Collect target's CustomFormInstanceKeys
+        DECLARE @TargetCFI TABLE (K UNIQUEIDENTIFIER);
+        INSERT INTO @TargetCFI SELECT CustomFormInstanceKey
+        FROM CustomFormModule.CaseCustomFormInstance WHERE CaseKey = @CaseKey;
+
+        -- Collect target's FieldAnswerBaseKeys
+        DECLARE @TargetFAB TABLE (K UNIQUEIDENTIFIER);
+        INSERT INTO @TargetFAB SELECT FieldAnswerBaseKey
+        FROM CustomFormModule.FieldAnswerBase WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
+
+        -- Delete answer children
+        DELETE FROM CustomFormModule.SimpleMultiSelectFieldAnswerAnswers WHERE SimpleMultiSelectFieldAnswerKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.SimpleSingleSelectFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.TextFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.DateFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.NumericFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.TimeFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.LikertScaleFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.AggregateSingleSelectFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        DELETE FROM CustomFormModule.SimpleMultiSelectFieldAnswer WHERE FieldAnswerBaseKey IN (SELECT K FROM @TargetFAB);
+        -- Break self-ref FK on FieldAnswerBase
+        UPDATE CustomFormModule.FieldAnswerBase SET PreviousFieldAnswerBaseKey = NULL WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
+        DELETE FROM CustomFormModule.FieldAnswerBase WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
+        -- Delete CaseActivityInstance for forms
+        DELETE FROM CaseActivityModule.CaseActivityInstance
+        WHERE CaseKey = @CaseKey AND ClrTypeDisplayName = 'Case Custom Form Instance';
+        -- Break self-ref on CaseCustomFormInstance and CustomFormInstance
+        UPDATE CustomFormModule.CaseCustomFormInstance SET PreviousCaseCustomFormInstanceKey = NULL WHERE CaseKey = @CaseKey;
+        DELETE FROM CustomFormModule.CaseCustomFormInstance WHERE CaseKey = @CaseKey;
+        UPDATE CustomFormModule.CustomFormInstance SET PreviousCustomFormInstanceKey = NULL WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
+        DELETE FROM CustomFormModule.CustomFormInstance WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
+        PRINT '  Forms deleted';
+
+        -- Rebuild from blueprint: 2 forms (IRIS Intake + LTC Needs Assessment)
+        -- For each form: CustomFormInstance → CaseCustomFormInstance → FieldAnswerBase → typed answers
+        DECLARE @BlueprintCFI TABLE (OldCFIKey UNIQUEIDENTIFIER, NewCFIKey UNIQUEIDENTIFIER, OldCCFIKey UNIQUEIDENTIFIER, NewCCFIKey UNIQUEIDENTIFIER, FormType NVARCHAR(MAX));
+        INSERT INTO @BlueprintCFI (OldCFIKey, NewCFIKey, OldCCFIKey, NewCCFIKey, FormType)
+        SELECT ccfi.CustomFormInstanceKey, NEWID(), ccfi.CaseCustomFormInstanceKey, NEWID(), ccfi.FormTypeDisplayName
+        FROM CustomFormModule.CaseCustomFormInstance ccfi WHERE ccfi.CaseKey = @BlueprintCaseKey;
+
+        -- Insert CustomFormInstance records
+        INSERT INTO CustomFormModule.CustomFormInstance (
+            CustomFormInstanceKey, Version, AggregateKeyReference, CustomFormDefinitionKey,
+            PreviousCustomFormInstanceKey, ScoreValue, ScoreRangeDisplayName, ScoreRangeKeyReference,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            bc.NewCFIKey, 1, NULL, cfi.CustomFormDefinitionKey,
+            NULL, cfi.ScoreValue, cfi.ScoreRangeDisplayName, cfi.ScoreRangeKeyReference,
+            'feiadmin', @Now, cfi.EntityCreatedUserContextKey,
+            'feiadmin', @Now, cfi.EntityUpdatedUserContextKey
+        FROM @BlueprintCFI bc
+        JOIN CustomFormModule.CustomFormInstance cfi ON cfi.CustomFormInstanceKey = bc.OldCFIKey;
+
+        -- Insert CaseCustomFormInstance records
+        INSERT INTO CustomFormModule.CaseCustomFormInstance (
+            CaseCustomFormInstanceKey, Version, CustomFormInstanceKey,
+            PreviousCaseCustomFormInstanceKey, ProgramKey, CaseKey,
+            FormTypeDisplayName, FormTypeIdentifier, FormTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            bc.NewCCFIKey, 1, bc.NewCFIKey,
+            NULL, ccfi.ProgramKey, @CaseKey,
+            ccfi.FormTypeDisplayName, ccfi.FormTypeIdentifier, ccfi.FormTypeCodeSystemIdentifier,
+            'feiadmin', @Now, ccfi.EntityCreatedUserContextKey,
+            'feiadmin', @Now, ccfi.EntityUpdatedUserContextKey
+        FROM @BlueprintCFI bc
+        JOIN CustomFormModule.CaseCustomFormInstance ccfi ON ccfi.CaseCustomFormInstanceKey = bc.OldCCFIKey;
+        PRINT '  Forms inserted';
+
+        -- Insert FieldAnswerBase + typed answers for each form
+        -- Use a staging table to map old FAB keys to new ones
+        DECLARE @FABMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER, OldCFIKey UNIQUEIDENTIFIER, NewCFIKey UNIQUEIDENTIFIER);
+        INSERT INTO @FABMap (OldKey, NewKey, OldCFIKey, NewCFIKey)
+        SELECT fab.FieldAnswerBaseKey, NEWID(), fab.CustomFormInstanceKey, bc.NewCFIKey
+        FROM CustomFormModule.FieldAnswerBase fab
+        JOIN @BlueprintCFI bc ON bc.OldCFIKey = fab.CustomFormInstanceKey;
+
+        INSERT INTO CustomFormModule.FieldAnswerBase (
+            FieldAnswerBaseKey, Version, CustomFormElementDefinitionBaseKey, IndexNumber,
+            PreviousFieldAnswerBaseKey, CustomFormInstanceKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey, IsRequired
+        )
+        SELECT
+            fm.NewKey, fab.Version, fab.CustomFormElementDefinitionBaseKey, fab.IndexNumber,
+            NULL, fm.NewCFIKey,
+            'feiadmin', @Now, fab.EntityCreatedUserContextKey,
+            'feiadmin', @Now, fab.EntityUpdatedUserContextKey, fab.IsRequired
+        FROM @FABMap fm
+        JOIN CustomFormModule.FieldAnswerBase fab ON fab.FieldAnswerBaseKey = fm.OldKey;
+
+        -- Copy typed answers using the key mapping
+        INSERT INTO CustomFormModule.TextFieldAnswer (FieldAnswerBaseKey, Note)
+        SELECT fm.NewKey, tfa.Note
+        FROM CustomFormModule.TextFieldAnswer tfa
+        JOIN @FABMap fm ON fm.OldKey = tfa.FieldAnswerBaseKey;
+
+        INSERT INTO CustomFormModule.DateFieldAnswer (FieldAnswerBaseKey, DateTime)
+        SELECT fm.NewKey, dfa.DateTime
+        FROM CustomFormModule.DateFieldAnswer dfa
+        JOIN @FABMap fm ON fm.OldKey = dfa.FieldAnswerBaseKey;
+
+        INSERT INTO CustomFormModule.SimpleSingleSelectFieldAnswer (FieldAnswerBaseKey, OptionCode, OptionDisplayName, OptionDisplayOrderNumber, OptionScore)
+        SELECT fm.NewKey, ssfa.OptionCode, ssfa.OptionDisplayName, ssfa.OptionDisplayOrderNumber, ssfa.OptionScore
+        FROM CustomFormModule.SimpleSingleSelectFieldAnswer ssfa
+        JOIN @FABMap fm ON fm.OldKey = ssfa.FieldAnswerBaseKey;
+
+        INSERT INTO CustomFormModule.SimpleMultiSelectFieldAnswer (FieldAnswerBaseKey)
+        SELECT fm.NewKey
+        FROM CustomFormModule.SimpleMultiSelectFieldAnswer smsfa
+        JOIN @FABMap fm ON fm.OldKey = smsfa.FieldAnswerBaseKey;
+
+        INSERT INTO CustomFormModule.SimpleMultiSelectFieldAnswerAnswers (SimpleMultiSelectFieldAnswerKey, Code, DisplayName, DisplayOrderNumber, Score, IsRequired)
+        SELECT fm.NewKey, smsfaa.Code, smsfaa.DisplayName, smsfaa.DisplayOrderNumber, smsfaa.Score, smsfaa.IsRequired
+        FROM CustomFormModule.SimpleMultiSelectFieldAnswerAnswers smsfaa
+        JOIN @FABMap fm ON fm.OldKey = smsfaa.SimpleMultiSelectFieldAnswerKey;
+        PRINT '  FieldAnswers copied';
+
+        -- Register forms in CaseActivityInstance
+        DECLARE @NextFormCaiId BIGINT;
+        SELECT @NextFormCaiId = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+
+        INSERT INTO CaseActivityModule.CaseActivityInstance (
+            CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
+            RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
+            ActivityTypeDisplayName, ActivityTypeIdentifier, ActivityTypeCodeSystemIdentifier,
+            ClrTypeAssemblyQualifiedName, ClrTypeDisplayName, ClrTypeFullName,
+            FormTypeDisplayName, FormTypeIdentifier, FormTypeCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey, IsSharedWithPerson
+        )
+        SELECT
+            NEWID(), 1, bc.NewCCFIKey, @CaseKey,
+            cai.RegistrationStatusEnum, cai.IsActive, @NextFormCaiId + ROW_NUMBER() OVER (ORDER BY cai.EntityCreatedTimestamp), cai.ProgramKeyReference,
+            cai.ActivityTypeDisplayName, cai.ActivityTypeIdentifier, cai.ActivityTypeCodeSystemIdentifier,
+            cai.ClrTypeAssemblyQualifiedName, cai.ClrTypeDisplayName, cai.ClrTypeFullName,
+            cai.FormTypeDisplayName, cai.FormTypeIdentifier, cai.FormTypeCodeSystemIdentifier,
+            cai.ProvenanceSourceIdentifier, cai.ProvenanceTypeDisplayName, cai.ProvenanceTypeIdentifier, cai.ProvenanceTypeCodeSystemIdentifier,
+            'feiadmin', @Now, cai.EntityCreatedUserContextKey,
+            'feiadmin', @Now, cai.EntityUpdatedUserContextKey, cai.IsSharedWithPerson
+        FROM @BlueprintCFI bc
+        JOIN CaseActivityModule.CaseActivityInstance cai ON cai.CaseActivityKeyReference = bc.OldCCFIKey AND cai.CaseKey = @BlueprintCaseKey;
+        PRINT '  Form CaseActivityInstances registered';
         PRINT '';
 
         -- ==========================================================
-        -- PART D: RESET STAFF MEMBER ASSIGNMENTS
+        -- PART C: RESET LOCATION ASSIGNMENTS (delete all + rebuild)
         -- ==========================================================
-        PRINT '--- Part D: StaffMemberAssignment Cleanup ---';
-        DECLARE @KeepStaff TABLE (K UNIQUEIDENTIFIER);
-        INSERT INTO @KeepStaff SELECT TOP 1 PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey AND AssignmentLocationTypeDisplayName = 'ICA' AND EffectiveDateRangeEndDate IS NULL ORDER BY EntityCreatedTimestamp ASC;
-        INSERT INTO @KeepStaff SELECT TOP 1 PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey AND AssignmentLocationTypeDisplayName = 'ICA' AND EffectiveDateRangeEndDate IS NOT NULL ORDER BY EntityCreatedTimestamp ASC;
-        INSERT INTO @KeepStaff SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey AND AssignmentLocationTypeDisplayName <> 'ICA';
+        PRINT '--- Part C: LocationAssignment Reset ---';
+        -- Delete WorkflowInstances for existing assignments
+        DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey);
+        UPDATE PersonModule.PersonLocationAssignment SET TransferredFromPersonLocationAssignmentKey = NULL WHERE CaseKey = @CaseKey;
+        UPDATE IntakeReferralModule.IntakeReferral SET ReferralSourcePersonLocationAssignmentKey = NULL
+        WHERE ReferralSourcePersonLocationAssignmentKey IN (SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey);
+        DELETE FROM CaseActivityModule.CaseActivityInstance WHERE CaseKey = @CaseKey AND ClrTypeDisplayName = 'Person Location Assignment';
+        DELETE FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey;
 
-        UPDATE PersonModule.PersonStaffMemberAssignment SET TransferredFromPersonStaffMemberAssignmentKey = NULL WHERE CaseKey = @CaseKey AND TransferredFromPersonStaffMemberAssignmentKey NOT IN (SELECT K FROM @KeepStaff);
-        UPDATE IntakeReferralModule.IntakeReferral SET ReferralSourcePersonStaffMemberAssignmentKey = NULL WHERE ReferralSourcePersonStaffMemberAssignmentKey IN (SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey AND PersonStaffMemberAssignmentKey NOT IN (SELECT K FROM @KeepStaff));
-        DELETE FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey AND PersonStaffMemberAssignmentKey NOT IN (SELECT K FROM @KeepStaff);
-        PRINT '  Extra removed: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+        INSERT INTO PersonModule.PersonLocationAssignment (
+            PersonLocationAssignmentKey, Version, LocationKey, Note, TransferredFromPersonLocationAssignmentKey,
+            CaseKey, ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EffectiveDateRangeEndDate, EffectiveDateRangeStartDate,
+            InitiatedStaffMemberDisplayName, InitiatedStaffMemberKey,
+            PersonLocationAssignmentTypeDisplayName, PersonLocationAssignmentTypeIdentifier, PersonLocationAssignmentTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey, IsProgramManagingLocation
+        )
+        SELECT
+            NEWID(), 1, LocationKey, Note, NULL,
+            @CaseKey, ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EffectiveDateRangeEndDate, EffectiveDateRangeStartDate,
+            InitiatedStaffMemberDisplayName, InitiatedStaffMemberKey,
+            PersonLocationAssignmentTypeDisplayName, PersonLocationAssignmentTypeIdentifier, PersonLocationAssignmentTypeCodeSystemIdentifier,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey, IsProgramManagingLocation
+        FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @BlueprintCaseKey;
+        PRINT '  Rebuilt: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- Create WorkflowInstance for each location assignment (required for UI visibility)
+        DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey);
+        INSERT INTO WorkflowModule.WorkflowInstance (
+            WorkflowInstanceKey, Version, Comment, WorkflowBindingIdentifier, WorkflowDefinitionIdentifier,
+            AggregateKeyReference, AggregateClrTypeDisplayName, AggregateClrTypeFullName,
+            CurrentStateDisplayName, CurrentStateName,
+            WorkflowTransitionReasonDisplayName, WorkflowTransitionReasonIdentifier, WorkflowTransitionReasonCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, NULL, 'PersonLocationAssignmentWorkflowBindingIdentifier', 'PersonLocationAssignmentWorkflowDefinition',
+            pla.PersonLocationAssignmentKey, 'Person Location Assignment',
+            'Wpc.Core.Domain.PersonModule.Assignment.PersonLocationAssignmentAggregate.PersonLocationAssignment',
+            CASE WHEN pla.EffectiveDateRangeEndDate IS NULL THEN 'Active' ELSE 'Inactive' END,
+            CASE WHEN pla.EffectiveDateRangeEndDate IS NULL THEN 'ActiveState' ELSE 'InactiveState' END,
+            NULL, NULL, NULL,
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1',
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1'
+        FROM PersonModule.PersonLocationAssignment pla WHERE pla.CaseKey = @CaseKey;
+        PRINT '  WorkflowInstances for locations created';
+
+        -- Register new location assignments in CaseActivityInstance
+        DECLARE @NextLocCaiId BIGINT;
+        SELECT @NextLocCaiId = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+        INSERT INTO CaseActivityModule.CaseActivityInstance (
+            CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
+            RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
+            ActivityTypeDisplayName, ActivityTypeIdentifier, ActivityTypeCodeSystemIdentifier,
+            ClrTypeAssemblyQualifiedName, ClrTypeDisplayName, ClrTypeFullName,
+            FormTypeDisplayName, FormTypeIdentifier, FormTypeCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey, IsSharedWithPerson
+        )
+        SELECT
+            NEWID(), 1, pla.PersonLocationAssignmentKey, @CaseKey,
+            'Registered', NULL, @NextLocCaiId + ROW_NUMBER() OVER (ORDER BY pla.EffectiveDateRangeStartDate), NULL,
+            'Person Location Assignment', 11500002, 1,
+            'Wpc.Core.Domain.PersonModule.Assignment.PersonLocationAssignmentAggregate.PersonLocationAssignment, Wpc.Core.Domain, Version=4.43.0.0, Culture=neutral, PublicKeyToken=null',
+            'Person Location Assignment',
+            'Wpc.Core.Domain.PersonModule.Assignment.PersonLocationAssignmentAggregate.PersonLocationAssignment',
+            NULL, NULL, NULL,
+            NULL, 'Manual Entry', 12800002, 1,
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1',
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1', NULL
+        FROM PersonModule.PersonLocationAssignment pla WHERE pla.CaseKey = @CaseKey;
+
+        PRINT '';
+
+        -- ==========================================================
+        -- PART D: RESET STAFF MEMBER ASSIGNMENTS (delete all + rebuild)
+        -- ==========================================================
+        PRINT '--- Part D: StaffMemberAssignment Reset ---';
+        -- Delete WorkflowInstances for existing staff assignments
+        DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey);
+        UPDATE PersonModule.PersonStaffMemberAssignment SET TransferredFromPersonStaffMemberAssignmentKey = NULL WHERE CaseKey = @CaseKey;
+        UPDATE IntakeReferralModule.IntakeReferral SET ReferralSourcePersonStaffMemberAssignmentKey = NULL
+        WHERE ReferralSourcePersonStaffMemberAssignmentKey IN (SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey);
+        DELETE FROM CaseActivityModule.CaseActivityInstance WHERE CaseKey = @CaseKey AND ClrTypeDisplayName = 'Person Staff Member Assignment';
+        DELETE FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey;
+
+        INSERT INTO PersonModule.PersonStaffMemberAssignment (
+            PersonStaffMemberAssignmentKey, Version, IsPrimaryAssignment, Note, TransferredFromPersonStaffMemberAssignmentKey,
+            CaseKey, AssignedLocationDisplayName, AssignedLocationKey, AssignedStaffMemberDisplayName, AssignedStaffMemberKey,
+            AssignmentLocationSubtypeDisplayName, AssignmentLocationSubtypeIdentifier, AssignmentLocationSubtypeCodeSystemIdentifier,
+            AssignmentLocationTypeDisplayName, AssignmentLocationTypeIdentifier, AssignmentLocationTypeCodeSystemIdentifier,
+            AssignmentTypeSystemRoleDisplayName, AssignmentTypeSystemRoleKey,
+            EffectiveDateRangeEndDate, EffectiveDateRangeStartDate,
+            InitiatedStaffMemberDisplayName, InitiatedStaffMemberKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey, IsMemberOfCircleOfSupport
+        )
+        SELECT
+            NEWID(), 1, IsPrimaryAssignment, Note, NULL,
+            @CaseKey, AssignedLocationDisplayName, AssignedLocationKey, AssignedStaffMemberDisplayName, AssignedStaffMemberKey,
+            AssignmentLocationSubtypeDisplayName, AssignmentLocationSubtypeIdentifier, AssignmentLocationSubtypeCodeSystemIdentifier,
+            AssignmentLocationTypeDisplayName, AssignmentLocationTypeIdentifier, AssignmentLocationTypeCodeSystemIdentifier,
+            AssignmentTypeSystemRoleDisplayName, AssignmentTypeSystemRoleKey,
+            EffectiveDateRangeEndDate, EffectiveDateRangeStartDate,
+            InitiatedStaffMemberDisplayName, InitiatedStaffMemberKey,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey, IsMemberOfCircleOfSupport
+        FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @BlueprintCaseKey;
+        PRINT '  Rebuilt: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- Create WorkflowInstance for each staff assignment
+        DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey);
+        INSERT INTO WorkflowModule.WorkflowInstance (
+            WorkflowInstanceKey, Version, Comment, WorkflowBindingIdentifier, WorkflowDefinitionIdentifier,
+            AggregateKeyReference, AggregateClrTypeDisplayName, AggregateClrTypeFullName,
+            CurrentStateDisplayName, CurrentStateName,
+            WorkflowTransitionReasonDisplayName, WorkflowTransitionReasonIdentifier, WorkflowTransitionReasonCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, NULL, 'PersonStaffMemberAssignmentWorkflowBindingIdentifier', 'PersonStaffMemberAssignmentWorkflowDefinition',
+            psma.PersonStaffMemberAssignmentKey, 'Person Staff Member Assignment',
+            'Wpc.Core.Domain.PersonModule.Assignment.PersonStaffMemberAssignmentAggregate.PersonStaffMemberAssignment',
+            CASE WHEN psma.EffectiveDateRangeEndDate IS NULL THEN 'Active' ELSE 'Inactive' END,
+            CASE WHEN psma.EffectiveDateRangeEndDate IS NULL THEN 'ActiveState' ELSE 'InactiveState' END,
+            NULL, NULL, NULL,
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1',
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1'
+        FROM PersonModule.PersonStaffMemberAssignment psma WHERE psma.CaseKey = @CaseKey;
+        PRINT '  WorkflowInstances for staff created';
+
+        -- Register new staff assignments in CaseActivityInstance
+        DECLARE @NextStaffCaiId BIGINT;
+        SELECT @NextStaffCaiId = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+        INSERT INTO CaseActivityModule.CaseActivityInstance (
+            CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
+            RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
+            ActivityTypeDisplayName, ActivityTypeIdentifier, ActivityTypeCodeSystemIdentifier,
+            ClrTypeAssemblyQualifiedName, ClrTypeDisplayName, ClrTypeFullName,
+            FormTypeDisplayName, FormTypeIdentifier, FormTypeCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey, IsSharedWithPerson
+        )
+        SELECT
+            NEWID(), 1, psma.PersonStaffMemberAssignmentKey, @CaseKey,
+            'Registered', NULL, @NextStaffCaiId + ROW_NUMBER() OVER (ORDER BY psma.EffectiveDateRangeStartDate), NULL,
+            'Person Staff Member Assignment', 11500003, 1,
+            'Wpc.Core.Domain.PersonModule.Assignment.PersonStaffMemberAssignmentAggregate.PersonStaffMemberAssignment, Wpc.Core.Domain, Version=4.43.0.0, Culture=neutral, PublicKeyToken=null',
+            'Person Staff Member Assignment',
+            'Wpc.Core.Domain.PersonModule.Assignment.PersonStaffMemberAssignmentAggregate.PersonStaffMemberAssignment',
+            NULL, NULL, NULL,
+            NULL, 'Manual Entry', 12800002, 1,
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1',
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1', NULL
+        FROM PersonModule.PersonStaffMemberAssignment psma WHERE psma.CaseKey = @CaseKey;
+
         PRINT '';
 
         -- ==========================================================
@@ -547,7 +868,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM CustomerPersonCenteredPlanModule.EmergencyBackupPlan
-        WHERE PersonCenteredPlanExtensionKey = '898DEB6A-BE64-4721-8218-B47B00F3774C';
+        WHERE PersonCenteredPlanExtensionKey = @BlueprintPcpExtKey;
 
         -- EmergencyBackupPlanMedicalNeeds
         INSERT INTO CustomerPersonCenteredPlanModule.EmergencyBackupPlanMedicalNeeds (
@@ -568,7 +889,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM CustomerPersonCenteredPlanModule.EmergencyBackupPlanMedicalNeeds
-        WHERE EmergencyBackupPlanKey = 'B82EB667-E8EF-4786-B83D-B47B00F3774C';
+        WHERE EmergencyBackupPlanKey = @BlueprintEBPKey;
 
         -- Now set the circular FK on EmergencyBackupPlan
         UPDATE CustomerPersonCenteredPlanModule.EmergencyBackupPlan
@@ -598,7 +919,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM CustomerPersonCenteredPlanModule.EmergencyBackupPlanContact
-        WHERE EmergencyBackupPlanKey = 'B82EB667-E8EF-4786-B83D-B47B00F3774C';
+        WHERE EmergencyBackupPlanKey = @BlueprintEBPKey;
         PRINT '  EmergencyBackupPlan tree: done';
 
         -- WhereILive
@@ -624,23 +945,23 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM CustomerPersonCenteredPlanModule.WhereILive
-        WHERE PersonCenteredPlanExtensionKey = '898DEB6A-BE64-4721-8218-B47B00F3774C';
+        WHERE PersonCenteredPlanExtensionKey = @BlueprintPcpExtKey;
         PRINT '  WhereILive: done';
 
         -- Domain (6 records) - use pre-generated keys so OriginalDomainKey = DomainKey (self-ref FK)
         DECLARE @DomainMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER, NameId BIGINT);
         DECLARE @DomainStaging TABLE (
-            NewKey UNIQUEIDENTIFIER DEFAULT NEWID(),
+            NewKey UNIQUEIDENTIFIER,
             Description NVARCHAR(MAX), NameDisplayName NVARCHAR(MAX), NameIdentifier BIGINT,
             NameCodeSystemIdentifier BIGINT, ProvenanceSourceIdentifier NVARCHAR(1000),
             ProvenanceTypeDisplayName NVARCHAR(MAX), ProvenanceTypeIdentifier BIGINT,
             ProvenanceTypeCodeSystemIdentifier BIGINT,
             EntityCreatedUserContextKey UNIQUEIDENTIFIER, EntityUpdatedUserContextKey UNIQUEIDENTIFIER
         );
-        INSERT INTO @DomainStaging (Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+        INSERT INTO @DomainStaging (NewKey, Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             EntityCreatedUserContextKey, EntityUpdatedUserContextKey)
-        SELECT Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+        SELECT NEWID(), Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             EntityCreatedUserContextKey, EntityUpdatedUserContextKey
         FROM PersonCenteredPlanModule.Domain WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
@@ -671,7 +992,7 @@ BEGIN
         -- Need (3 records) - track mappings for DomainNeed/NeedGoal
         DECLARE @NeedMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER, NameIdentifier BIGINT);
         DECLARE @NeedStaging TABLE (
-            NewKey UNIQUEIDENTIFIER DEFAULT NEWID(),
+            NewKey UNIQUEIDENTIFIER,
             Comment NVARCHAR(MAX), Description NVARCHAR(MAX), StatusDescription NVARCHAR(MAX),
             NameDisplayName NVARCHAR(MAX), NameIdentifier BIGINT, NameCodeSystemIdentifier BIGINT,
             ProvenanceSourceIdentifier NVARCHAR(1000), ProvenanceTypeDisplayName NVARCHAR(MAX),
@@ -679,12 +1000,12 @@ BEGIN
             StatusDisplayName NVARCHAR(MAX), StatusIdentifier BIGINT, StatusCodeSystemIdentifier BIGINT,
             EntityCreatedUserContextKey UNIQUEIDENTIFIER, EntityUpdatedUserContextKey UNIQUEIDENTIFIER
         );
-        INSERT INTO @NeedStaging (Comment, Description, StatusDescription,
+        INSERT INTO @NeedStaging (NewKey, Comment, Description, StatusDescription,
             NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             StatusDisplayName, StatusIdentifier, StatusCodeSystemIdentifier,
             EntityCreatedUserContextKey, EntityUpdatedUserContextKey)
-        SELECT Comment, Description, StatusDescription,
+        SELECT NEWID(), Comment, Description, StatusDescription,
             NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             StatusDisplayName, StatusIdentifier, StatusCodeSystemIdentifier,
@@ -844,7 +1165,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM ServiceAuthorizationModule.ServiceAuthorization
-        WHERE ServiceAuthorizationKey = '7B655E96-356B-49C2-80E2-B47B00F4F9AA';
+        WHERE ServiceAuthorizationKey = @BlueprintSAKey;
 
         INSERT INTO ServiceAuthorizationModule.ServiceLine (
             ServiceLineKey, Version, ServiceAuthorizationKey, PlannedServiceKey, ServiceDefinitionKey,
@@ -872,7 +1193,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM ServiceAuthorizationModule.ServiceLine
-        WHERE ServiceLineKey = '6766E363-F4D6-4EB2-AFB2-B47B00F4F9ED';
+        WHERE ServiceLineKey = @BlueprintSLKey;
 
         INSERT INTO ServiceAuthorizationModule.Decision (
             DecisionKey, Version, ServiceLineKey, ClaimNote, DecisionDate,
@@ -894,7 +1215,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM ServiceAuthorizationModule.Decision
-        WHERE ServiceLineKey = '6766E363-F4D6-4EB2-AFB2-B47B00F4F9ED';
+        WHERE ServiceLineKey = @BlueprintSLKey;
         PRINT '  ServiceAuthorization + ServiceLine + Decision: done';
 
         -- Intervention (1 record)
@@ -984,7 +1305,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM PersonCenteredPlanModule.MeetingPreference
-        WHERE MeetingKey = 'BB4B8513-2659-44AF-A776-B47B00F376C5';
+        WHERE MeetingKey = @BlueprintMeetingKey;
         PRINT '  Meeting + MeetingPreference: done';
 
         -- Appointment (linked to PCP via ActivityKeyReference)
@@ -1042,15 +1363,15 @@ BEGIN
 
         -- AboutMeDescription (11 records) - staging for self-ref FK
         DECLARE @AboutMeStaging TABLE (
-            NewKey UNIQUEIDENTIFIER DEFAULT NEWID(),
+            NewKey UNIQUEIDENTIFIER,
             CategoryDisplayName NVARCHAR(MAX), CategoryIdentifier BIGINT, CategoryCodeSystemIdentifier BIGINT,
             TypeDisplayName NVARCHAR(MAX), TypeIdentifier BIGINT, TypeCodeSystemIdentifier BIGINT,
             EntityCreatedUserContextKey UNIQUEIDENTIFIER, EntityUpdatedUserContextKey UNIQUEIDENTIFIER
         );
-        INSERT INTO @AboutMeStaging (CategoryDisplayName, CategoryIdentifier, CategoryCodeSystemIdentifier,
+        INSERT INTO @AboutMeStaging (NewKey, CategoryDisplayName, CategoryIdentifier, CategoryCodeSystemIdentifier,
             TypeDisplayName, TypeIdentifier, TypeCodeSystemIdentifier,
             EntityCreatedUserContextKey, EntityUpdatedUserContextKey)
-        SELECT CategoryDisplayName, CategoryIdentifier, CategoryCodeSystemIdentifier,
+        SELECT NEWID(), CategoryDisplayName, CategoryIdentifier, CategoryCodeSystemIdentifier,
             TypeDisplayName, TypeIdentifier, TypeCodeSystemIdentifier,
             EntityCreatedUserContextKey, EntityUpdatedUserContextKey
         FROM PersonCenteredPlanModule.AboutMeDescription WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
@@ -1075,7 +1396,7 @@ BEGIN
 
         -- CompletionContext + Requirements (marks the ISP as 100% complete/activated)
         DECLARE @NewCompCtxKey UNIQUEIDENTIFIER = NEWID();
-        DECLARE @BlueprintCompCtxKey UNIQUEIDENTIFIER = '0F5340AF-96CC-4ED4-9AA8-B47B00F376F2';
+        
 
         INSERT INTO CompletionModule.CompletionContext (
             CompletionContextKey, Version, AggregateKeyReference, AggregateName, CompletionPercentage
@@ -1099,7 +1420,6 @@ BEGIN
 
         -- SignatureContext + Signatures (activates/signs the plan)
         DECLARE @NewSigCtxKey UNIQUEIDENTIFIER = NEWID();
-        DECLARE @BlueprintSigCtxKey UNIQUEIDENTIFIER = 'AC689BB6-3B28-446B-AA45-B47B00F37ABF';
 
         INSERT INTO SignatureModule.SignatureContext (
             SignatureContextKey, Version, CaseActivityKeyReference, PreviousSignatureContextKey,
@@ -1198,7 +1518,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey, IsSharedWithPerson
         FROM CaseActivityModule.CaseActivityInstance
-        WHERE CaseActivityKeyReference = 'FA583AB6-229A-4DE9-B3ED-B47B00F1323B' AND CaseKey = @BlueprintCaseKey;
+        WHERE CaseActivityKeyReference = @BlueprintBudgetLedgerKey AND CaseKey = @BlueprintCaseKey;
 
         -- Register the new ServiceAuthorization
         SET @NextCaiId = @NextCaiId + 1;
@@ -1222,7 +1542,7 @@ BEGIN
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey, IsSharedWithPerson
         FROM CaseActivityModule.CaseActivityInstance
-        WHERE CaseActivityKeyReference = '7B655E96-356B-49C2-80E2-B47B00F4F9AA' AND CaseKey = @BlueprintCaseKey;
+        WHERE CaseActivityKeyReference = @BlueprintSAKey AND CaseKey = @BlueprintCaseKey;
         PRINT '  CaseActivityInstance registrations: done';
 
         PRINT '  ISP rebuild complete!';
@@ -1233,7 +1553,7 @@ BEGIN
         -- ==========================================================
         COMMIT TRANSACTION;
         PRINT '=== RESET COMPLETE ===';
-        PRINT 'Person now matches blueprint: 1829357f-3e6c-44df-a0a9-b47b00f112e4';
+        PRINT 'Person now matches blueprint: ' + CAST(@BlueprintPersonKey AS NVARCHAR(36));
         RETURN 0;
 
     END TRY
@@ -1257,3 +1577,4 @@ GO
 -- USAGE:
 -- EXEC dbo.test_ResetPersonToPristineState @PersonKey = 'c7a3862e-f166-466d-a5fb-b4670130aebd', @DryRun = 0;
 -- ============================================================
+
