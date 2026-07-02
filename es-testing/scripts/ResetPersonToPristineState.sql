@@ -194,6 +194,9 @@ BEGIN
                 WHERE AggregateKeyReference IN (SELECT K FROM @AllPcps));
             DELETE FROM CompletionModule.CompletionContext WHERE AggregateKeyReference IN (SELECT K FROM @AllPcps);
 
+            -- Delete WorkflowInstances for PCPs
+            DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (SELECT K FROM @AllPcps);
+
             -- Delete Signatures/SignatureContext for these PCPs
             -- Must clear FK on PCP FIRST
             UPDATE PersonCenteredPlanModule.PersonCenteredPlan SET SignatureContextKey = NULL
@@ -471,6 +474,26 @@ BEGIN
         -- Delete CaseActivityInstance for forms
         DELETE FROM CaseActivityModule.CaseActivityInstance
         WHERE CaseKey = @CaseKey AND ClrTypeDisplayName = 'Case Custom Form Instance';
+        -- Delete CompletionContext/Requirements for forms
+        DELETE FROM CompletionModule.Requirement WHERE CompletionContextKey IN (
+            SELECT CompletionContextKey FROM CompletionModule.CompletionContext
+            WHERE AggregateKeyReference IN (SELECT K FROM @TargetCFI));
+        DELETE FROM CompletionModule.CompletionContext WHERE AggregateKeyReference IN (SELECT K FROM @TargetCFI);
+        -- Delete SignatureContext/Signatures for forms
+        DELETE FROM SignatureModule.Signature WHERE SignatureContextKey IN (
+            SELECT SignatureContextKey FROM CustomFormModule.CustomFormInstanceSignatureField
+            WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI));
+        DELETE FROM CustomFormModule.CustomFormInstanceSignatureFieldSignatures
+        WHERE CustomFormInstanceSignatureFieldKey IN (
+            SELECT CustomFormInstanceSignatureFieldKey FROM CustomFormModule.CustomFormInstanceSignatureField
+            WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI));
+        DELETE FROM SignatureModule.SignatureContext WHERE SignatureContextKey IN (
+            SELECT SignatureContextKey FROM CustomFormModule.CustomFormInstanceSignatureField
+            WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI));
+        DELETE FROM CustomFormModule.CustomFormInstanceSignatureField
+        WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
+        -- Delete WorkflowInstances for forms
+        DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (SELECT K FROM @TargetCFI);
         -- Break self-ref on CaseCustomFormInstance and CustomFormInstance
         UPDATE CustomFormModule.CaseCustomFormInstance SET PreviousCaseCustomFormInstanceKey = NULL WHERE CaseKey = @CaseKey;
         DELETE FROM CustomFormModule.CaseCustomFormInstance WHERE CaseKey = @CaseKey;
@@ -478,7 +501,7 @@ BEGIN
         DELETE FROM CustomFormModule.CustomFormInstance WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
         PRINT '  Forms deleted';
 
-        -- Rebuild from blueprint: 2 forms (IRIS Intake + LTC Needs Assessment)
+        -- Rebuild from blueprint: all custom forms from CaseCustomFormInstance
         -- For each form: CustomFormInstance → CaseCustomFormInstance → FieldAnswerBase → typed answers
         DECLARE @BlueprintCFI TABLE (OldCFIKey UNIQUEIDENTIFIER, NewCFIKey UNIQUEIDENTIFIER, OldCCFIKey UNIQUEIDENTIFIER, NewCCFIKey UNIQUEIDENTIFIER, FormType NVARCHAR(MAX));
         INSERT INTO @BlueprintCFI (OldCFIKey, NewCFIKey, OldCCFIKey, NewCCFIKey, FormType)
@@ -593,6 +616,123 @@ BEGIN
         FROM @BlueprintCFI bc
         JOIN CaseActivityModule.CaseActivityInstance cai ON cai.CaseActivityKeyReference = bc.OldCCFIKey AND cai.CaseKey = @BlueprintCaseKey;
         PRINT '  Form CaseActivityInstances registered';
+
+        -- CompletionContext + Requirements for forms (provides Status in UI)
+        INSERT INTO CompletionModule.CompletionContext (
+            CompletionContextKey, Version, AggregateKeyReference, AggregateName, CompletionPercentage
+        )
+        SELECT NEWID(), cc.Version, bc.NewCFIKey, cc.AggregateName, cc.CompletionPercentage
+        FROM @BlueprintCFI bc
+        JOIN CompletionModule.CompletionContext cc ON cc.AggregateKeyReference = bc.OldCFIKey;
+
+        -- Copy Requirements for each form's CompletionContext
+        DECLARE @FormCCMap TABLE (OldCCKey UNIQUEIDENTIFIER, NewCCKey UNIQUEIDENTIFIER);
+        INSERT INTO @FormCCMap (OldCCKey, NewCCKey)
+        SELECT old_cc.CompletionContextKey, new_cc.CompletionContextKey
+        FROM @BlueprintCFI bc
+        JOIN CompletionModule.CompletionContext old_cc ON old_cc.AggregateKeyReference = bc.OldCFIKey
+        JOIN CompletionModule.CompletionContext new_cc ON new_cc.AggregateKeyReference = bc.NewCFIKey;
+
+        INSERT INTO CompletionModule.Requirement (
+            RequirementKey, Version, IsComplete, CompletionContextKey,
+            CategoryDisplayName, CategoryIdentifier, CategoryCodeSystemIdentifier,
+            TypeDisplayName, TypeIdentifier, TypeCodeSystemIdentifier,
+            ReasonDescription, RuleName, WeightValue
+        )
+        SELECT NEWID(), r.Version, r.IsComplete, fm.NewCCKey,
+            r.CategoryDisplayName, r.CategoryIdentifier, r.CategoryCodeSystemIdentifier,
+            r.TypeDisplayName, r.TypeIdentifier, r.TypeCodeSystemIdentifier,
+            r.ReasonDescription, r.RuleName, r.WeightValue
+        FROM CompletionModule.Requirement r
+        JOIN @FormCCMap fm ON fm.OldCCKey = r.CompletionContextKey;
+        PRINT '  Form CompletionContext + Requirements: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- SignatureContext + Signatures for forms (drives the Status column in UI)
+        DECLARE @FormSigMap TABLE (OldSFKey UNIQUEIDENTIFIER, NewSFKey UNIQUEIDENTIFIER, OldSigCtxKey UNIQUEIDENTIFIER, NewSigCtxKey UNIQUEIDENTIFIER, OldCFIKey UNIQUEIDENTIFIER, NewCFIKey UNIQUEIDENTIFIER);
+        INSERT INTO @FormSigMap (OldSFKey, NewSFKey, OldSigCtxKey, NewSigCtxKey, OldCFIKey, NewCFIKey)
+        SELECT sf.CustomFormInstanceSignatureFieldKey, NEWID(), sf.SignatureContextKey, NEWID(), sf.CustomFormInstanceKey, bc.NewCFIKey
+        FROM CustomFormModule.CustomFormInstanceSignatureField sf
+        JOIN @BlueprintCFI bc ON bc.OldCFIKey = sf.CustomFormInstanceKey;
+
+        -- Create SignatureContext records for forms
+        INSERT INTO SignatureModule.SignatureContext (
+            SignatureContextKey, Version, CaseActivityKeyReference, PreviousSignatureContextKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT fsm.NewSigCtxKey, 1, NULL, NULL,
+            'feiadmin', @Now, sc.EntityCreatedUserContextKey,
+            'feiadmin', @Now, sc.EntityUpdatedUserContextKey
+        FROM @FormSigMap fsm
+        JOIN SignatureModule.SignatureContext sc ON sc.SignatureContextKey = fsm.OldSigCtxKey;
+
+        -- Create CustomFormInstanceSignatureField records
+        INSERT INTO CustomFormModule.CustomFormInstanceSignatureField (
+            CustomFormInstanceSignatureFieldKey, Version, SignatureContextKey,
+            SignatureFieldDefinitionKey, CustomFormInstanceKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT fsm.NewSFKey, 1, fsm.NewSigCtxKey,
+            sf.SignatureFieldDefinitionKey, fsm.NewCFIKey,
+            'feiadmin', @Now, sf.EntityCreatedUserContextKey,
+            'feiadmin', @Now, sf.EntityUpdatedUserContextKey
+        FROM @FormSigMap fsm
+        JOIN CustomFormModule.CustomFormInstanceSignatureField sf ON sf.CustomFormInstanceSignatureFieldKey = fsm.OldSFKey;
+
+        -- Copy Signatures for form SignatureContexts
+        INSERT INTO SignatureModule.Signature (
+            SignatureKey, Version, CredentialsDescription, DocumentSentToMeDate,
+            DoesSignatureHasBeenVerified, FileKey, IsRequired, Note, PreviousSignatureKey,
+            PrintName, SecondAttemptToObtainSignatureDate, SignatureRequestedDate, SignedDate, Title, WitnessName,
+            SignatureContextKey,
+            CertifyMessageDisplayName, CertifyMessageIdentifier, CertifyMessageCodeSystemIdentifier,
+            LocationDisplayName, LocationKey,
+            MethodOfSharingDocumentDisplayName, MethodOfSharingDocumentIdentifier, MethodOfSharingDocumentCodeSystemIdentifier,
+            SignatureObtainedDisplayName, SignatureObtainedIdentifier, SignatureObtainedCodeSystemIdentifier,
+            SignatureTypeDisplayName, SignatureTypeIdentifier, SignatureTypeCodeSystemIdentifier,
+            SignerTypeDisplayName, SignerTypeIdentifier, SignerTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey,
+            AttemptsMadeDescription
+        )
+        SELECT
+            NEWID(), 1, sig.CredentialsDescription, sig.DocumentSentToMeDate,
+            sig.DoesSignatureHasBeenVerified, NULL, sig.IsRequired, sig.Note, NULL,
+            sig.PrintName, sig.SecondAttemptToObtainSignatureDate, sig.SignatureRequestedDate, sig.SignedDate, sig.Title, sig.WitnessName,
+            fsm.NewSigCtxKey,
+            sig.CertifyMessageDisplayName, sig.CertifyMessageIdentifier, sig.CertifyMessageCodeSystemIdentifier,
+            sig.LocationDisplayName, sig.LocationKey,
+            sig.MethodOfSharingDocumentDisplayName, sig.MethodOfSharingDocumentIdentifier, sig.MethodOfSharingDocumentCodeSystemIdentifier,
+            sig.SignatureObtainedDisplayName, sig.SignatureObtainedIdentifier, sig.SignatureObtainedCodeSystemIdentifier,
+            sig.SignatureTypeDisplayName, sig.SignatureTypeIdentifier, sig.SignatureTypeCodeSystemIdentifier,
+            sig.SignerTypeDisplayName, sig.SignerTypeIdentifier, sig.SignerTypeCodeSystemIdentifier,
+            'feiadmin', @Now, sig.EntityCreatedUserContextKey,
+            'feiadmin', @Now, sig.EntityUpdatedUserContextKey,
+            sig.AttemptsMadeDescription
+        FROM SignatureModule.Signature sig
+        JOIN @FormSigMap fsm ON fsm.OldSigCtxKey = sig.SignatureContextKey;
+        PRINT '  Form SignatureContext + Signatures: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- WorkflowInstance for forms (marks them as Completed)
+        INSERT INTO WorkflowModule.WorkflowInstance (
+            WorkflowInstanceKey, Version, Comment, WorkflowBindingIdentifier, WorkflowDefinitionIdentifier,
+            AggregateKeyReference, AggregateClrTypeDisplayName, AggregateClrTypeFullName,
+            CurrentStateDisplayName, CurrentStateName,
+            WorkflowTransitionReasonDisplayName, WorkflowTransitionReasonIdentifier, WorkflowTransitionReasonCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, wi.Comment, wi.WorkflowBindingIdentifier, wi.WorkflowDefinitionIdentifier,
+            bc.NewCFIKey, wi.AggregateClrTypeDisplayName, wi.AggregateClrTypeFullName,
+            wi.CurrentStateDisplayName, wi.CurrentStateName,
+            wi.WorkflowTransitionReasonDisplayName, wi.WorkflowTransitionReasonIdentifier, wi.WorkflowTransitionReasonCodeSystemIdentifier,
+            'feiadmin', @Now, wi.EntityCreatedUserContextKey,
+            'feiadmin', @Now, wi.EntityUpdatedUserContextKey
+        FROM @BlueprintCFI bc
+        JOIN WorkflowModule.WorkflowInstance wi ON wi.AggregateKeyReference = bc.OldCFIKey;
+        PRINT '  Form WorkflowInstances: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
         PRINT '';
 
         -- ==========================================================
@@ -895,6 +1035,18 @@ BEGIN
         UPDATE CustomerPersonCenteredPlanModule.EmergencyBackupPlan
         SET EmergencyBackupPlanMedicalNeedsKey = @NewEBPMedNeedsKey
         WHERE EmergencyBackupPlanKey = @NewEBPKey;
+
+        -- EmergencyBackupPlanMedicalNeedsMedicalEquipmentSupplies
+        INSERT INTO CustomerPersonCenteredPlanModule.EmergencyBackupPlanMedicalNeedsMedicalEquipmentSupplies (
+            EmergencyBackupPlanMedicalNeedsKey, Code, DisplayName
+        )
+        SELECT @NewEBPMedNeedsKey, Code, DisplayName
+        FROM CustomerPersonCenteredPlanModule.EmergencyBackupPlanMedicalNeedsMedicalEquipmentSupplies
+        WHERE EmergencyBackupPlanMedicalNeedsKey = (
+            SELECT EmergencyBackupPlanMedicalNeedsKey FROM CustomerPersonCenteredPlanModule.EmergencyBackupPlanMedicalNeeds
+            WHERE EmergencyBackupPlanKey = @BlueprintEBPKey
+        );
+        PRINT '  EBP MedicalEquipmentSupplies: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- EmergencyBackupPlanContact (3 records)
         INSERT INTO CustomerPersonCenteredPlanModule.EmergencyBackupPlanContact (
@@ -1347,19 +1499,42 @@ BEGIN
         WHERE MeetingKey = @NewMeetKey;
 
         -- MyPlanToAddressSafetyNeeds
+        DECLARE @NewMPTASNKey UNIQUEIDENTIFIER = NEWID();
         INSERT INTO PersonCenteredPlanModule.MyPlanToAddressSafetyNeeds (
             MyPlanToAddressSafetyNeedsKey, Version, PersonCenteredPlanKey,
             MyBackupPlanNote, MyPlanToAddressNeedsNote,
             EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
             EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
         )
-        SELECT NEWID(), 1, @NewPcpKey,
+        SELECT @NewMPTASNKey, 1, @NewPcpKey,
             MyBackupPlanNote, MyPlanToAddressNeedsNote,
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM PersonCenteredPlanModule.MyPlanToAddressSafetyNeeds
         WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
         PRINT '  MyPlanToAddressSafetyNeeds: 1';
+
+        -- MyPlanToAddressSafetyNeedsServicesOffered
+        DECLARE @BlueprintMPTASNKey UNIQUEIDENTIFIER;
+        SELECT @BlueprintMPTASNKey = MyPlanToAddressSafetyNeedsKey
+        FROM PersonCenteredPlanModule.MyPlanToAddressSafetyNeeds WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
+        INSERT INTO PersonCenteredPlanModule.MyPlanToAddressSafetyNeedsServicesOffered (
+            MyPlanToAddressSafetyNeedsKey, Name, ServiceDefinitionKeyReference
+        )
+        SELECT @NewMPTASNKey, Name, ServiceDefinitionKeyReference
+        FROM PersonCenteredPlanModule.MyPlanToAddressSafetyNeedsServicesOffered
+        WHERE MyPlanToAddressSafetyNeedsKey = @BlueprintMPTASNKey;
+        PRINT '  MyPlanToAddressSafetyNeedsServicesOffered: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- MyPlanToAddressSafetyNeedsNeedsIWillAddress
+        INSERT INTO PersonCenteredPlanModule.MyPlanToAddressSafetyNeedsNeedsIWillAddress (
+            MyPlanToAddressSafetyNeedsKey, CodeSystemIdentifier, DisplayName, Identifier
+        )
+        SELECT @NewMPTASNKey, CodeSystemIdentifier, DisplayName, Identifier
+        FROM PersonCenteredPlanModule.MyPlanToAddressSafetyNeedsNeedsIWillAddress
+        WHERE MyPlanToAddressSafetyNeedsKey = @BlueprintMPTASNKey;
+        PRINT '  MyPlanToAddressSafetyNeedsNeedsIWillAddress: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- AboutMeDescription (11 records) - staging for self-ref FK
         DECLARE @AboutMeStaging TABLE (
@@ -1393,6 +1568,387 @@ BEGIN
             'feiadmin', @Now, EntityUpdatedUserContextKey
         FROM @AboutMeStaging;
         PRINT '  AboutMeDescription: 11';
+
+        -- AboutMeDescriptionDescriptionItems
+        DECLARE @AboutMeMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER);
+        INSERT INTO @AboutMeMap (OldKey, NewKey)
+        SELECT bp.AboutMeDescriptionKey, stg.NewKey
+        FROM @AboutMeStaging stg
+        JOIN PersonCenteredPlanModule.AboutMeDescription bp
+            ON bp.CategoryIdentifier = stg.CategoryIdentifier
+            AND bp.TypeIdentifier = stg.TypeIdentifier
+            AND bp.PersonCenteredPlanKey = @BlueprintPcpKey;
+
+        INSERT INTO PersonCenteredPlanModule.AboutMeDescriptionDescriptionItems (
+            AboutMeDescriptionKey, AnswerCodeSystemIdentifier, AnswerDisplayName,
+            AnswerIdentifier, Description, SortOrderNumber, TrackingIdentifier
+        )
+        SELECT am.NewKey, i.AnswerCodeSystemIdentifier, i.AnswerDisplayName,
+            i.AnswerIdentifier, i.Description, i.SortOrderNumber, i.TrackingIdentifier
+        FROM PersonCenteredPlanModule.AboutMeDescriptionDescriptionItems i
+        JOIN @AboutMeMap am ON am.OldKey = i.AboutMeDescriptionKey;
+        PRINT '  AboutMeDescriptionItems: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- SupportTeamMember
+        DECLARE @STMMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER);
+        INSERT INTO @STMMap (OldKey, NewKey)
+        SELECT SupportTeamMemberKey, NEWID()
+        FROM PersonCenteredPlanModule.SupportTeamMember WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
+        INSERT INTO PersonCenteredPlanModule.SupportTeamMember (
+            SupportTeamMemberKey, Version, PersonCenteredPlanKey,
+            OriginalSupportTeamMemberKey, PreviousSupportTeamMemberKey,
+            Comment, OrganizationName, OtherLocationName, OtherOrganizationName,
+            PersonContactKeyReference, SharedDate, StaffMemberAssignmentKeyReference,
+            AssignmentTypeSystemRoleDisplayName, AssignmentTypeSystemRoleKey,
+            AttendIndicatorDisplayName, AttendIndicatorIdentifier, AttendIndicatorCodeSystemIdentifier,
+            CategoryDisplayName, CategoryIdentifier, CategoryCodeSystemIdentifier,
+            EmailAddress, LocationDisplayName, LocationKey, OrganizationDisplayName, OrganizationKey,
+            PersonNameFirstName, PersonNameLastName, PhoneNumber,
+            RelationshipTypeDisplayName, RelationshipTypeIdentifier, RelationshipTypeCodeSystemIdentifier,
+            SubTypeDisplayName, SubTypeIdentifier, SubTypeCodeSystemIdentifier,
+            TypeDisplayName, TypeIdentifier, TypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            sm.NewKey, 1, @NewPcpKey, sm.NewKey, NULL,
+            s.Comment, s.OrganizationName, s.OtherLocationName, s.OtherOrganizationName,
+            NULL, s.SharedDate, s.StaffMemberAssignmentKeyReference,
+            s.AssignmentTypeSystemRoleDisplayName, s.AssignmentTypeSystemRoleKey,
+            s.AttendIndicatorDisplayName, s.AttendIndicatorIdentifier, s.AttendIndicatorCodeSystemIdentifier,
+            s.CategoryDisplayName, s.CategoryIdentifier, s.CategoryCodeSystemIdentifier,
+            s.EmailAddress, s.LocationDisplayName, s.LocationKey, s.OrganizationDisplayName, s.OrganizationKey,
+            s.PersonNameFirstName, s.PersonNameLastName, s.PhoneNumber,
+            s.RelationshipTypeDisplayName, s.RelationshipTypeIdentifier, s.RelationshipTypeCodeSystemIdentifier,
+            s.SubTypeDisplayName, s.SubTypeIdentifier, s.SubTypeCodeSystemIdentifier,
+            s.TypeDisplayName, s.TypeIdentifier, s.TypeCodeSystemIdentifier,
+            'feiadmin', @Now, s.EntityCreatedUserContextKey,
+            'feiadmin', @Now, s.EntityUpdatedUserContextKey
+        FROM @STMMap sm
+        JOIN PersonCenteredPlanModule.SupportTeamMember s ON s.SupportTeamMemberKey = sm.OldKey;
+        PRINT '  SupportTeamMember: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- SupportTeamMemberRepresentativeTypes
+        INSERT INTO PersonCenteredPlanModule.SupportTeamMemberRepresentativeTypes (
+            SupportTeamMemberKey, EffectiveDateRangeEndDate, EffectiveDateRangeStartDate,
+            RepresentativeTypeCodeSystemIdentifier, RepresentativeTypeDisplayName, RepresentativeTypeIdentifier
+        )
+        SELECT sm.NewKey, rt.EffectiveDateRangeEndDate, rt.EffectiveDateRangeStartDate,
+            rt.RepresentativeTypeCodeSystemIdentifier, rt.RepresentativeTypeDisplayName, rt.RepresentativeTypeIdentifier
+        FROM PersonCenteredPlanModule.SupportTeamMemberRepresentativeTypes rt
+        JOIN @STMMap sm ON sm.OldKey = rt.SupportTeamMemberKey;
+        PRINT '  STMRepresentativeTypes: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- MeetingAttendee
+        INSERT INTO PersonCenteredPlanModule.MeetingAttendee (
+            MeetingAttendeeKey, Version, MeetingKey,
+            AttendedIndicator, InvitedIndicator, OrganizationName, OtherLocationName, OtherOrganizationName,
+            PersonContactKeyReference, StaffMemberAssignmentKeyReference, StaffMemberKeyReference,
+            AssignmentTypeSystemRoleDisplayName, AssignmentTypeSystemRoleKey,
+            EmailAddress, LocationDisplayName, LocationKey, OrganizationDisplayName, OrganizationKey,
+            PersonNameFirstName, PersonNameLastName, PhoneNumber,
+            RelationshipTypeDisplayName, RelationshipTypeIdentifier, RelationshipTypeCodeSystemIdentifier,
+            TypeDisplayName, TypeIdentifier, TypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, @NewMeetKey,
+            AttendedIndicator, InvitedIndicator, OrganizationName, OtherLocationName, OtherOrganizationName,
+            NULL, StaffMemberAssignmentKeyReference, StaffMemberKeyReference,
+            AssignmentTypeSystemRoleDisplayName, AssignmentTypeSystemRoleKey,
+            EmailAddress, LocationDisplayName, LocationKey, OrganizationDisplayName, OrganizationKey,
+            PersonNameFirstName, PersonNameLastName, PhoneNumber,
+            RelationshipTypeDisplayName, RelationshipTypeIdentifier, RelationshipTypeCodeSystemIdentifier,
+            TypeDisplayName, TypeIdentifier, TypeCodeSystemIdentifier,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.MeetingAttendee
+        WHERE MeetingKey = @BlueprintMeetingKey;
+        PRINT '  MeetingAttendee: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- GoalDomain
+        INSERT INTO PersonCenteredPlanModule.GoalDomain (
+            GoalDomainKey, Version, GoalKey, DomainKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT NEWID(), 1, @NewGoalKey, dm.NewKey,
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1',
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1'
+        FROM PersonCenteredPlanModule.GoalDomain gd
+        JOIN @DomainMap dm ON dm.OldKey = gd.DomainKey
+        WHERE gd.GoalKey IN (SELECT GoalKey FROM PersonCenteredPlanModule.Goal WHERE PersonCenteredPlanKey = @BlueprintPcpKey);
+        PRINT '  GoalDomain: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- NeedUnmetNeedCategories
+        INSERT INTO PersonCenteredPlanModule.NeedUnmetNeedCategories (
+            NeedKey, CodeSystemIdentifier, DisplayName, Identifier
+        )
+        SELECT nm.NewKey, unc.CodeSystemIdentifier, unc.DisplayName, unc.Identifier
+        FROM PersonCenteredPlanModule.NeedUnmetNeedCategories unc
+        JOIN @NeedMap nm ON nm.OldKey = unc.NeedKey;
+        PRINT '  NeedUnmetNeedCategories: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PlannedServiceAttributes
+        INSERT INTO PersonCenteredPlanModule.PlannedServiceAttributes (
+            PlannedServiceKey, TypeCodeSystemIdentifier, TypeDisplayName, TypeIdentifier,
+            ValueCodeSystemIdentifier, ValueDisplayName, ValueIdentifier, Note
+        )
+        SELECT @NewPSKey, TypeCodeSystemIdentifier, TypeDisplayName, TypeIdentifier,
+            ValueCodeSystemIdentifier, ValueDisplayName, ValueIdentifier, Note
+        FROM PersonCenteredPlanModule.PlannedServiceAttributes
+        WHERE PlannedServiceKey = (SELECT PlannedServiceKey FROM PersonCenteredPlanModule.PlannedService WHERE PersonCenteredPlanKey = @BlueprintPcpKey);
+        PRINT '  PlannedServiceAttributes: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PlannedServiceScopes
+        INSERT INTO PersonCenteredPlanModule.PlannedServiceScopes (
+            PlannedServiceKey, DescriptionOfScopeCodeSystemIdentifier, DescriptionOfScopeDisplayName,
+            DescriptionOfScopeIdentifier, Description
+        )
+        SELECT @NewPSKey, DescriptionOfScopeCodeSystemIdentifier, DescriptionOfScopeDisplayName,
+            DescriptionOfScopeIdentifier, Description
+        FROM PersonCenteredPlanModule.PlannedServiceScopes
+        WHERE PlannedServiceKey = (SELECT PlannedServiceKey FROM PersonCenteredPlanModule.PlannedService WHERE PersonCenteredPlanKey = @BlueprintPcpKey);
+        PRINT '  PlannedServiceScopes: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PlannedServiceNeedTypes
+        INSERT INTO PersonCenteredPlanModule.PlannedServiceNeedTypes (
+            PlannedServiceKey, CodeSystemIdentifier, DisplayName, Identifier
+        )
+        SELECT @NewPSKey, CodeSystemIdentifier, DisplayName, Identifier
+        FROM PersonCenteredPlanModule.PlannedServiceNeedTypes
+        WHERE PlannedServiceKey = (SELECT PlannedServiceKey FROM PersonCenteredPlanModule.PlannedService WHERE PersonCenteredPlanKey = @BlueprintPcpKey);
+        PRINT '  PlannedServiceNeedTypes: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PlannedServiceSupportsProvided
+        INSERT INTO PersonCenteredPlanModule.PlannedServiceSupportsProvided (
+            PlannedServiceKey, Description
+        )
+        SELECT @NewPSKey, Description
+        FROM PersonCenteredPlanModule.PlannedServiceSupportsProvided
+        WHERE PlannedServiceKey = (SELECT PlannedServiceKey FROM PersonCenteredPlanModule.PlannedService WHERE PersonCenteredPlanKey = @BlueprintPcpKey);
+        PRINT '  PlannedServiceSupportsProvided: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- Risk
+        INSERT INTO PersonCenteredPlanModule.Risk (
+            RiskKey, Version, PersonCenteredPlanKey, Description,
+            OriginalRiskKey, PreviousRiskKey,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.Risk WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  Risk: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- Strength
+        INSERT INTO PersonCenteredPlanModule.Strength (
+            StrengthKey, Version, PersonCenteredPlanKey, Description,
+            OriginalStrengthKey, PreviousStrengthKey,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.Strength WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  Strength: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- ImportantFactor
+        INSERT INTO PersonCenteredPlanModule.ImportantFactor (
+            ImportantFactorKey, Version, PersonCenteredPlanKey, Description,
+            OriginalImportantFactorKey, PreviousImportantFactorKey,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.ImportantFactor WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  ImportantFactor: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- Barrier
+        INSERT INTO PersonCenteredPlanModule.Barrier (
+            BarrierKey, Version, PersonCenteredPlanKey, Description,
+            OriginalBarrierKey, PreviousBarrierKey,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            StatusDisplayName, StatusIdentifier, StatusCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            StatusDisplayName, StatusIdentifier, StatusCodeSystemIdentifier,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.Barrier WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  Barrier: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- MyLifeTodayDescription + Routines
+        DECLARE @MLTDMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER);
+        INSERT INTO @MLTDMap (OldKey, NewKey)
+        SELECT MyLifeTodayDescriptionKey, NEWID()
+        FROM PersonCenteredPlanModule.MyLifeTodayDescription WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
+        INSERT INTO PersonCenteredPlanModule.MyLifeTodayDescription (
+            MyLifeTodayDescriptionKey, Version, PersonCenteredPlanKey,
+            TypeDisplayName, TypeIdentifier, TypeCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp
+        )
+        SELECT m.NewKey, 1, @NewPcpKey,
+            mltd.TypeDisplayName, mltd.TypeIdentifier, mltd.TypeCodeSystemIdentifier,
+            'feiadmin', @Now, 'feiadmin', @Now
+        FROM @MLTDMap m
+        JOIN PersonCenteredPlanModule.MyLifeTodayDescription mltd ON mltd.MyLifeTodayDescriptionKey = m.OldKey;
+        PRINT '  MyLifeTodayDescription: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        INSERT INTO PersonCenteredPlanModule.MyLifeTodayDescriptionRoutines (
+            MyLifeTodayDescriptionKey, Description, SortOrderNumber
+        )
+        SELECT m.NewKey, r.Description, r.SortOrderNumber
+        FROM PersonCenteredPlanModule.MyLifeTodayDescriptionRoutines r
+        JOIN @MLTDMap m ON m.OldKey = r.MyLifeTodayDescriptionKey;
+        PRINT '  MyLifeTodayDescriptionRoutines: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- Survey + SurveyItems
+        DECLARE @SurveyMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER);
+        INSERT INTO @SurveyMap (OldKey, NewKey)
+        SELECT SurveyKey, NEWID()
+        FROM PersonCenteredPlanModule.Survey WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
+        INSERT INTO PersonCenteredPlanModule.Survey (
+            SurveyKey, Version, PersonCenteredPlanKey, Description,
+            OriginalSurveyKey, PreviousSurveyKey,
+            CategoryDisplayName, CategoryIdentifier, CategoryCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT sv.NewKey, 1, @NewPcpKey, s.Description,
+            sv.NewKey, NULL,
+            s.CategoryDisplayName, s.CategoryIdentifier, s.CategoryCodeSystemIdentifier,
+            'feiadmin', @Now, s.EntityCreatedUserContextKey,
+            'feiadmin', @Now, s.EntityUpdatedUserContextKey
+        FROM @SurveyMap sv
+        JOIN PersonCenteredPlanModule.Survey s ON s.SurveyKey = sv.OldKey;
+        PRINT '  Survey: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        INSERT INTO PersonCenteredPlanModule.SurveySurveyItems (
+            SurveyKey, AnswerResultCodeSystemIdentifier, AnswerResultDisplayName, AnswerResultIdentifier,
+            AnswerResultWithoutNaCodeSystemIdentifier, AnswerResultWithoutNaDisplayName, AnswerResultWithoutNaIdentifier,
+            TypeCodeSystemIdentifier, TypeDisplayName, TypeIdentifier
+        )
+        SELECT sv.NewKey, si.AnswerResultCodeSystemIdentifier, si.AnswerResultDisplayName, si.AnswerResultIdentifier,
+            si.AnswerResultWithoutNaCodeSystemIdentifier, si.AnswerResultWithoutNaDisplayName, si.AnswerResultWithoutNaIdentifier,
+            si.TypeCodeSystemIdentifier, si.TypeDisplayName, si.TypeIdentifier
+        FROM PersonCenteredPlanModule.SurveySurveyItems si
+        JOIN @SurveyMap sv ON sv.OldKey = si.SurveyKey;
+        PRINT '  SurveySurveyItems: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- Milestone + MilestoneGoal + MilestoneService
+        DECLARE @MilestoneMap TABLE (OldKey UNIQUEIDENTIFIER, NewKey UNIQUEIDENTIFIER);
+        INSERT INTO @MilestoneMap (OldKey, NewKey)
+        SELECT MilestoneKey, NEWID()
+        FROM PersonCenteredPlanModule.Milestone WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
+        INSERT INTO PersonCenteredPlanModule.Milestone (
+            MilestoneKey, Version, Name, StartDate, EndDate, PersonCenteredPlanKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT mm.NewKey, 1, ms.Name, ms.StartDate, ms.EndDate, @NewPcpKey,
+            'feiadmin', @Now, ms.EntityCreatedUserContextKey,
+            'feiadmin', @Now, ms.EntityUpdatedUserContextKey
+        FROM @MilestoneMap mm
+        JOIN PersonCenteredPlanModule.Milestone ms ON ms.MilestoneKey = mm.OldKey;
+        PRINT '  Milestone: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        INSERT INTO PersonCenteredPlanModule.MilestoneGoal (
+            MilestoneGoalKey, Version, MilestoneKey, GoalKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT NEWID(), 1, mm.NewKey, @NewGoalKey,
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1',
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1'
+        FROM PersonCenteredPlanModule.MilestoneGoal mg
+        JOIN @MilestoneMap mm ON mm.OldKey = mg.MilestoneKey;
+        PRINT '  MilestoneGoal: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        INSERT INTO PersonCenteredPlanModule.MilestoneService (
+            MilestoneServiceKey, Version, MilestoneKey, PlannedServiceKey,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT NEWID(), 1, mm.NewKey, @NewPSKey,
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1',
+            'feiadmin', @Now, 'C1C76C36-5C5F-4727-8347-B47B00EFD9C1'
+        FROM PersonCenteredPlanModule.MilestoneService mss
+        JOIN @MilestoneMap mm ON mm.OldKey = mss.MilestoneKey;
+        PRINT '  MilestoneService: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PersonCenteredPlanOtherAgendaItems
+        INSERT INTO PersonCenteredPlanModule.PersonCenteredPlanOtherAgendaItems (
+            PersonCenteredPlanKey, Name, Note
+        )
+        SELECT @NewPcpKey, Name, Note
+        FROM PersonCenteredPlanModule.PersonCenteredPlanOtherAgendaItems
+        WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  PcpOtherAgendaItems: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PersonCenteredPlanChangeReasons
+        INSERT INTO PersonCenteredPlanModule.PersonCenteredPlanChangeReasons (
+            PersonCenteredPlanKey, CodeSystemIdentifier, DisplayName, Identifier
+        )
+        SELECT @NewPcpKey, CodeSystemIdentifier, DisplayName, Identifier
+        FROM PersonCenteredPlanModule.PersonCenteredPlanChangeReasons
+        WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  PcpChangeReasons: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PersonCenteredPlanAdditionalSimpleQuestionItems
+        INSERT INTO PersonCenteredPlanModule.PersonCenteredPlanAdditionalSimpleQuestionItems (
+            PersonCenteredPlanKey, AnswerCodeSystemIdentifier, AnswerDisplayName, AnswerIdentifier,
+            CategoryCodeSystemIdentifier, CategoryDisplayName, CategoryIdentifier,
+            TypeCodeSystemIdentifier, TypeDisplayName, TypeIdentifier,
+            AggregateKeyReference, Description
+        )
+        SELECT @NewPcpKey, AnswerCodeSystemIdentifier, AnswerDisplayName, AnswerIdentifier,
+            CategoryCodeSystemIdentifier, CategoryDisplayName, CategoryIdentifier,
+            TypeCodeSystemIdentifier, TypeDisplayName, TypeIdentifier,
+            AggregateKeyReference, Description
+        FROM PersonCenteredPlanModule.PersonCenteredPlanAdditionalSimpleQuestionItems
+        WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  PcpAdditionalSimpleQuestionItems: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
+
+        -- PersonCenteredPlanAboutMeDescriptions
+        INSERT INTO PersonCenteredPlanModule.PersonCenteredPlanAboutMeDescriptions (
+            PersonCenteredPlanKey, TypeCodeSystemIdentifier, TypeDisplayName, TypeIdentifier, Description
+        )
+        SELECT @NewPcpKey, TypeCodeSystemIdentifier, TypeDisplayName, TypeIdentifier, Description
+        FROM PersonCenteredPlanModule.PersonCenteredPlanAboutMeDescriptions
+        WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        PRINT '  PcpAboutMeDescriptions: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- CompletionContext + Requirements (marks the ISP as 100% complete/activated)
         DECLARE @NewCompCtxKey UNIQUEIDENTIFIER = NEWID();
@@ -1467,6 +2023,26 @@ BEGIN
         SET SignatureContextKey = @NewSigCtxKey
         WHERE PersonCenteredPlanKey = @NewPcpKey;
         PRINT '  SignatureContext + Signatures: done';
+
+        -- WorkflowInstance for ISP (marks it as Completed/Activated)
+        INSERT INTO WorkflowModule.WorkflowInstance (
+            WorkflowInstanceKey, Version, Comment, WorkflowBindingIdentifier, WorkflowDefinitionIdentifier,
+            AggregateKeyReference, AggregateClrTypeDisplayName, AggregateClrTypeFullName,
+            CurrentStateDisplayName, CurrentStateName,
+            WorkflowTransitionReasonDisplayName, WorkflowTransitionReasonIdentifier, WorkflowTransitionReasonCodeSystemIdentifier,
+            EntityCreatedAccountIdentifier, EntityCreatedTimestamp, EntityCreatedUserContextKey,
+            EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
+        )
+        SELECT
+            NEWID(), 1, Comment, WorkflowBindingIdentifier, WorkflowDefinitionIdentifier,
+            @NewPcpKey, AggregateClrTypeDisplayName, AggregateClrTypeFullName,
+            CurrentStateDisplayName, CurrentStateName,
+            WorkflowTransitionReasonDisplayName, WorkflowTransitionReasonIdentifier, WorkflowTransitionReasonCodeSystemIdentifier,
+            'feiadmin', @Now, EntityCreatedUserContextKey,
+            'feiadmin', @Now, EntityUpdatedUserContextKey
+        FROM WorkflowModule.WorkflowInstance
+        WHERE AggregateKeyReference = @BlueprintPcpKey;
+        PRINT '  ISP WorkflowInstance: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- CaseActivityInstance registrations (UI activity registry)
         DECLARE @NextCaiId BIGINT;
