@@ -14,7 +14,6 @@ import {
   resolveParticipantUuid,
   addIrisEnrollment,
   openFirstEnrollmentDetail,
-  getSyncStatus,
   verifyMmisSync,
 } from './actions/enrollment.actions';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
@@ -82,7 +81,7 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
 
   test('ATC-ES-004 - Create Draft enrollment', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
+    await page.locator('mat-row, [class*="enrollment"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
     const saved = await addIrisEnrollment(page, {
       program: 'IRIS',
@@ -96,7 +95,6 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
 
   test('ATC-ES-005 - State check: First row is Draft', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
     const firstRow = page.locator('mat-row').first();
     await expect(firstRow).toBeVisible({ timeout: 15_000 });
     const rowText = await firstRow.textContent() || '';
@@ -106,7 +104,7 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
 
   test('ATC-ES-006 - Create Referred enrollment', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
     const saved = await addIrisEnrollment(page, {
       program: 'IRIS',
@@ -120,7 +118,6 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
 
   test('ATC-ES-007 - State check: First row is Referred', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
     const firstRow = page.locator('mat-row').first();
     await expect(firstRow).toBeVisible({ timeout: 15_000 });
     const rowText = await firstRow.textContent() || '';
@@ -130,7 +127,7 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
 
   test('ATC-ES-008 - Create Enrolled enrollment (triggers MMIS sync)', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
     const saved = await addIrisEnrollment(page, {
       program: 'IRIS',
@@ -145,7 +142,6 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
 
   test('ATC-ES-009 - Verify: First row is Enrolled with sync badge', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
     const firstRow = page.locator('mat-row').first();
     await expect(firstRow).toBeVisible({ timeout: 15_000 });
     const rowText = await firstRow.textContent() || '';
@@ -155,7 +151,7 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
 
   test('ATC-ES-010 - Verify: MMIS sync success, no conflict', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
     const opened = await openFirstEnrollmentDetail(page);
     expect(opened).toBe(true);
 

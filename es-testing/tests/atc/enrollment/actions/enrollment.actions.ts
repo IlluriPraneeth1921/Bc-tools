@@ -556,8 +556,8 @@ export async function getSyncStatus(page: Page): Promise<SyncStatusResult> {
 }
 
 /**
- * Polls for MMIS response. This is the ONE place where waitForTimeout is
- * justified — we're waiting for an external system (MMIS) to respond.
+ * Polls for MMIS response. Checks current page first, then reloads periodically.
+ * This is the ONE place where waitForTimeout is justified — waiting for external MMIS.
  */
 export async function pollForMmisResponse(
   page: Page,
@@ -565,14 +565,14 @@ export async function pollForMmisResponse(
 ): Promise<SyncStatusResult> {
   const maxAttempts = options.maxAttempts || 12;
   const pollInterval = options.pollIntervalMs || 10_000;
-  const currentUrl = page.url();
 
   let status: SyncStatusResult = { hasPending: true, responseStatus: null, hasConflict: false, statusText: '' };
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-    // Wait for page content to render before reading status
+    // On first attempt, just read current page. On subsequent, reload to get fresh data.
+    if (attempt > 1) {
+      await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    }
     await page.locator('main').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
 
     status = await getSyncStatus(page);
@@ -580,7 +580,6 @@ export async function pollForMmisResponse(
     if (status.responseStatus !== null) break;
 
     if (attempt < maxAttempts) {
-      // This is the only justified waitForTimeout — external system polling interval
       await page.waitForTimeout(pollInterval);
     }
   }
