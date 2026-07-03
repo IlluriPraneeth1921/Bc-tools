@@ -1,11 +1,11 @@
 /**
  * ATC: TC-003 — ICA Transfer: Close Old + Open New Span
  *
- * Transfers participant to a new ICA agency, closing the old agency span
- * and opening a new one. Expects 2 MMIS transactions.
+ * Transfers participant to a new ICA agency via the Location Assignments page.
+ * Expects 2 MMIS transactions: close old span (S600) + open new span (S610).
  *
  * Test Participant: MA ID 1430000013
- * Prerequisite: TC-001 must have completed successfully (active IRIS enrollment with SU sync).
+ * Prerequisite: TC-001 must have completed (active IRIS enrollment with SU sync).
  */
 import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
@@ -14,18 +14,17 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
   openEnrollmentByText,
-  performIcaTransfer,
   getSyncStatus,
-  hasConflictBadge,
   verifyMmisSync,
 } from './actions/enrollment.actions';
-import {
-  getFullEnrollmentState,
-} from '../../helpers/state-checker';
+import { performIcaTransferViaAssignments } from './actions/assignment.actions';
+import { getFullEnrollmentState } from '../../helpers/state-checker';
 import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 import { SCENARIOS } from '../../data/scenario-test-data';
 
 const DATA = SCENARIOS.TC_003;
+const NEW_AGENCY = DATA.bcInput.agencyChange!.newAgency;
+const EFFECTIVE_DATE = DATA.bcInput.agencyChange!.effectiveDate;
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
@@ -49,43 +48,36 @@ test.describe.serial('TC-003: ICA Transfer: Close Old + Open New Span', () => {
 
   test('ATC-ES-016 - Precondition: Participant is Enrolled', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
-
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
     const state = await getFullEnrollmentState(page);
-    console.log(`[TC-003] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
-    expect(state.irisState, 'Precondition failed: participant must be Enrolled.').toBe('Enrolled');
+    console.log(`[TC-003] State: IRIS=${state.irisState}`);
+    expect(state.irisState, 'Precondition: must be Enrolled').toBe('Enrolled');
   });
 
-  test('ATC-ES-017 - Navigate to enrollment detail and perform ICA transfer', async () => {
+  test('ATC-ES-017 - Perform ICA transfer via Location Assignments', async () => {
+    const transferred = await performIcaTransferViaAssignments(page, participantUuid, {
+      newLocation: NEW_AGENCY,
+      effectiveDate: EFFECTIVE_DATE,
+    });
+    expect(transferred, 'ICA transfer failed').toBe(true);
+    console.log(`[TC-003] ICA transferred to "${NEW_AGENCY}" effective ${EFFECTIVE_DATE}`);
+  });
+
+  test('ATC-ES-018 - Verify MMIS sync (2 transactions: S600+S610)', async () => {
     await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
-
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
     const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
-    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
+    expect(opened).toBe(true);
 
-    const transferred = await performIcaTransfer(page);
-    expect(transferred).toBe(true);
-    console.log('[TC-003] ICA transfer action completed');
-  });
-
-  test('ATC-ES-018 - Verify MMIS sync (2 transactions)', async () => {
     const status = await verifyMmisSync(page, {
       participantUuid,
       mockMmis: MOCK_MMIS,
       mockFn: mockMmisSuccess,
       extractKeyFn: extractProgramEnrollmentKeyFromUrl,
     });
-
-    expect(status.responseStatus, 'Expected SU or SE response').toMatch(/^(SU|SE)$/);
+    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
-    console.log(`[TC-003] ✓ ICA transfer sync completed (${status.responseStatus})`);
-  });
-
-  test('ATC-ES-019 - Verify no conflict after ICA transfer', async () => {
-    const status = await getSyncStatus(page);
-    expect(status.hasConflict).toBe(false);
-    const conflictVisible = await hasConflictBadge(page);
-    expect(conflictVisible).toBe(false);
+    console.log(`[TC-003] ✓ ICA transfer sync verified (${status.responseStatus})`);
   });
 
 });

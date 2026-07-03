@@ -144,7 +144,7 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      agencyChange: { oldAgency: 'ICA-001', newAgency: 'ICA-002', effectiveDate: '10/01/2026' },
+      agencyChange: { oldAgency: 'First Person Care Consultants', newAgency: 'TMG (The Management Group)', effectiveDate: '07/13/2026' },
     },
     mmisBefore: [
       { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299', agency: 'ICA-001' },
