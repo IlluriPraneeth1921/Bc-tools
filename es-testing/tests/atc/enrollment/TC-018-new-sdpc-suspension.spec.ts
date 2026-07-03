@@ -16,24 +16,20 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
-  openFirstEnrollmentDetail,
-  getSyncStatus,
+  openEnrollmentByText,
   addSuspension,
+  verifyMmisSync,
+  getSyncStatus,
 } from './actions/enrollment.actions';
-import {
-  getCurrentSdpcState,
-} from '../../helpers/state-checker';
+import { getCurrentSdpcState } from '../../helpers/state-checker';
 import { SCENARIOS } from '../../data/scenario-test-data';
 import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 
-// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
+// ─── Test Data ────────────────────────────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_018;
 const SUSPENSION_START = DATA.bcInput.suspensionStartDate!;
 const SUSPENSION_END = DATA.bcInput.suspensionEndDate!;
-
-
-/** When true, uses database stored procedure to mock MMIS Success response. */
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
@@ -55,108 +51,61 @@ test.describe.serial('TC-018: New SDPC Suspension', () => {
     await browser.close();
   });
 
-test('ATC-ES-077 - Navigate to SDPC enrollment detail (only if SDPC Enrolled)', async () => {
-  await navigateToEnrollments(page, participantUuid);
-  await page.waitForTimeout(2000);
+  test('ATC-ES-077 - Navigate to SDPC enrollment detail (only if SDPC Enrolled)', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
-  const sdpcState = await getCurrentSdpcState(page);
-  console.log(`[TC-018] State: SDPC=${sdpcState}`);
+    const sdpcState = await getCurrentSdpcState(page);
+    console.log(`[TC-018] State: SDPC=${sdpcState}`);
 
-  if (sdpcState !== 'Enrolled') {
-    console.log(`[TC-018] Skipping — precondition not met (SDPC current: ${sdpcState})`);
-    return;
-  }
+    if (sdpcState !== 'Enrolled') {
+      console.log(`[TC-018] Skipping — precondition not met (SDPC current: ${sdpcState})`);
+      return;
+    }
 
-  // Find the SDPC enrollment row
-  const sdpcRow = page.locator('mat-row').filter({ hasText: /SDPC/ }).filter({ hasText: /Enrolled/ }).first();
-  await expect(sdpcRow).toBeVisible({ timeout: 15_000 });
-  await sdpcRow.dblclick();
-  await page.waitForTimeout(3000);
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-  expect(page.url()).toContain('/programenrollment/');
-});
-
-test('ATC-ES-078 - Add bounded suspension to SDPC enrollment', async () => {
-  if (!page.url().includes('/programenrollment/')) {
-    console.log('[TC-018] Skipping — previous step was skipped');
-    return;
-  }
-
-  const result = await addSuspension(page, {
-    startDate: SUSPENSION_START,
-    endDate: SUSPENSION_END,
-    reason: 'Participant Requested',
+    const opened = await openEnrollmentByText(page, /SDPC.*Enrolled|Enrolled.*SDPC/);
+    expect(opened, 'Could not open SDPC Enrolled enrollment detail').toBe(true);
   });
 
-  if (!result) {
-    console.log('[TC-018] Direct suspension add not found, trying alternative approach');
-  }
-
-  await page.waitForTimeout(5000);
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
-  console.log('[TC-018] SDPC suspension added');
-});
-
-test('ATC-ES-079 - Verify 3 MMIS transactions (S500 + S510 + S520)', async () => {
-  if (MOCK_MMIS) {
-    // --- Mock path: Use database to set MMIS Success ---
-    const enrollmentKey = extractProgramEnrollmentKeyFromUrl(page.url());
-    if (!enrollmentKey) {
-      await navigateToEnrollments(page, participantUuid);
-      await page.waitForTimeout(2000);
-      const opened = await openFirstEnrollmentDetail(page);
-      expect(opened).toBe(true);
+  test('ATC-ES-078 - Add bounded suspension to SDPC enrollment', async () => {
+    if (!page.url().includes('/programenrollment/')) {
+      console.log('[TC-018] Skipping — previous step was skipped');
+      return;
     }
-    const key = enrollmentKey || extractProgramEnrollmentKeyFromUrl(page.url());
-    expect(key, 'Could not extract ProgramEnrollmentKey from URL').not.toBeNull();
-    await page.waitForTimeout(5000);
-    const mockResult = await mockMmisSuccess(key!);
-    expect(mockResult, 'mockMmisSuccess failed --- stored procedure missing?').toBe(true);
-    console.log(`[TC-018] MMIS Success mocked for key: ${key}`);
-    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
-    const status = await getSyncStatus(page);
-    expect(status.responseStatus).toBe('SU');
+
+    const result = await addSuspension(page, {
+      startDate: SUSPENSION_START,
+      endDate: SUSPENSION_END,
+      reason: 'Participant Requested',
+    });
+    expect(result, 'Failed to add suspension').toBe(true);
+    console.log('[TC-018] SDPC suspension added');
+  });
+
+  test('ATC-ES-079 - Verify 3 MMIS transactions (S500 + S510 + S520)', async () => {
+    const status = await verifyMmisSync(page, {
+      participantUuid,
+      mockMmis: MOCK_MMIS,
+      mockFn: mockMmisSuccess,
+      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+    });
+
+    expect(status.responseStatus, 'Expected SU/SE response from MMIS').toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
-  } else {
-    // --- Real path: Poll for actual MMIS response ---
-  const currentUrl = page.url();
-  const maxAttempts = 6;
-  const pollInterval = 10_000;
-  let status = { hasPending: true, responseStatus: null as string | null, hasConflict: false, statusText: '' };
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-    await page.waitForTimeout(3000);
+    await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
+    const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
+    const count = await transactionRows.count();
+    console.log(`[TC-018] MMIS transaction rows found: ${count}`);
+    expect(count).toBeGreaterThanOrEqual(3);
+  });
 
-    status = await getSyncStatus(page);
-    console.log(`[TC-018] Sync status (attempt ${attempt}/${maxAttempts}): ${JSON.stringify(status)}`);
+  test('ATC-ES-080 - Verify SU response and no conflict', async () => {
+    const status = await getSyncStatus(page);
+    console.log(`[TC-018] Sync status: ${JSON.stringify(status)}`);
 
-    if (status.responseStatus !== null) break;
-
-    if (attempt < maxAttempts) {
-      await page.waitForTimeout(pollInterval);
-    }
-  }
-
-  await expect(page.getByText('MMIS Transaction List').first()).toBeVisible({ timeout: 15_000 });
-
-  const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
-  const count = await transactionRows.count();
-  console.log(`[TC-018] MMIS transaction rows found: ${count}`);
-  expect(count).toBeGreaterThanOrEqual(3);
-  }
-});
-
-test('ATC-ES-080 - Verify SU response and no conflict', async () => {
-  const status = await getSyncStatus(page);
-  console.log(`[TC-018] Sync status: ${JSON.stringify(status)}`);
-
-  expect(status.responseStatus).toMatch(/^(SU|SE)$/);
-  expect(status.hasConflict).toBe(false);
-});
+    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+    expect(status.hasConflict).toBe(false);
+  });
 
 }); // end describe.serial

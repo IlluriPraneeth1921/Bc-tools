@@ -1,14 +1,11 @@
 /**
  * ATC: TC-011 — Suspension < 3 Days (Error)
  *
- * NEGATIVE TEST: Attempts to add a suspension with only a 1-2 day span.
- * The system should reject this with an error — NO MMIS transactions are sent.
- *
- * State-aware: Checks that participant is Enrolled before attempting the action.
- * Skips gracefully if preconditions not met.
+ * NEGATIVE TEST: Attempts to add a suspension with only a 1-day span.
+ * The system should reject — NO MMIS transactions are sent.
  *
  * Test Participant: MA ID 1430000013
- * Prerequisite: TC-001 must have completed successfully (active IRIS enrollment with SU sync).
+ * Prerequisite: TC-001 must have completed (active IRIS enrollment with SU sync).
  */
 import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
@@ -16,19 +13,16 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
-  getSyncStatus,
+  openEnrollmentByText,
   addSuspension,
+  getSyncStatus,
 } from './actions/enrollment.actions';
-import {
-  getCurrentIrisState,
-} from '../../helpers/state-checker';
+import { getCurrentIrisState } from '../../helpers/state-checker';
 import { SCENARIOS } from '../../data/scenario-test-data';
-
-// ─── Test Data from Scenario Diagrams ─────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_011;
 const SUSPENSION_START = DATA.bcInput.suspensionStartDate!;
-const SUSPENSION_END = DATA.bcInput.suspensionEndDate!; // Only 1 day — too short
+const SUSPENSION_END = DATA.bcInput.suspensionEndDate!;
 
 let browser: Browser;
 let page: Page;
@@ -46,93 +40,50 @@ test.describe.serial('TC-011: Suspension < 3 Days (Error)', () => {
   test.setTimeout(300_000);
   test.afterAll(async () => { await browser.close(); });
 
-test('ATC-ES-049 - Navigate to enrollment detail (only if Enrolled)', async () => {
-  await navigateToEnrollments(page, participantUuid);
-  await page.waitForTimeout(2000);
-
-  const irisState = await getCurrentIrisState(page);
-  console.log(`[TC-011] State: IRIS=${irisState}`);
-
-  if (irisState !== 'Enrolled') {
-    console.log(`[TC-011] Skipping — precondition not met (current: ${irisState})`);
-    return;
-  }
-
-  const firstRow = page.locator('mat-row').filter({ hasText: /Enrolled/ }).first();
-  await expect(firstRow).toBeVisible({ timeout: 15_000 });
-  await firstRow.dblclick();
-  await page.waitForTimeout(3000);
-  await page.waitForLoadState('networkidle', { timeout: 15_000 }).catch(() => {});
-
-  expect(page.url()).toContain('/programenrollment/');
-});
-
-test('ATC-ES-050 - Attempt suspension with < 3 day span', async () => {
-  if (!page.url().includes('/programenrollment/')) {
-    console.log('[TC-011] Skipping — previous step was skipped');
-    return;
-  }
-
-  const result = await addSuspension(page, {
-    startDate: SUSPENSION_START,
-    endDate: SUSPENSION_END, // 1 day span — should be rejected
-    reason: 'Participant Requested',
+  test('ATC-ES-049 - Precondition: Participant is Enrolled', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
+    const state = await getCurrentIrisState(page);
+    console.log(`[TC-011] State: IRIS=${state}`);
+    expect(state, 'Precondition: must be Enrolled').toBe('Enrolled');
   });
 
-  // The save may succeed but should show an error, or the dialog may stay open
-  await page.waitForTimeout(5000);
-  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  test('ATC-ES-050 - Attempt suspension with < 3 day span', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
+    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    expect(opened).toBe(true);
 
-  console.log('[TC-011] Attempted short suspension — expecting validation error');
+    await addSuspension(page, {
+      startDate: SUSPENSION_START,
+      endDate: SUSPENSION_END, // 1 day — should be rejected
+      reason: 'Participant Requested',
+    });
+    console.log('[TC-011] Attempted short suspension — expecting validation error');
+  });
+
+  test('ATC-ES-051 - Verify error displayed (no MMIS sync triggered)', async () => {
+    const pageText = await page.locator('main').textContent() || '';
+    const dialogText = await page.locator('mat-dialog-container').textContent().catch(() => '') || '';
+    const allText = pageText + dialogText;
+
+    const hasError = /error|invalid|minimum|too short|at least/i.test(allText);
+    const matErrors = await page.locator('mat-error').all();
+    const errorMessages: string[] = [];
+    for (const err of matErrors) {
+      const text = (await err.textContent() || '').trim();
+      if (text) errorMessages.push(text);
+    }
+    console.log(`[TC-011] Errors: ${JSON.stringify(errorMessages)}`);
+    expect(errorMessages.length > 0 || hasError).toBe(true);
+  });
+
+  test('ATC-ES-052 - Verify no conflict on enrollment', async () => {
+    await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+    await page.locator('main').first().waitFor({ state: 'visible', timeout: 10_000 }).catch(() => {});
+    const status = await getSyncStatus(page);
+    console.log(`[TC-011] Sync: ${JSON.stringify(status)}`);
+    expect(status.hasConflict).toBe(false);
+  });
+
 });
-
-test('ATC-ES-051 - Verify error displayed (no MMIS sync triggered)', async () => {
-  // Check for validation error messages on the page
-  const pageText = await page.locator('main').textContent() || '';
-  const dialogText = await page.locator('mat-dialog-container').textContent().catch(() => '') || '';
-  const allText = pageText + dialogText;
-
-  const hasError = allText.includes('error') || allText.includes('Error') ||
-    allText.includes('invalid') || allText.includes('Invalid') ||
-    allText.includes('minimum') || allText.includes('3 day') ||
-    allText.includes('too short') || allText.includes('at least');
-
-  // Check for mat-error elements
-  const matErrors = await page.locator('mat-error').all();
-  const errorMessages: string[] = [];
-  for (const err of matErrors) {
-    const text = (await err.textContent() || '').trim();
-    if (text) errorMessages.push(text);
-  }
-  console.log(`[TC-011] Validation errors found: ${JSON.stringify(errorMessages)}`);
-
-  // Either mat-error exists or page text indicates error
-  const hasValidationError = errorMessages.length > 0 || hasError;
-  expect(hasValidationError).toBe(true);
-});
-
-test('ATC-ES-052 - Verify no MMIS transaction rows generated', async () => {
-  // If we're still on the detail page, reload and check
-  const currentUrl = page.url();
-  await page.goto(currentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-  await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-  await page.waitForTimeout(3000);
-
-  // Should NOT have any new MMIS transaction list for this failed suspension
-  const transactionList = page.getByText('MMIS Transaction List').first();
-  const hasTransactionList = await transactionList.isVisible({ timeout: 5_000 }).catch(() => false);
-
-  if (hasTransactionList) {
-    console.log('[TC-011] MMIS Transaction List visible (from prior operations) — verifying no new suspension txns');
-  } else {
-    console.log('[TC-011] No MMIS Transaction List — confirmed no sync triggered');
-  }
-
-  // Verify no pending sync indicator for suspension
-  const status = await getSyncStatus(page);
-  console.log(`[TC-011] Sync status: ${JSON.stringify(status)}`);
-
-  expect(status.hasConflict).toBe(false);
-});
-
-}); // end describe.serial
