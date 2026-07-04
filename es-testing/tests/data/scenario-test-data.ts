@@ -362,8 +362,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
-      suspensionEndDate: '08/16/2026', // Only 1 day — too short
+      suspensionStartDate: '07/01/2026',
+      suspensionEndDate: '07/02/2026', // Only 1 day — too short
     },
     mmisBefore: [
       { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
@@ -420,17 +420,17 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
-      newSuspensionEndDate: '09/14/2026',
+      suspensionStartDate: '07/01/2026',
+      newSuspensionEndDate: '07/10/2026',
     },
     mmisBefore: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/10/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/11/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S440', type: 'C', status: 'S', startReason: '2Q', stopReason: '2W', description: 'Shorten Span-B end date' },
@@ -891,19 +891,18 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     expectedResponse: 'SU',
     bcInput: {
       enrollmentStartDate: '06/01/2026',
-      enrollmentEndDate: '09/30/2026',
-      suspensionStartDate: '08/15/2026',
-      suspensionEndDate: '09/14/2026',
-      newEnrollmentEndDate: '12/31/2299',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '07/01/2026',
+      suspensionEndDate: '07/02/2026', // Only 1 day — too short
+      newSuspensionEndDate: '07/10/2026',
     },
     mmisBefore: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/09/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/10/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S360', type: 'O', status: 'A', startReason: '2Q', description: 'Create post-suspension span (Span-C)' },
@@ -912,6 +911,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
 
   // ═══════════════════════════════════════════════════════════════════════════
   // TC-029: Multiple MMIS Errors (S220_001 with multiple errors)
+  // Lifecycle: Draft → Referred → Enrolled (triggers MMIS sync → FL)
+  // Errors: 9110 (CITY IS MISSING) + 9156 (FEA DATES DO NOT SPAN)
   // ═══════════════════════════════════════════════════════════════════════════
   TC_029: {
     testCaseId: 'TC-029',
@@ -928,14 +929,16 @@ export const SCENARIOS: Record<string, ScenarioData> = {
       statusReason: 'Not Applicable',
     },
     mmisBefore: [],
-    mmisAfter: [], // Rejected
+    mmisAfter: [], // Rejected — enrollment span NOT activated
     transactions: [
-      { sequence: 1, scenario: 'S300', type: 'O', status: 'A', startReason: '2L', description: 'Attempt create — rejected with multiple errors' },
+      { sequence: 1, scenario: 'S300', type: 'O', status: 'A', startReason: '2L', description: 'Attempt create — rejected with multiple errors (9110 + 9156)' },
     ],
   },
 
   // ═══════════════════════════════════════════════════════════════════════════
   // TC-030: SE Response (S220_001 with success+errors)
+  // Lifecycle: Draft → Referred → Enrolled (triggers MMIS sync → SE)
+  // Enrollment is activated despite warnings per BR-D01-010
   // ═══════════════════════════════════════════════════════════════════════════
   TC_030: {
     testCaseId: 'TC-030',

@@ -74,9 +74,9 @@
 | TC-008 | Enrolled → Referral Withdrawn          | IRIS    | Enrolled               | SU       | ✅ Working                                                                                                                                                                       |
 | TC-009 | Disenrolled → Enrolled (Reinstatement) | IRIS    | Disenrolled            | SU       | ✅ Working                                                                                                                                                                       |
 | TC-010 | Open-Ended Suspension (no end date)     | IRIS    | Enrolled               | SU       | ✅ Working                                                                                                                                                                       |
-| TC-011 | Suspension < 3 Days (Error)             | IRIS    | Enrolled               | No Txn   | —                                                                                                                                                                               |
-| TC-012 | Suspension Deleted                      | IRIS    | Suspended (bounded)    | SU       | —                                                                                                                                                                               |
-| TC-013 | Suspension End: Null → Valid           | IRIS    | Suspended (open-ended) | SU       | —                                                                                                                                                                               |
+| TC-011 | Suspension < 3 Days (Error)             | IRIS    | Enrolled               | No Txn   | ✅ Working                                                                                                                                                                       |
+| TC-012 | Suspension Deleted                      | IRIS    | Suspended (bounded)    | SU       | ✅ Working                                                                                                                                                                       |
+| TC-013 | Suspension End: Null → Valid           | IRIS    | Suspended (open-ended) | SU       | ✅ Working                                                                                                                                                                       |
 | TC-014 | Address-Only Update (S700)              | IRIS    | Enrolled               | SU       | ✅ Working                                                                                                                                                                       |
 | TC-015 | New SDPC Enrollment                     | SDPC    | Pristine               | SU       | —                                                                                                                                                                               |
 | TC-016 | FEA Transfer — Close + Open            | IRIS    | Enrolled               | SU       | —                                                                                                                                                                               |
@@ -91,9 +91,9 @@
 | TC-025 | Suspension End: Valid → Null           | IRIS    | Suspended (bounded)    | SU       | ✅ Working                                                                                                                                                                       |
 | TC-026 | SDPC End Date → Earlier                | SDPC    | SDPC Enrolled          | SU       | —                                                                                                                                                                               |
 | TC-027 | SDPC Suspension Deleted                 | SDPC    | SDPC Suspended         | SU       | —                                                                                                                                                                               |
-| TC-028 | End Date Later + Suspended              | IRIS    | Suspended (2 spans)    | SU       | —                                                                                                                                                                               |
-| TC-029 | Multiple MMIS Error Segments            | IRIS    | Pristine               | FL       | —                                                                                                                                                                               |
-| TC-030 | SE Response — Enrollment Activated     | IRIS    | Pristine               | SE       | —                                                                                                                                                                               |
+| TC-028 | End Date Later + Suspended              | IRIS    | Suspended (2 spans)    | SU       | ✅ Working                                                                                                                                                                       |
+| TC-029 | Multiple MMIS Error Segments            | IRIS    | Pristine               | FL       | ✅ Working                                                                                                                                                                       |
+| TC-030 | SE Response — Enrollment Activated     | IRIS    | Pristine               | SE       | ✅ Working                                                                                                                                                                       |
 | TC-031 | ICA Transfer — Span-C Exists           | IRIS    | Suspended (bounded)    | SU       | —                                                                                                                                                                               |
 | TC-032 | Address Update — No Current Span       | IRIS    | Disenrolled            | No Txn   | ✅ Working                                                                                                                                                                       |
 | TC-033 | Disenrolled Span — Real Reason Code    | IRIS    | Disenrolled            | SU       | —                                                                                                                                                                               |
@@ -177,20 +177,20 @@ Tests are arranged below so each test's output state feeds the next test's requi
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                             | Starting State                            | Output State                   | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------------ | ----------------------------------------- | ------------------------------ | ---- | -------- | ---------- |
-| 29   | TC-011 | Suspension < 3 Days (Error)          | Enrolled (active, SU synced)              | Enrolled (unchanged — no txn) | 0    | No Txn   | —         |
-| 30   | TC-028 | End Date Later + Last Span Suspended | Suspended (bounded, 2 spans — no Span-C) | Suspended (3 spans)            | 1    | SU       | —         |
-| 31   | TC-008 | Enrolled → Referral Withdrawn       | Enrolled (active, SU synced)              | Referral Withdrawn (deleted)   | 1    | SU       | ✅ Working |
+| Step | TC #   | Scenario                             | Starting State                            | Output State                   | Txns | Expected | Automation  |
+| ---- | ------ | ------------------------------------ | ----------------------------------------- | ------------------------------ | ---- | -------- | ----------- |
+| 29   | TC-011 | Suspension < 3 Days (Error)          | Enrolled (active, SU synced)              | Enrolled (unchanged — no txn) | 0    | No Txn   | ✅ Working  |
+| 30   | TC-028 | End Date Later + Last Span Suspended | Suspended (bounded, 2 spans — no Span-C) | Suspended (3 spans)            | 1    | SU       | ✅ Working  |
+| 31   | TC-008 | Enrolled → Referral Withdrawn       | Enrolled (active, SU synced)              | Referral Withdrawn (deleted)   | 1    | SU       | ✅ Working  |
 
 ### Cascade B: Error & Edge Cases (Pristine — Standalone)
 
-| Step | TC #   | Scenario                            | Starting State           | Output State               | Txns | Expected     | Automation |
-| ---- | ------ | ----------------------------------- | ------------------------ | -------------------------- | ---- | ------------ | ---------- |
-| 32   | TC-004 | Hard Error — FEA Dates Don't Span  | Pristine (no enrollment) | Failed (conflict)          | 1    | FL (9156)    | ✅ Working |
-| 33   | TC-005 | Medicaid ID Mismatch (BR-D01-016)   | Pristine (no enrollment) | Enrolled (new Medicaid ID) | 1    | SU + ID swap | ✅ Working |
-| 34   | TC-029 | Multiple MMIS Error Segments        | Pristine (no enrollment) | Failed (multi-error)       | 1    | FL (multi)   | —         |
-| 35   | TC-030 | SE Response — Enrollment Activated | Pristine (no enrollment) | Enrolled (with warnings)   | 1    | SE           | —         |
+| Step | TC #   | Scenario                            | Starting State           | Output State               | Txns | Expected     | Automation  |
+| ---- | ------ | ----------------------------------- | ------------------------ | -------------------------- | ---- | ------------ | ----------- |
+| 32   | TC-004 | Hard Error — FEA Dates Don't Span  | Pristine (no enrollment) | Failed (conflict)          | 1    | FL (9156)    | ✅ Working  |
+| 33   | TC-005 | Medicaid ID Mismatch (BR-D01-016)   | Pristine (no enrollment) | Enrolled (new Medicaid ID) | 1    | SU + ID swap | ✅ Working  |
+| 34   | TC-029 | Multiple MMIS Error Segments        | Pristine (no enrollment) | Failed (multi-error)       | 1    | FL (multi)   | ✅ Working  |
+| 35   | TC-030 | SE Response — Enrollment Activated | Pristine (no enrollment) | Enrolled (with warnings)   | 1    | SE           | ✅ Working  |
 
 ### Cascade C: SDPC Program (Independent)
 

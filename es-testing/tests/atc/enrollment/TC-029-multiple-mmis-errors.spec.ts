@@ -1,12 +1,16 @@
 /**
  * ATC: TC-029 — Multiple MMIS Error Segments
  *
- * NEGATIVE TEST: Creates an enrollment that triggers multiple MMIS errors.
- * Expects FL response with multiple error segments, conflict badge visible,
- * and re-submit button visible.
+ * Lifecycle: Draft → Referred → Enrolled (triggers MMIS sync) → FL with multiple errors
+ *
+ * NEGATIVE TEST: Follows the standard enrollment lifecycle to reach Enrolled status,
+ * which triggers the MMIS sync. The participant has intentionally invalid data
+ * (missing city + FEA dates don't span enrollment), resulting in multiple error segments.
  *
  * Test Participant: MA ID 1430000013
  * Prerequisite: Participant must be accessible with ISP start date set.
+ *               Residential address city must be NULL/empty (triggers 9110).
+ *               FEA end date must NOT span enrollment period (triggers 9156).
  */
 import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
@@ -51,7 +55,61 @@ test.describe.serial('TC-029: Multiple MMIS Error Segments', () => {
     await browser.close();
   });
 
-  test('ATC-ES-121 - Create enrollment with multiple data issues', async () => {
+  // ─── Step 1: Create Draft enrollment ──────────────────────────────────────
+
+  test('ATC-ES-121 - Create Draft enrollment', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.locator('mat-row, [class*="enrollment"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+    const saved = await addIrisEnrollment(page, {
+      program: 'IRIS',
+      status: 'Draft',
+      statusReason: 'Not Applicable',
+      startDate: ENROLLMENT_START,
+    });
+    expect(saved, 'Failed to create Draft enrollment').toBe(true);
+    console.log('[TC-029] Draft enrollment created');
+  });
+
+  test('ATC-ES-122 - State check: First row is Draft', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    const firstRow = page.locator('mat-row').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    const rowText = await firstRow.textContent() || '';
+    expect(rowText).toContain('IRIS');
+    expect(rowText).toContain('Draft');
+    console.log('[TC-029] ✓ Draft state verified');
+  });
+
+  // ─── Step 2: Create Referred enrollment ───────────────────────────────────
+
+  test('ATC-ES-123 - Create Referred enrollment', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+    const saved = await addIrisEnrollment(page, {
+      program: 'IRIS',
+      status: 'Referred',
+      statusReason: 'IRIS Consultant',
+      startDate: ENROLLMENT_START,
+    });
+    expect(saved, 'Failed to create Referred enrollment').toBe(true);
+    console.log('[TC-029] Referred enrollment created');
+  });
+
+  test('ATC-ES-124 - State check: First row is Referred', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    const firstRow = page.locator('mat-row').first();
+    await expect(firstRow).toBeVisible({ timeout: 15_000 });
+    const rowText = await firstRow.textContent() || '';
+    expect(rowText).toContain('IRIS');
+    expect(rowText).toContain('Referred');
+    console.log('[TC-029] ✓ Referred state verified');
+  });
+
+  // ─── Step 3: Create Enrolled enrollment (triggers MMIS sync → FL) ─────────
+
+  test('ATC-ES-125 - Create Enrolled enrollment (triggers MMIS sync)', async () => {
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
@@ -61,11 +119,13 @@ test.describe.serial('TC-029: Multiple MMIS Error Segments', () => {
       statusReason: 'Not Applicable',
       startDate: ENROLLMENT_START,
     });
-    expect(saved, 'Failed to create enrollment').toBe(true);
-    console.log('[TC-029] Enrollment created — expecting multiple MMIS errors');
+    expect(saved, 'Failed to create Enrolled enrollment').toBe(true);
+    console.log('[TC-029] Enrolled enrollment created — expecting multiple MMIS errors');
   });
 
-  test('ATC-ES-122 - Verify FL response status', async () => {
+  // ─── Step 4: Verify FL response with multiple errors ──────────────────────
+
+  test('ATC-ES-126 - Verify FL response status', async () => {
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
 
@@ -80,9 +140,9 @@ test.describe.serial('TC-029: Multiple MMIS Error Segments', () => {
       await page.waitForTimeout(5000);
 
       // Mock with multiple error codes
+      await mockMmisFailed(enrollmentKey!, '9110', 'CITY IS MISSING');
       await mockMmisFailed(enrollmentKey!, '9156', 'FEA DATES DO NOT SPAN ENROLLMENT PERIOD');
-      await mockMmisFailed(enrollmentKey!, '9171', 'NO WAIVER ENROLLMENT FOUND TO CLOSE');
-      console.log('[TC-029] MMIS Failed response mocked with multiple errors');
+      console.log('[TC-029] MMIS Failed response mocked with multiple errors (9110 + 9156)');
 
       await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
       await page.locator('main').first().waitFor({ state: 'visible', timeout: 10_000 });
@@ -97,18 +157,18 @@ test.describe.serial('TC-029: Multiple MMIS Error Segments', () => {
     }
   });
 
-  test('ATC-ES-123 - Verify multiple MMIS error segments', async () => {
+  test('ATC-ES-127 - Verify multiple MMIS error segments', async () => {
     const errors = await getMMISErrors(page);
     console.log(`[TC-029] MMIS errors: ${JSON.stringify(errors)}`);
     expect(errors.length).toBeGreaterThan(1);
   });
 
-  test('ATC-ES-124 - Verify conflict badge displayed', async () => {
+  test('ATC-ES-128 - Verify conflict badge displayed', async () => {
     const conflictVisible = await hasConflictBadge(page);
     expect(conflictVisible).toBe(true);
   });
 
-  test('ATC-ES-125 - Verify Re-submit button visible', async () => {
+  test('ATC-ES-129 - Verify Re-submit button visible', async () => {
     const resubmitVisible = await isResubmitVisible(page);
     expect(resubmitVisible).toBe(true);
   });

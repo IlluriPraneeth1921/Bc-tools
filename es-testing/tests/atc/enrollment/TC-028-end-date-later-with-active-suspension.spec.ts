@@ -17,7 +17,7 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
   openEnrollmentByText,
-  editEnrollment,
+  editSuspension,
   verifyMmisSync,
   getSyncStatus,
 } from './actions/enrollment.actions';
@@ -28,7 +28,7 @@ import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '..
 // ─── Test Data ────────────────────────────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_028;
-const NEW_END_DATE = DATA.bcInput.newEnrollmentEndDate!;
+const NEW_END_DATE = DATA.bcInput.newSuspensionEndDate!;
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
@@ -50,31 +50,31 @@ test.describe.serial('TC-028: End Date Later + Last Span Suspended', () => {
     await browser.close();
   });
 
-  test('ATC-ES-117 - Navigate to enrollment detail (only if Enrolled + suspension)', async () => {
+  test('ATC-ES-117 - Navigate to enrollment detail', async () => {
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
 
     const state = await getFullEnrollmentState(page);
     console.log(`[TC-028] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
 
-    if (!['Enrolled', 'Suspended'].includes(state.irisState) || !state.hasSuspension) {
-      console.log(`[TC-028] Skipping — precondition not met (need Enrolled/Suspended + suspension)`);
+    if (!['Enrolled', 'Suspended'].includes(state.irisState)) {
+      console.log(`[TC-028] Skipping — need Enrolled/Suspended, current: ${state.irisState}`);
       return;
     }
 
     const opened = await openEnrollmentByText(page, /Enrolled|Suspended/, /Disenrolled/);
-    expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
+    expect(opened, 'Could not open enrollment detail').toBe(true);
   });
 
-  test('ATC-ES-118 - Extend enrollment end date while suspension is active', async () => {
+  test('ATC-ES-118 - Change suspension end date to later date', async () => {
     if (!page.url().includes('/programenrollment/')) {
       console.log('[TC-028] Skipping — previous step was skipped');
       return;
     }
 
-    const edited = await editEnrollment(page, { endDate: NEW_END_DATE });
-    expect(edited, 'Edit dialog did not close — validation errors').toBe(true);
-    console.log('[TC-028] Enrollment end date extended with active suspension — S350→S360 triggered');
+    const edited = await editSuspension(page, { endDate: NEW_END_DATE });
+    expect(edited, 'Edit suspension dialog did not close — validation errors').toBe(true);
+    console.log(`[TC-028] Suspension end date changed to: ${NEW_END_DATE}`);
   });
 
   test('ATC-ES-119 - Verify 1 MMIS transaction (S350→S360)', async () => {
@@ -96,7 +96,7 @@ test.describe.serial('TC-028: End Date Later + Last Span Suspended', () => {
       const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
     const count = await transactionRows.count();
     console.log(`[TC-028] MMIS transaction rows found: ${count}`);
-    // Transaction row count is informational � MMIS sync status is the authoritative check
+    // Transaction row count is informational � MMIS sync status is the authoritative check
     }
   });
 

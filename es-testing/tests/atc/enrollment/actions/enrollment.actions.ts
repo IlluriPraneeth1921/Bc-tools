@@ -503,25 +503,59 @@ export async function addSuspension(
  * Fills a date input in the suspension dialog, handling Angular Material date masks.
  */
 async function fillSuspensionDateInput(page: Page, input: import('@playwright/test').Locator, dateValue: string): Promise<void> {
-  // Focus and clear any existing content
-  await input.click({ clickCount: 3, force: true });
-  await page.keyboard.press('Control+a');
+  // Focus the input
+  await input.click({ force: true });
+  await page.waitForTimeout(200);
+
+  // Aggressively clear the field — use evaluate to set value directly first
+  await input.evaluate(el => {
+    (el as HTMLInputElement).value = '';
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+  });
+  await page.waitForTimeout(200);
+
+  // Also try keyboard clearing in case evaluate didn't work with Angular's form control
+  await input.click({ force: true });
+  await page.keyboard.press('Home');
+  await page.keyboard.press('Shift+End');
   await page.keyboard.press('Delete');
   await page.waitForTimeout(200);
 
   // Type digits only — Angular Material date mask auto-inserts slashes
   const digitsOnly = dateValue.replace(/\//g, '');
   await input.pressSequentially(digitsOnly, { delay: 60 });
-  await page.waitForTimeout(200);
+  await page.waitForTimeout(300);
 
-  // If the mask didn't format it correctly, fall back to filling the full value directly
+  // Check if the value is correct
   const currentValue = await input.inputValue();
-  if (!currentValue.includes('/') || currentValue.length < 10) {
-    await input.click({ clickCount: 3, force: true });
-    await page.keyboard.press('Control+a');
+  if (currentValue !== dateValue && (!currentValue.includes('/') || currentValue.length < 10)) {
+    // Mask didn't work — try again with full value including slashes
+    await input.evaluate(el => { (el as HTMLInputElement).value = ''; });
+    await input.click({ force: true });
+    await page.keyboard.press('Home');
+    await page.keyboard.press('Shift+End');
     await page.keyboard.press('Delete');
     await page.waitForTimeout(200);
     await input.pressSequentially(dateValue, { delay: 60 });
+    await page.waitForTimeout(200);
+  }
+
+  // If still wrong, force-set via evaluate as last resort
+  const finalValue = await input.inputValue();
+  if (finalValue !== dateValue) {
+    await input.evaluate((el, val) => {
+      const nativeInputValueSetter = Object.getOwnPropertyDescriptor(
+        window.HTMLInputElement.prototype, 'value'
+      )?.set;
+      if (nativeInputValueSetter) {
+        nativeInputValueSetter.call(el, val);
+      } else {
+        (el as HTMLInputElement).value = val;
+      }
+      el.dispatchEvent(new Event('input', { bubbles: true }));
+      el.dispatchEvent(new Event('change', { bubbles: true }));
+    }, dateValue);
     await page.waitForTimeout(200);
   }
 
@@ -651,7 +685,10 @@ export async function editSuspension(page: Page, opts: EditSuspensionOptions): P
   console.log(`[editSuspension] Found ${visibleInputs.length} visible date inputs in dialog`);
 
   if (opts.startDate !== undefined && visibleInputs.length >= 1) {
+    const beforeVal = await visibleInputs[0].inputValue().catch(() => '');
     await fillSuspensionDateInput(page, visibleInputs[0], opts.startDate);
+    const afterVal = await visibleInputs[0].inputValue().catch(() => '');
+    console.log(`[editSuspension] Start date: "${beforeVal}" → "${afterVal}" (target: ${opts.startDate})`);
   }
 
   if (opts.endDate !== undefined && visibleInputs.length >= 2) {
@@ -668,7 +705,10 @@ export async function editSuspension(page: Page, opts: EditSuspensionOptions): P
       });
       await endInput.press('Tab');
     } else {
+      const beforeVal = await visibleInputs[1].inputValue().catch(() => '');
       await fillSuspensionDateInput(page, visibleInputs[1], opts.endDate);
+      const afterVal = await visibleInputs[1].inputValue().catch(() => '');
+      console.log(`[editSuspension] End date: "${beforeVal}" → "${afterVal}" (target: ${opts.endDate})`);
     }
   }
 
