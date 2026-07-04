@@ -381,8 +381,9 @@ export async function addSuspension(
     await fillSuspensionDateInput(page, visibleDateInputs[1], opts.endDate);
   }
 
-  // Fill Reason — this is a required dropdown field
-  if (opts.reason) {
+  // Fill Reason — this is a REQUIRED dropdown field, always fill it
+  {
+    const reasonValue = opts.reason || 'Hospital Admission'; // default if not specified
     let reasonFilled = false;
 
     // Strategy 1: Click on the mat-select trigger by finding the Reason form field
@@ -399,7 +400,7 @@ export async function addSuspension(
       await page.waitForTimeout(1000);
 
       // Look for options in the overlay
-      const option = page.locator('mat-option').filter({ hasText: new RegExp(opts.reason, 'i') }).first();
+      const option = page.locator('mat-option').filter({ hasText: new RegExp(reasonValue, 'i') }).first();
       if (await option.isVisible({ timeout: 5_000 }).catch(() => false)) {
         await option.click();
         reasonFilled = true;

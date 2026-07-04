@@ -332,15 +332,15 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
+      suspensionStartDate: '06/15/2026',
       suspensionEndDate: undefined,  // No end date — open-ended
     },
     mmisBefore: [
       { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '06/14/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '06/15/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S500', type: 'C', status: 'A', startReason: '2I', stopReason: '2I', description: 'Close Span-A before suspension' },
@@ -974,19 +974,19 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
-      suspensionEndDate: '09/14/2026',
+      suspensionStartDate: '07/01/2026',
+      suspensionEndDate: '07/15/2026',
       agencyChange: { oldAgency: 'ICA-001', newAgency: 'ICA-002', effectiveDate: '10/01/2026' },
     },
     mmisBefore: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '12/31/2299', agency: 'ICA-001' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299', agency: 'ICA-001' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '09/30/2026', agency: 'ICA-001' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '09/30/2026', agency: 'ICA-001' },
       { label: 'Span-D', status: 'A', beginDate: '10/01/2026', endDate: '12/31/2299', agency: 'ICA-002' },
     ],
     transactions: [

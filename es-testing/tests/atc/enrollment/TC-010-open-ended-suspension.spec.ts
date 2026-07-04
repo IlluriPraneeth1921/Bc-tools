@@ -60,6 +60,7 @@ test.describe.serial('TC-010: Open-Ended Suspension (No End Date)', () => {
 
     const result = await addSuspension(page, {
       startDate: SUSPENSION_START,
+      reason: 'Hospital Admission',
       // No endDate — open-ended
     });
     expect(result).toBe(true);
