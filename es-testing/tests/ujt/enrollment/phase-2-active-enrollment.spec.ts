@@ -75,7 +75,7 @@ test.describe('UJT Phase 2: Active Enrollment Scenarios', () => {
     await addSuspension(page, {
       startDate: dates.suspensionStart,
       endDate: dates.suspensionEnd,
-      reason: 'Participant Requested',
+      reason: 'Hospital Admission',
     });
 
     await page.waitForTimeout(10_000);

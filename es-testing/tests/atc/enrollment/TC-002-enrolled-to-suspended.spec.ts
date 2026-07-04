@@ -62,7 +62,7 @@ test.describe.serial('TC-002: Enrolled → Suspended (Bounded)', () => {
     const result = await addSuspension(page, {
       startDate: SUSPENSION_START,
       endDate: SUSPENSION_END,
-      reason: 'Participant Requested',
+      reason: 'Hospital Admission',
     });
     expect(result).toBe(true);
     console.log(`[TC-002] Suspension added: ${SUSPENSION_START} → ${SUSPENSION_END}`);

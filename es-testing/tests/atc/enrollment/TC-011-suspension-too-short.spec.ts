@@ -57,7 +57,7 @@ test.describe.serial('TC-011: Suspension < 3 Days (Error)', () => {
     await addSuspension(page, {
       startDate: SUSPENSION_START,
       endDate: SUSPENSION_END, // 1 day — should be rejected
-      reason: 'Participant Requested',
+      reason: 'Hospital Admission',
     });
     console.log('[TC-011] Attempted short suspension — expecting validation error');
   });

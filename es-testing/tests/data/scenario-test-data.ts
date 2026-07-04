@@ -249,16 +249,16 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     transactionCount: 1,
     expectedResponse: 'SU',
     bcInput: {
-      enrollmentStartDate: '07/15/2026',
+      enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '09/30/2026',
       newEnrollmentEndDate: '08/31/2026',
       statusChange: 'Enrolled',
     },
     mmisBefore: [
-      { label: 'Span-B', status: 'A', beginDate: '07/15/2026', endDate: '09/30/2026' },
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '09/30/2026' },
     ],
     mmisAfter: [
-      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '05/31/2026' },
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '08/31/2026' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S350', type: 'O', status: 'A', startReason: '2L', description: 'Extend end date (reopen enrollment)' },

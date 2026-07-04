@@ -344,52 +344,192 @@ export async function addSuspension(
   page: Page,
   opts: { startDate: string; endDate?: string; reason?: string }
 ): Promise<boolean> {
+  // Click the "+ Add Suspension" button to open the dialog
   const addSuspBtn = page.getByText(/Add Suspension|New Suspension|\+ Suspension/i).first();
   if (!(await addSuspBtn.isVisible({ timeout: 10_000 }).catch(() => false))) {
     console.warn('[addSuspension] Suspension button not found');
     return false;
   }
+  await addSuspBtn.scrollIntoViewIfNeeded();
   await addSuspBtn.click();
 
-  // Wait for the suspension form/inputs to appear
-  const startInput = page.locator('input[id*="suspensionStart"], input[id*="startDate"]').first();
-  await startInput.waitFor({ state: 'visible', timeout: 5_000 });
+  // Wait for the "Add Suspension" dialog to appear
+  const dialog = page.locator('mat-dialog-container');
+  await dialog.waitFor({ state: 'visible', timeout: 10_000 });
 
-  await startInput.click({ force: true });
-  await startInput.fill('', { force: true });
-  await startInput.pressSequentially(opts.startDate, { delay: 50 });
-  await startInput.press('Tab');
+  // Fill Start Date — the dialog has "Date Range" with "Start Date" and "End Date"
+  // Angular Material datepicker renders hidden native inputs (type="date", tabindex="-1")
+  // The visible interactive inputs are type="text" or have no type attribute
+  const dateInputs = dialog.locator('input[matinput]:not([type="date"]):not([tabindex="-1"])');
+  // Fallback: if the above finds nothing, try inputs that are actually visible
+  let startInput = dateInputs.first();
+  if (!(await startInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    // Try broader selector: any visible input that isn't a hidden native date
+    startInput = dialog.locator('input:visible').first();
+    await startInput.waitFor({ state: 'visible', timeout: 5_000 });
+  }
+  await fillSuspensionDateInput(page, startInput, opts.startDate);
 
+  // Fill End Date (second visible date input in the dialog)
   if (opts.endDate) {
-    const endInput = page.locator('input[id*="suspensionEnd"], input[id*="endDate"]').first();
+    let endInput = dateInputs.nth(1);
+    if (!(await endInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
+      endInput = dialog.locator('input:visible').nth(1);
+    }
     if (await endInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await endInput.click({ force: true });
-      await endInput.fill('', { force: true });
-      await endInput.pressSequentially(opts.endDate, { delay: 50 });
-      await endInput.press('Tab');
+      await fillSuspensionDateInput(page, endInput, opts.endDate);
     }
   }
 
+  // Fill Reason — this is a required dropdown field
   if (opts.reason) {
-    const reasonInput = page.locator('input[aria-label*="Reason"], input[id*="reason"]').first();
-    if (await reasonInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await reasonInput.click({ force: true });
-      await reasonInput.fill(opts.reason, { force: true });
-      const reasonOpt = page.locator('mat-option').first();
-      if (await reasonOpt.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await reasonOpt.click();
-        await waitForOverlayClose(page);
+    let reasonFilled = false;
+
+    // Strategy 1: Click on the mat-select trigger by finding the Reason form field
+    const reasonFormField = dialog.locator('mat-form-field').filter({ hasText: /Reason/i }).first();
+    if (await reasonFormField.isVisible({ timeout: 5_000 }).catch(() => false)) {
+      // Click on the mat-select or the trigger inside the form field
+      const trigger = reasonFormField.locator('mat-select, .mat-mdc-select-trigger, [role="combobox"]').first();
+      if (await trigger.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await trigger.click();
+      } else {
+        // Just click the form field itself
+        await reasonFormField.click();
+      }
+      await page.waitForTimeout(1000);
+
+      // Look for options in the overlay
+      const option = page.locator('mat-option').filter({ hasText: new RegExp(opts.reason, 'i') }).first();
+      if (await option.isVisible({ timeout: 5_000 }).catch(() => false)) {
+        await option.click();
+        reasonFilled = true;
+      } else {
+        // Take first available option
+        const firstOption = page.locator('mat-option').first();
+        if (await firstOption.isVisible({ timeout: 3_000 }).catch(() => false)) {
+          await firstOption.click();
+          reasonFilled = true;
+        }
+      }
+      await page.waitForTimeout(500);
+    }
+
+    // Strategy 2: Direct mat-select click
+    if (!reasonFilled) {
+      const reasonSelect = dialog.locator('mat-select').first();
+      if (await reasonSelect.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await reasonSelect.click();
+        await page.waitForTimeout(1000);
+        const firstOption = page.locator('mat-option').first();
+        if (await firstOption.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          await firstOption.click();
+          reasonFilled = true;
+        }
+        await page.waitForTimeout(500);
       }
     }
+
+    // Strategy 3: Try using the select role
+    if (!reasonFilled) {
+      const combobox = dialog.locator('[role="combobox"]').first();
+      if (await combobox.isVisible({ timeout: 3_000 }).catch(() => false)) {
+        await combobox.click();
+        await page.waitForTimeout(1000);
+        const firstOption = page.locator('[role="option"]').first();
+        if (await firstOption.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          await firstOption.click();
+          reasonFilled = true;
+        }
+      }
+    }
+
+    if (!reasonFilled) {
+      console.warn('[addSuspension] Could not fill Reason field — all strategies failed');
+    }
   }
 
-  // Save
-  const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-  if (await saveBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    await saveBtn.click({ force: true });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  // Click Save in the dialog
+  // Try multiple strategies to find the Save button
+  let saveBtn = dialog.locator('button').filter({ hasText: /^Save$/ }).first();
+  if (!(await saveBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    // Broader: any button containing "Save" text
+    saveBtn = dialog.locator('button:has-text("Save")').first();
   }
+  if (!(await saveBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    // Try role-based
+    saveBtn = dialog.getByRole('button', { name: 'Save' }).first();
+  }
+  if (!(await saveBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    // Log what buttons ARE visible in the dialog for debugging
+    const allButtons = dialog.locator('button');
+    const btnCount = await allButtons.count();
+    console.warn(`[addSuspension] Save not found. Dialog has ${btnCount} buttons:`);
+    for (let i = 0; i < btnCount; i++) {
+      const text = await allButtons.nth(i).textContent().catch(() => '?');
+      const visible = await allButtons.nth(i).isVisible().catch(() => false);
+      console.warn(`  button[${i}]: text="${text?.trim()}", visible=${visible}`);
+    }
+    return false;
+  }
+  await saveBtn.scrollIntoViewIfNeeded();
+  await saveBtn.click({ force: true });
+
+  // Wait for dialog to close (success) or check for validation errors
+  await dialog.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+
+  const dialogStillOpen = await dialog.isVisible({ timeout: 2_000 }).catch(() => false);
+  if (dialogStillOpen) {
+    const errors = await dialog.locator('mat-error').all();
+    for (const e of errors) {
+      console.error(`[addSuspension] Validation error: ${(await e.textContent())?.trim()}`);
+    }
+    console.error('[addSuspension] Dialog did not close — suspension not saved');
+    return false;
+  }
+
+  // Verify the suspension was actually created
+  await page.waitForTimeout(2000);
+  const noRecords = page.locator('text=No Suspension record').first();
+  if (await noRecords.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    console.error('[addSuspension] Suspension was NOT created — "No Suspension record(s) available" still visible');
+    return false;
+  }
+
   return true;
+}
+
+/**
+ * Fills a date input in the suspension dialog, handling Angular Material date masks.
+ */
+async function fillSuspensionDateInput(page: Page, input: import('@playwright/test').Locator, dateValue: string): Promise<void> {
+  // Focus and clear any existing content
+  await input.click({ clickCount: 3, force: true });
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Delete');
+  await page.waitForTimeout(200);
+
+  // Type digits only — Angular Material date mask auto-inserts slashes
+  const digitsOnly = dateValue.replace(/\//g, '');
+  await input.pressSequentially(digitsOnly, { delay: 60 });
+  await page.waitForTimeout(200);
+
+  // If the mask didn't format it correctly, fall back to filling the full value directly
+  const currentValue = await input.inputValue();
+  if (!currentValue.includes('/') || currentValue.length < 10) {
+    await input.click({ clickCount: 3, force: true });
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Delete');
+    await page.waitForTimeout(200);
+    await input.pressSequentially(dateValue, { delay: 60 });
+    await page.waitForTimeout(200);
+  }
+
+  await input.evaluate(el => {
+    el.dispatchEvent(new Event('input', { bubbles: true }));
+    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('blur', { bubbles: true }));
+  });
+  await input.press('Tab');
 }
 
 export async function deleteSuspension(page: Page): Promise<boolean> {

@@ -76,7 +76,7 @@ test.describe.serial('TC-018: New SDPC Suspension', () => {
     const result = await addSuspension(page, {
       startDate: SUSPENSION_START,
       endDate: SUSPENSION_END,
-      reason: 'Participant Requested',
+      reason: 'Hospital Admission',
     });
     expect(result, 'Failed to add suspension').toBe(true);
     console.log('[TC-018] SDPC suspension added');
