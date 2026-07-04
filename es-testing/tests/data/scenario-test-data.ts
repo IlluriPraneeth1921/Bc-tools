@@ -251,7 +251,7 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '07/15/2026',
       enrollmentEndDate: '09/30/2026',
-      newEnrollmentEndDate: '05/31/2026',
+      newEnrollmentEndDate: '08/31/2026',
       statusChange: 'Enrolled',
     },
     mmisBefore: [
