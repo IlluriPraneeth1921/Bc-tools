@@ -311,7 +311,7 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     },
     mmisBefore: [], // Disenrolled — no MMIS span
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '10/01/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S300', type: 'O', status: 'A', startReason: '2L', description: 'Create new enrollment span (reinstatement)' },
