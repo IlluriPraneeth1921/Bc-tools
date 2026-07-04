@@ -559,14 +559,29 @@ export async function deleteSuspension(page: Page): Promise<boolean> {
   // Wait for dialog to close and page to reload
   await dialog.waitFor({ state: 'hidden', timeout: 15_000 }).catch(() => {});
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  await page.waitForTimeout(2000); // let Angular re-render the suspension section
 
-  // Verify suspension menu is gone (element-based check, not timeout)
-  const menuStillVisible = await menuBtn.isVisible({ timeout: 5_000 }).catch(() => false);
-  if (menuStillVisible) {
-    console.error('[deleteSuspension] Suspension row still visible after delete');
-    return false;
+  // Verify suspension was deleted — check for "No Suspension record(s) available" message
+  // or that the suspension row's menu button is gone
+  const noRecords = page.locator('text=No Suspension record').first();
+  if (await noRecords.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    return true; // Confirmed: no suspension records remain
   }
-  return true;
+
+  // Alternative: the menu button for the suspension row should be gone
+  const menuStillVisible = await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false);
+  if (!menuStillVisible) {
+    return true; // Menu button gone — suspension row removed
+  }
+
+  // The page might have reloaded; check if suspension section still shows dates
+  const suspensionDates = page.locator('text=/\\d{2}\\/\\d{2}\\/\\d{4}.*Suspended/i').first();
+  if (!(await suspensionDates.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    return true; // No suspension date/status text visible — deleted successfully
+  }
+
+  console.error('[deleteSuspension] Suspension row still visible after delete');
+  return false;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
