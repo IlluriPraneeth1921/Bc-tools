@@ -135,31 +135,31 @@ Tests are arranged below so each test's output state feeds the next test's requi
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 17   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 18   | TC-022 | Suspension Begin → Later      | Suspended (bounded, 3 spans) | Suspended (modified)         | 3    | SU       | —         |
+| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation  |
+| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ----------- |
+| 17   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working  |
+| 18   | TC-022 | Suspension Begin → Later      | Suspended (bounded, 3 spans) | Suspended (modified)         | 3    | SU       | ✅ Working  |
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 19   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 20   | TC-023 | Suspension End → Earlier      | Suspended (bounded, 3 spans) | Suspended (modified)         | 4    | SU       | —         |
+| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation  |
+| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ----------- |
+| 19   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working  |
+| 20   | TC-023 | Suspension End → Earlier      | Suspended (bounded, 3 spans) | Suspended (modified)         | 4    | SU       | ✅ Working  |
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 21   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 22   | TC-024 | Suspension End → Later        | Suspended (bounded, 3 spans) | Suspended (modified)         | 3    | SU       | —         |
+| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation  |
+| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ----------- |
+| 21   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working  |
+| 22   | TC-024 | Suspension End → Later        | Suspended (bounded, 3 spans) | Suspended (modified)         | 3    | SU       | ✅ Working  |
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 23   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 24   | TC-025 | Suspension End: Valid → Null  | Suspended (bounded, 3 spans) | Suspended (open-ended)       | 2    | SU       | —         |
+| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation  |
+| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ----------- |
+| 23   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working  |
+| 24   | TC-025 | Suspension End: Valid → Null  | Suspended (bounded, 3 spans) | Suspended (open-ended)       | 2    | SU       | ✅ Working  |
 
 **[RESET via TC-008 + TC-001]**
 

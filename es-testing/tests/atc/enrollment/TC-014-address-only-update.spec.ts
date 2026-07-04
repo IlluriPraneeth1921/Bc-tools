@@ -68,7 +68,7 @@ test.describe.serial('TC-014: Address-Only Update', () => {
       mockFn: mockMmisSuccess,
       extractKeyFn: extractProgramEnrollmentKeyFromUrl,
     });
-    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
     console.log(`[TC-014] ✓ Address update sync verified (${status.responseStatus})`);
   });

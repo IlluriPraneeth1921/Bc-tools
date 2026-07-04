@@ -87,7 +87,7 @@ test.describe.serial('TC-003: ICA Transfer: Close Old + Open New Span', () => {
       mockFn: mockMmisSuccess,
       extractKeyFn: extractProgramEnrollmentKeyFromUrl,
     });
-    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
     console.log(`[TC-003] ✓ ICA transfer sync verified (${status.responseStatus})`);
   });

@@ -728,19 +728,19 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
-      suspensionEndDate: '09/14/2026',
-      newSuspensionEndDate: '08/30/2026',
+      suspensionStartDate: '07/01/2026',
+      suspensionEndDate: '07/15/2026',
+      newSuspensionEndDate: '07/13/2026',
     },
     mmisBefore: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '08/29/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '08/30/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/12/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/13/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S440', type: 'C', status: 'S', startReason: '2Q', stopReason: '2W', description: 'Shorten Span-B end date' },
@@ -764,19 +764,19 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
-      suspensionEndDate: '09/14/2026',
-      newSuspensionEndDate: '10/15/2026',
+      suspensionStartDate: '07/01/2026',
+      suspensionEndDate: '07/15/2026',
+      newSuspensionEndDate: '07/20/2026',
     },
     mmisBefore: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '10/14/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '10/15/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/19/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/20/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S310', type: 'O', status: 'I', startReason: '2L', stopReason: '2W', description: 'Delete existing Span-C' },
@@ -799,18 +799,18 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
-      suspensionEndDate: '09/14/2026',
+      suspensionStartDate: '07/01/2026',
+      suspensionEndDate: '07/15/2026',
       newSuspensionEndDate: null, // Set to null — indefinite
     },
     mmisBefore: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S310', type: 'O', status: 'I', startReason: '2L', stopReason: '2W', description: 'Delete existing Span-C' },

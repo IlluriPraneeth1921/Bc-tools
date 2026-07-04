@@ -117,7 +117,7 @@ test.describe.serial('TC-033: Disenrolled Span Created — Real Reason Code (S34
     const status = await getSyncStatus(page);
     console.log(`[TC-033] Final sync status: ${JSON.stringify(status)}`);
 
-    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
   });
 

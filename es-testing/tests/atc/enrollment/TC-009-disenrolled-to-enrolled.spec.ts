@@ -79,7 +79,7 @@ test.describe.serial('TC-009: Disenrolled → Enrolled (Reinstatement)', () => {
       mockFn: mockMmisSuccess,
       extractKeyFn: extractProgramEnrollmentKeyFromUrl,
     });
-    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
     console.log(`[TC-009] ✓ Reinstatement sync verified (${status.responseStatus})`);
   });

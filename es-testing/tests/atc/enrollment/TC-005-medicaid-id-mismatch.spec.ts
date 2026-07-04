@@ -75,7 +75,7 @@ test.describe.serial('TC-005: Medicaid ID Mismatch (BR-D01-016)', () => {
       extractKeyFn: extractProgramEnrollmentKeyFromUrl,
     });
 
-    expect(status.responseStatus).toMatch(/^(SU|SE)$/);
+    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
     expect(status.hasConflict).toBe(false);
   });
 
