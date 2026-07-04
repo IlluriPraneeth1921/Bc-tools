@@ -114,7 +114,7 @@ Tests are arranged below so each test's output state feeds the next test's requi
 | 6    | TC-020 | Begin Date → Later (Delete+Recreate)   | Enrolled (active, SU synced)        | Enrolled (later begin)       | 2    | SU       | ✅ Working                    |
 | 7    | TC-006 | End Date → Earlier (Disenrollment)     | Enrolled (active, SU synced)        | Disenrolled (end-dated)      | 1    | SU       | ✅ Working                    |
 | 8    | TC-033 | Disenrolled Span — Real Reason Code    | Disenrolled (placeholder 2W codes)  | Disenrolled (real reason)    | 1    | SU       | — Need to figure out testing |
-| 9    | TC-032 | Address Update — No Current Span       | Disenrolled (no active span)        | Disenrolled (unchanged)      | 0    | No Txn   | —                            |
+| 9    | TC-032 | Address Update — No Current Span       | Disenrolled (no active span)        | Disenrolled (unchanged)      | 0    | No Txn   | ✅ Working                    |
 | 10   | TC-007 | End Date → Later (Extension)           | Disenrolled (end-dated)             | Enrolled (re-opened)         | 1    | SU       | —                            |
 | 11   | TC-002 | Enrolled → Suspended (with end date)   | Enrolled (active, SU synced)        | Suspended (bounded, 3 spans) | 3    | SU       | —                            |
 | 12   | TC-012 | Suspension Deleted                      | Suspended (bounded, 3 spans synced) | Enrolled (spans merged)      | 2    | SU       | —                            |

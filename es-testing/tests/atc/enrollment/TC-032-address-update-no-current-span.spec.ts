@@ -20,12 +20,10 @@ import {
   getSyncStatus,
   getMMISErrors,
 } from './actions/enrollment.actions';
+import { updateStreetAddress } from './actions/profile.actions';
 import { getCurrentIrisState } from '../../helpers/state-checker';
-import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Test Data ────────────────────────────────────────────────────────────────
-
-const DATA = SCENARIOS.TC_032;
 
 let browser: Browser;
 let page: Page;
@@ -59,82 +57,9 @@ test.describe.serial('TC-032: Address Update: No Current Span (S700 Cond 2)', ()
   });
 
   test('ATC-ES-136 - Update address on disenrolled participant', async () => {
-    // Address updates are done on Person → Profile → Addresses section
-    const BASE = process.env.BASE_URL || 'https://widhs-f2-carity.lower-widhs.aws.feisystems.com';
-    const profileUrl = `${BASE}/#/persons/person/${participantUuid}/record/profile`;
-
-    await page.goto(profileUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
-    // Wait for the address content to fully render
-    const addressText = page.locator('text=Brooklyn').first();
-    await expect(addressText).toBeVisible({ timeout: 30_000 });
-    await addressText.scrollIntoViewIfNeeded();
-
-    // Hover over the address card to reveal the pencil icon
-    const addressCard = addressText.locator('xpath=ancestor::*[contains(@class,"address") or contains(@class,"card") or contains(@class,"panel") or contains(@class,"section")][1]');
-    if (await addressCard.count() > 0) {
-      await addressCard.first().hover();
-    } else {
-      await addressText.hover();
-    }
-
-    // Click the edit icon near the address
-    const addressEditBtn = page.locator('button[aria-label*="Edit Address"], button[aria-label*="edit address"]').first();
-    let editClicked = false;
-
-    if (await addressEditBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await addressEditBtn.scrollIntoViewIfNeeded();
-      await addressEditBtn.evaluate((el: HTMLElement) => el.click());
-      editClicked = true;
-    } else {
-      const addressSection = page.locator('text=Addresses').first().locator('xpath=ancestor::*[3]');
-      const sectionEditBtn = addressSection.locator('button:has(mat-icon:text("edit"))').first();
-      if (await sectionEditBtn.isVisible({ timeout: 3_000 }).catch(() => false)) {
-        await sectionEditBtn.scrollIntoViewIfNeeded();
-        await sectionEditBtn.evaluate((el: HTMLElement) => el.click());
-        editClicked = true;
-      } else {
-        const allEditBtns = page.locator('button:has(mat-icon:text("edit"))');
-        const count = await allEditBtns.count();
-        for (let i = 0; i < count; i++) {
-          const ariaLabel = await allEditBtns.nth(i).getAttribute('aria-label').catch(() => '');
-          if (ariaLabel && !ariaLabel.includes('Name')) {
-            await allEditBtns.nth(i).scrollIntoViewIfNeeded();
-            await allEditBtns.nth(i).evaluate((el: HTMLElement) => el.click());
-            editClicked = true;
-            break;
-          }
-        }
-      }
-    }
-
-    expect(editClicked, 'Could not find or click the address edit button').toBe(true);
-
-    // The "Edit Address" form should now be open
-    const streetInput = page.getByLabel(/Street Address 1/i).first();
-    await expect(streetInput).toBeVisible({ timeout: 10_000 });
-
-    // Toggle the address value
-    const currentValue = await streetInput.inputValue();
-    const newValue = currentValue.startsWith('66') ? currentValue.replace('66', '67') : currentValue.replace('67', '66');
-
-    await streetInput.click();
-    await streetInput.selectText();
-    await streetInput.pressSequentially(newValue, { delay: 50 });
-    await streetInput.press('Tab');
-
-    const updatedValue = await streetInput.inputValue();
-    expect(updatedValue).toBe(newValue);
-    console.log(`[TC-032] Street address changed: "${currentValue}" → "${newValue}"`);
-
-    // Click Save
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-    await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-    await saveBtn.click();
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
-    console.log('[TC-032] Address updated on disenrolled participant — no S700 expected');
+    const newAddress = await updateStreetAddress(page, participantUuid);
+    expect(newAddress, 'Could not find or click the address edit button').not.toBeNull();
+    console.log(`[TC-032] Address updated to: "${newAddress}" — no S700 expected (disenrolled)`);
   });
 
   test('ATC-ES-137 - Verify no new MMIS transaction generated', async () => {
