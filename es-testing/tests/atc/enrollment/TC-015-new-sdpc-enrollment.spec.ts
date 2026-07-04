@@ -140,6 +140,9 @@ test.describe.serial('TC-015: New SDPC Enrollment', () => {
 
     const txnListVisible = await page.getByText('MMIS Transaction List').first().isVisible({ timeout: 15_000 }).catch(() => false);
     if (txnListVisible) {
+      // Refresh page to load latest transaction data
+      await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
+      await page.waitForTimeout(2000);
       const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
     const count = await transactionRows.count();
     console.log(`[TC-015] MMIS transaction rows found: ${count}`);

@@ -120,8 +120,8 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     ],
     mmisAfter: [
       { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/15/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '07/16/2026', endDate: '12/31/2299' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S500', type: 'C', status: 'A', startReason: '2I', stopReason: '2I', description: 'Close Span-A before suspension' },
@@ -695,7 +695,7 @@ export const SCENARIOS: Record<string, ScenarioData> = {
       enrollmentEndDate: '12/31/2299',
       suspensionStartDate: '07/01/2026',
       suspensionEndDate: '07/16/2026',
-      newSuspensionStartDate: '07/01/2026',
+      newSuspensionStartDate: '07/02/2026',
     },
     mmisBefore: [
       { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
@@ -703,9 +703,9 @@ export const SCENARIOS: Record<string, ScenarioData> = {
       { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/15/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '07/16/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/02/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/03/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S410', type: 'O', status: 'I', startReason: '2L', stopReason: '2W', description: 'Delete existing Span-B' },
