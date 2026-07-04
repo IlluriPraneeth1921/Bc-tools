@@ -17,6 +17,7 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
   openEnrollmentByText,
+  editSuspension,
   verifyMmisSync,
   getSyncStatus,
 } from './actions/enrollment.actions';
@@ -70,33 +71,8 @@ test.describe.serial('TC-025: Suspension End: Valid → Null (S230_007)', () => 
       return;
     }
 
-    const suspensionRow = page.locator('mat-row, tr').filter({ hasText: /Suspend|suspension/i }).first();
-    await suspensionRow.waitFor({ state: 'visible', timeout: 10_000 });
-    await suspensionRow.click();
-
-    const pencil = suspensionRow.locator('button:has(mat-icon:text("edit"))').first();
-    if (await pencil.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await pencil.click();
-    } else {
-      await suspensionRow.dblclick();
-    }
-
-    const endDateInput = page.locator('input[id*="suspensionEnd"], input[id*="endDate"], input[aria-label*="End Date"]').first();
-    await endDateInput.waitFor({ state: 'visible', timeout: 10_000 });
-    await endDateInput.click({ force: true });
-    await endDateInput.fill('', { force: true });
-    await endDateInput.evaluate((el) => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await endDateInput.press('Tab');
-
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-    await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-    await saveBtn.click({ force: true });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
+    const edited = await editSuspension(page, { endDate: null });
+    expect(edited, 'Edit suspension dialog did not close — validation errors').toBe(true);
     console.log('[TC-025] Suspension end date cleared (null) — S230_007 triggered');
   });
 

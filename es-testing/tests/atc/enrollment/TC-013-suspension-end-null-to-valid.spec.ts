@@ -17,6 +17,7 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
   openEnrollmentByText,
+  editSuspension,
   verifyMmisSync,
   getSyncStatus,
 } from './actions/enrollment.actions';
@@ -71,44 +72,9 @@ test.describe.serial('TC-013: Suspension End: Null → Valid', () => {
       return;
     }
 
-    // Wait for suspension section to render
-    const suspensionsHeading = page.locator('span:text("Suspensions")').first();
-    await suspensionsHeading.waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-
-    // Click pencil icon on suspension row to open inline edit
-    const suspensionRow = page.locator('mat-row, tr').filter({ hasText: /Suspend|suspension/i }).first();
-    await suspensionRow.waitFor({ state: 'visible', timeout: 10_000 });
-    await suspensionRow.click();
-
-    // Look for inline edit pencil on suspension or dblclick to open edit mode
-    const pencil = suspensionRow.locator('button:has(mat-icon:text("edit"))').first();
-    if (await pencil.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await pencil.click();
-    } else {
-      await suspensionRow.dblclick();
-    }
-
-    // Wait for the end date input to become editable
-    const endDateInput = page.locator('input[id*="suspensionEnd"], input[id*="endDate"], input[aria-label*="End Date"]').first();
-    await endDateInput.waitFor({ state: 'visible', timeout: 10_000 });
-
-    await endDateInput.click({ force: true });
-    await endDateInput.fill('', { force: true });
-    await endDateInput.pressSequentially(NEW_SUSPENSION_END, { delay: 50 });
-    await endDateInput.evaluate((el) => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await endDateInput.press('Tab');
-
-    // Save changes
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-    await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-    await saveBtn.click({ force: true });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
-    console.log('[TC-013] Suspension end date updated from null to valid date');
+    const edited = await editSuspension(page, { endDate: NEW_SUSPENSION_END });
+    expect(edited, 'Edit suspension dialog did not close — validation errors').toBe(true);
+    console.log(`[TC-013] Suspension end date updated to: ${NEW_SUSPENSION_END}`);
   });
 
   test('ATC-ES-059 - Verify 2 MMIS transactions (S440 + S520)', async () => {

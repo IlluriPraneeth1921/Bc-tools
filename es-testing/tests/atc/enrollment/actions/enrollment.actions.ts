@@ -585,6 +585,115 @@ export async function deleteSuspension(page: Page): Promise<boolean> {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
+// EDIT SUSPENSION
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface EditSuspensionOptions {
+  /** New start date (MM/DD/YYYY). Omit to leave unchanged. */
+  startDate?: string;
+  /** New end date (MM/DD/YYYY). Omit to leave unchanged. Use empty string to clear. */
+  endDate?: string | null;
+}
+
+/**
+ * Edits an existing suspension via the 3-dots menu → Edit → dialog.
+ *
+ * The UI pattern (same as deleteSuspension):
+ *   1. Scroll to Suspensions section
+ *   2. Click the ⋮ (3-dots) menu button on the suspension row
+ *   3. Click "Edit" from the dropdown menu
+ *   4. Edit dialog opens (same structure as Add Suspension)
+ *   5. Modify start date and/or end date
+ *   6. Click Save and verify dialog closes
+ *
+ * Returns true if the edit dialog closed successfully (no validation errors).
+ */
+export async function editSuspension(page: Page, opts: EditSuspensionOptions): Promise<boolean> {
+  // 1. Scroll to Suspensions section
+  const suspensionsHeading = page.locator('span:text("Suspensions")').first();
+  await expect(suspensionsHeading).toBeVisible({ timeout: 15_000 });
+  await suspensionsHeading.scrollIntoViewIfNeeded();
+
+  // 2. Click the 3-dots menu button (same selector as deleteSuspension)
+  const menuBtn = page.locator('button.ellipse-action-menu[aria-label="Expand menu"]').first();
+  await menuBtn.waitFor({ state: 'visible', timeout: 10_000 });
+  await menuBtn.scrollIntoViewIfNeeded();
+  await menuBtn.click();
+
+  // 3. Click "Edit" from the context menu
+  const editMenuItem = page.locator('.mat-mdc-menu-content button[mat-menu-item]')
+    .filter({ hasText: 'Edit' });
+  await expect(editMenuItem).toBeVisible({ timeout: 5_000 });
+  await editMenuItem.click();
+
+  // 4. Wait for the Edit Suspension dialog to appear
+  const dialog = page.locator('mat-dialog-container');
+  await dialog.waitFor({ state: 'visible', timeout: 10_000 });
+
+  // 5. Modify dates — same structure as Add Suspension dialog
+  const dateInputs = dialog.locator('input[matinput]:not([type="date"]):not([tabindex="-1"])');
+
+  if (opts.startDate !== undefined) {
+    let startInput = dateInputs.first();
+    if (!(await startInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
+      startInput = dialog.locator('input:visible').first();
+    }
+    await fillSuspensionDateInput(page, startInput, opts.startDate);
+  }
+
+  if (opts.endDate !== undefined) {
+    let endInput = dateInputs.nth(1);
+    if (!(await endInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
+      endInput = dialog.locator('input:visible').nth(1);
+    }
+    if (await endInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
+      if (opts.endDate === null || opts.endDate === '') {
+        // Clear the end date
+        await endInput.click({ clickCount: 3, force: true });
+        await page.keyboard.press('Control+a');
+        await page.keyboard.press('Delete');
+        await endInput.evaluate(el => {
+          el.dispatchEvent(new Event('input', { bubbles: true }));
+          el.dispatchEvent(new Event('change', { bubbles: true }));
+          el.dispatchEvent(new Event('blur', { bubbles: true }));
+        });
+        await endInput.press('Tab');
+      } else {
+        await fillSuspensionDateInput(page, endInput, opts.endDate);
+      }
+    }
+  }
+
+  // 6. Click Save and verify dialog closes
+  let saveBtn = dialog.locator('button').filter({ hasText: /^Save$/ }).first();
+  if (!(await saveBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    saveBtn = dialog.locator('button:has-text("Save")').first();
+  }
+  if (!(await saveBtn.isVisible({ timeout: 3_000 }).catch(() => false))) {
+    console.error('[editSuspension] Save button not found in dialog');
+    return false;
+  }
+  await saveBtn.scrollIntoViewIfNeeded();
+  await saveBtn.click({ force: true });
+
+  // Wait for dialog to close
+  await dialog.waitFor({ state: 'hidden', timeout: 30_000 }).catch(() => {});
+
+  const dialogStillOpen = await dialog.isVisible({ timeout: 2_000 }).catch(() => false);
+  if (dialogStillOpen) {
+    const errors = await dialog.locator('mat-error').all();
+    for (const e of errors) {
+      console.error(`[editSuspension] Validation error: ${(await e.textContent())?.trim()}`);
+    }
+    console.error('[editSuspension] Dialog did not close — edit not saved');
+    return false;
+  }
+
+  await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
+  return true;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
 // ICA / FEA TRANSFER ACTIONS
 // ═══════════════════════════════════════════════════════════════════════════════
 

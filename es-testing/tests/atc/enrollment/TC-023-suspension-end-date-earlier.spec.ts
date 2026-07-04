@@ -17,6 +17,7 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
   openEnrollmentByText,
+  editSuspension,
   verifyMmisSync,
   getSyncStatus,
 } from './actions/enrollment.actions';
@@ -71,35 +72,9 @@ test.describe.serial('TC-023: Suspension End → Earlier (S230_003)', () => {
       return;
     }
 
-    const suspensionRow = page.locator('mat-row, tr').filter({ hasText: /Suspend|suspension/i }).first();
-    await suspensionRow.waitFor({ state: 'visible', timeout: 10_000 });
-    await suspensionRow.click();
-
-    const pencil = suspensionRow.locator('button:has(mat-icon:text("edit"))').first();
-    if (await pencil.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await pencil.click();
-    } else {
-      await suspensionRow.dblclick();
-    }
-
-    const endDateInput = page.locator('input[id*="suspensionEnd"], input[id*="endDate"], input[aria-label*="End Date"]').first();
-    await endDateInput.waitFor({ state: 'visible', timeout: 10_000 });
-    await endDateInput.click({ force: true });
-    await endDateInput.fill('', { force: true });
-    await endDateInput.pressSequentially(NEW_SUSPENSION_END, { delay: 50 });
-    await endDateInput.evaluate((el) => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await endDateInput.press('Tab');
-
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-    await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-    await saveBtn.click({ force: true });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
-    console.log('[TC-023] Suspension end date changed to earlier — S230_003 triggered');
+    const edited = await editSuspension(page, { endDate: NEW_SUSPENSION_END });
+    expect(edited, 'Edit suspension dialog did not close — validation errors').toBe(true);
+    console.log(`[TC-023] Suspension end date changed to: ${NEW_SUSPENSION_END}`);
   });
 
   test('ATC-ES-099 - Verify 4 MMIS transactions (S410 + S310 + S510 + S520)', async () => {

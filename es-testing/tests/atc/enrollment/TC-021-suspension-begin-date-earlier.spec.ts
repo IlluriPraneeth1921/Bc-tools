@@ -17,6 +17,7 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
   openEnrollmentByText,
+  editSuspension,
   verifyMmisSync,
   getSyncStatus,
 } from './actions/enrollment.actions';
@@ -71,38 +72,9 @@ test.describe.serial('TC-021: Suspension Begin → Earlier (S230_001)', () => {
       return;
     }
 
-    // Wait for suspension section, then open edit mode on the suspension row
-    const suspensionRow = page.locator('mat-row, tr').filter({ hasText: /Suspend|suspension/i }).first();
-    await suspensionRow.waitFor({ state: 'visible', timeout: 10_000 });
-    await suspensionRow.click();
-
-    const pencil = suspensionRow.locator('button:has(mat-icon:text("edit"))').first();
-    if (await pencil.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await pencil.click();
-    } else {
-      await suspensionRow.dblclick();
-    }
-
-    // Fill new begin date
-    const beginDateInput = page.locator('input[id*="suspensionStart"], input[id*="startDate"], input[aria-label*="Start Date"], input[aria-label*="Begin Date"]').first();
-    await beginDateInput.waitFor({ state: 'visible', timeout: 10_000 });
-    await beginDateInput.click({ force: true });
-    await beginDateInput.fill('', { force: true });
-    await beginDateInput.pressSequentially(NEW_SUSPENSION_BEGIN, { delay: 50 });
-    await beginDateInput.evaluate((el) => {
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-      el.dispatchEvent(new Event('blur', { bubbles: true }));
-    });
-    await beginDateInput.press('Tab');
-
-    // Save
-    const saveBtn = page.getByRole('button', { name: 'Save' }).first();
-    await expect(saveBtn).toBeVisible({ timeout: 10_000 });
-    await saveBtn.click({ force: true });
-    await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
-
-    console.log('[TC-021] Suspension begin date changed to earlier — S230_001 triggered');
+    const edited = await editSuspension(page, { startDate: NEW_SUSPENSION_BEGIN });
+    expect(edited, 'Edit suspension dialog did not close — validation errors').toBe(true);
+    console.log(`[TC-021] Suspension begin date changed to: ${NEW_SUSPENSION_BEGIN}`);
   });
 
   test('ATC-ES-091 - Verify 4 MMIS transactions (S400 + S410 + S300 + S510)', async () => {

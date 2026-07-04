@@ -128,10 +128,10 @@ Tests are arranged below so each test's output state feeds the next test's requi
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 15   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 16   | TC-021 | Suspension Begin → Earlier    | Suspended (bounded, 3 spans) | Suspended (modified)         | 4    | SU       | —         |
+| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation  |
+| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ----------- |
+| 15   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working  |
+| 16   | TC-021 | Suspension Begin → Earlier    | Suspended (bounded, 3 spans) | Suspended (modified)         | 4    | SU       | ✅ Working  |
 
 **[RESET via TC-008 + TC-001]**
 
