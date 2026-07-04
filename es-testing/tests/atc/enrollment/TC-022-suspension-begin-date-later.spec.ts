@@ -57,12 +57,12 @@ test.describe.serial('TC-022: Suspension Begin → Later (S230_002)', () => {
     const state = await getFullEnrollmentState(page);
     console.log(`[TC-022] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
 
-    if (state.irisState !== 'Enrolled' || !state.hasSuspension) {
-      console.log(`[TC-022] Skipping — precondition not met (need Enrolled + suspension)`);
+    if (!['Enrolled', 'Suspended'].includes(state.irisState) || !state.hasSuspension) {
+      console.log(`[TC-022] Skipping — precondition not met (need Enrolled/Suspended + suspension)`);
       return;
     }
 
-    const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+    const opened = await openEnrollmentByText(page, /Enrolled|Suspended/, /Disenrolled/);
     expect(opened, 'Could not open Enrolled enrollment detail').toBe(true);
   });
 

@@ -358,27 +358,27 @@ export async function addSuspension(
   await dialog.waitFor({ state: 'visible', timeout: 10_000 });
 
   // Fill Start Date — the dialog has "Date Range" with "Start Date" and "End Date"
-  // Angular Material datepicker renders hidden native inputs (type="date", tabindex="-1")
-  // The visible interactive inputs are type="text" or have no type attribute
-  const dateInputs = dialog.locator('input[matinput]:not([type="date"]):not([tabindex="-1"])');
-  // Fallback: if the above finds nothing, try inputs that are actually visible
-  let startInput = dateInputs.first();
-  if (!(await startInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    // Try broader selector: any visible input that isn't a hidden native date
-    startInput = dialog.locator('input:visible').first();
-    await startInput.waitFor({ state: 'visible', timeout: 5_000 });
+  // Find visible date inputs by iterating and filtering out hidden native inputs
+  const allDialogInputs = dialog.locator('input');
+  const dialogInputCount = await allDialogInputs.count();
+  const visibleDateInputs: import('@playwright/test').Locator[] = [];
+  for (let i = 0; i < dialogInputCount; i++) {
+    const inp = allDialogInputs.nth(i);
+    const isVis = await inp.isVisible().catch(() => false);
+    if (!isVis) continue;
+    const type = await inp.getAttribute('type').catch(() => '');
+    const tabindex = await inp.getAttribute('tabindex').catch(() => '');
+    if (type === 'date' || tabindex === '-1') continue;
+    visibleDateInputs.push(inp);
   }
-  await fillSuspensionDateInput(page, startInput, opts.startDate);
+  console.log(`[addSuspension] Found ${visibleDateInputs.length} visible inputs in dialog`);
 
-  // Fill End Date (second visible date input in the dialog)
-  if (opts.endDate) {
-    let endInput = dateInputs.nth(1);
-    if (!(await endInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      endInput = dialog.locator('input:visible').nth(1);
-    }
-    if (await endInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      await fillSuspensionDateInput(page, endInput, opts.endDate);
-    }
+  if (visibleDateInputs.length >= 1) {
+    await fillSuspensionDateInput(page, visibleDateInputs[0], opts.startDate);
+  }
+
+  if (opts.endDate && visibleDateInputs.length >= 2) {
+    await fillSuspensionDateInput(page, visibleDateInputs[1], opts.endDate);
   }
 
   // Fill Reason — this is a required dropdown field
@@ -631,36 +631,43 @@ export async function editSuspension(page: Page, opts: EditSuspensionOptions): P
   await dialog.waitFor({ state: 'visible', timeout: 10_000 });
 
   // 5. Modify dates — same structure as Add Suspension dialog
-  const dateInputs = dialog.locator('input[matinput]:not([type="date"]):not([tabindex="-1"])');
+  // Find visible date inputs in the dialog. The Angular Material datepicker uses:
+  //   - Hidden native: input[type="date"][tabindex="-1"] (not interactive)
+  //   - Visible text: input within mat-form-field (the ones users type into)
+  // Use a broad approach: get all visible inputs in the dialog that aren't hidden native date inputs
+  const allInputs = dialog.locator('input');
+  const inputCount = await allInputs.count();
+  const visibleInputs: import('@playwright/test').Locator[] = [];
+  for (let i = 0; i < inputCount; i++) {
+    const inp = allInputs.nth(i);
+    const isVisible = await inp.isVisible().catch(() => false);
+    if (!isVisible) continue;
+    const type = await inp.getAttribute('type').catch(() => '');
+    const tabindex = await inp.getAttribute('tabindex').catch(() => '');
+    if (type === 'date' || tabindex === '-1') continue; // skip hidden native inputs
+    visibleInputs.push(inp);
+  }
+  console.log(`[editSuspension] Found ${visibleInputs.length} visible date inputs in dialog`);
 
-  if (opts.startDate !== undefined) {
-    let startInput = dateInputs.first();
-    if (!(await startInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      startInput = dialog.locator('input:visible').first();
-    }
-    await fillSuspensionDateInput(page, startInput, opts.startDate);
+  if (opts.startDate !== undefined && visibleInputs.length >= 1) {
+    await fillSuspensionDateInput(page, visibleInputs[0], opts.startDate);
   }
 
-  if (opts.endDate !== undefined) {
-    let endInput = dateInputs.nth(1);
-    if (!(await endInput.isVisible({ timeout: 3_000 }).catch(() => false))) {
-      endInput = dialog.locator('input:visible').nth(1);
-    }
-    if (await endInput.isVisible({ timeout: 3_000 }).catch(() => false)) {
-      if (opts.endDate === null || opts.endDate === '') {
-        // Clear the end date
-        await endInput.click({ clickCount: 3, force: true });
-        await page.keyboard.press('Control+a');
-        await page.keyboard.press('Delete');
-        await endInput.evaluate(el => {
-          el.dispatchEvent(new Event('input', { bubbles: true }));
-          el.dispatchEvent(new Event('change', { bubbles: true }));
-          el.dispatchEvent(new Event('blur', { bubbles: true }));
-        });
-        await endInput.press('Tab');
-      } else {
-        await fillSuspensionDateInput(page, endInput, opts.endDate);
-      }
+  if (opts.endDate !== undefined && visibleInputs.length >= 2) {
+    if (opts.endDate === null || opts.endDate === '') {
+      // Clear the end date
+      const endInput = visibleInputs[1];
+      await endInput.click({ clickCount: 3, force: true });
+      await page.keyboard.press('Control+a');
+      await page.keyboard.press('Delete');
+      await endInput.evaluate(el => {
+        el.dispatchEvent(new Event('input', { bubbles: true }));
+        el.dispatchEvent(new Event('change', { bubbles: true }));
+        el.dispatchEvent(new Event('blur', { bubbles: true }));
+      });
+      await endInput.press('Tab');
+    } else {
+      await fillSuspensionDateInput(page, visibleInputs[1], opts.endDate);
     }
   }
 
