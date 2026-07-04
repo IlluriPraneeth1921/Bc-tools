@@ -12,6 +12,24 @@
 cd es-testing
 npm install
 npx playwright install chromium
+
+When runniung first time (or everyday first run)  you will see something like following.
+
+[auth-tokens] Attempting token injection...
+[auth-tokens] Injected 7 localStorage + 1 sessionStorage + 4 cookies
+[auth-tokens] verify: FAILED — ended up at: https://widhs-f2-carity.lower-widhs.aws.feisystems.com/#/
+[auth-tokens] ✗ Token injection failed — clearing state and doing full login
+[auth-tokens] Deleted stored tokens.
+[auth-tokens] Cleared all auth state (storage + cookies + disk)
+[login] Cleared storage + ALL cookies — forcing full Cognito redirect...
+[login] After clearing all state — URL: https://widhs-v3-04065-sts.auth.us-east-1.amazoncognito.com/login?client_id=420b2llr5as1he6116galp48bg&redirect_uri=https%3A%2F%2Fwidhs-f2-carity.lower-widhs.aws.feisystems.com%2F&response_type=code&scope=openid%20profile%20aws.cognito.signin.user.admin%20tenant%3Awidhs-f2-carity%2Faccess&nonce=a5eec93edd971f083b7d3e0e7188226f2ef3bRZ0W&state=d072a5693939fc9e05ff4cdb4a2530dd550f6F339&code_challenge=3X17JgKbuOE_oi0Ccz6pTtdBMsjL69wtBdoQKXMB4j4&code_challenge_method=S256
+[login] Acknowledge dialog detected — clicking...
+[login] Acknowledge still visible — retrying...
+
+And the tests will fail, this is due to how Carity works. The first login for the day is always going to fail. This is to establish a secure session with Carity that can be reused 
+instead of re-logging for every single step. 
+
+Just restart your step again.
 ```
 
 ## Running Tests
@@ -91,23 +109,23 @@ HTML report is generated at `reports/html/`.
 
 ## Environment Configuration (.env)
 
-| Variable | Description |
-|----------|-------------|
-| `BASE_URL` | Blue Compass application URL |
-| `TEST_USER` | Cognito login username |
-| `TEST_PASSWORD` | Cognito login password |
-| `TEST_ORG` | Organization for context selection |
-| `TEST_LOCATION` | Location for context selection |
-| `TEST_STAFF` | Staff delegation for context selection |
-| `TEST_MA_ID` | Test participant Medicaid ID (default: 1430000013) |
-| `TEST_PERSON_UUID` | Test participant UUID (skip search if set) |
+| Variable             | Description                                        |
+| -------------------- | -------------------------------------------------- |
+| `BASE_URL`         | Blue Compass application URL                       |
+| `TEST_USER`        | Cognito login username                             |
+| `TEST_PASSWORD`    | Cognito login password                             |
+| `TEST_ORG`         | Organization for context selection                 |
+| `TEST_LOCATION`    | Location for context selection                     |
+| `TEST_STAFF`       | Staff delegation for context selection             |
+| `TEST_MA_ID`       | Test participant Medicaid ID (default: 1430000013) |
+| `TEST_PERSON_UUID` | Test participant UUID (skip search if set)         |
 
 ## Test Participant
 
-| Attribute | Value |
-|-----------|-------|
-| Medicaid ID (MA ID) | **1430000013** |
-| Used In | All 32 test cases (TC-001 through TC-032) |
+| Attribute           | Value                                     |
+| ------------------- | ----------------------------------------- |
+| Medicaid ID (MA ID) | **1430000013**                      |
+| Used In             | All 32 test cases (TC-001 through TC-032) |
 
 ## Project Structure
 
@@ -164,13 +182,13 @@ tests/
 
 Each test verifies one behavior. Run fast, independent.
 
-| Category | Test Cases | Description |
-|----------|------------|-------------|
-| **Enrollment CRUD** | TC-001, TC-004, TC-005, TC-006, TC-007, TC-008, TC-009, TC-015, TC-019, TC-020, TC-029, TC-030 | Create/update enrollment records |
-| **Suspension Lifecycle** | TC-002, TC-010, TC-011, TC-012, TC-013, TC-018, TC-021-TC-025, TC-027 | Add/modify/delete suspension records |
-| **Agency Transfers** | TC-003, TC-016, TC-017, TC-031 | ICA/FEA assignment changes |
-| **Address Updates** | TC-014, TC-032 | Address-only changes |
-| **Error/Edge Cases** | TC-004, TC-011, TC-029, TC-032 | Negative tests and boundary conditions |
+| Category                       | Test Cases                                                                                     | Description                            |
+| ------------------------------ | ---------------------------------------------------------------------------------------------- | -------------------------------------- |
+| **Enrollment CRUD**      | TC-001, TC-004, TC-005, TC-006, TC-007, TC-008, TC-009, TC-015, TC-019, TC-020, TC-029, TC-030 | Create/update enrollment records       |
+| **Suspension Lifecycle** | TC-002, TC-010, TC-011, TC-012, TC-013, TC-018, TC-021-TC-025, TC-027                          | Add/modify/delete suspension records   |
+| **Agency Transfers**     | TC-003, TC-016, TC-017, TC-031                                                                 | ICA/FEA assignment changes             |
+| **Address Updates**      | TC-014, TC-032                                                                                 | Address-only changes                   |
+| **Error/Edge Cases**     | TC-004, TC-011, TC-029, TC-032                                                                 | Negative tests and boundary conditions |
 
 ### UJTs (User Journey Tests)
 

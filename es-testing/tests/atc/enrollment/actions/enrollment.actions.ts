@@ -152,9 +152,29 @@ async function fillDialogDateInput(page: Page, idPrefix: string, dateValue: stri
   const input = page.locator(`mat-dialog-container input[id^="${idPrefix}"]`).first();
   if (!(await input.isVisible({ timeout: 3_000 }).catch(() => false))) return;
 
-  await input.click({ force: true });
-  await input.fill('', { force: true });
-  await input.pressSequentially(dateValue, { delay: 50 });
+  // Focus and select all existing content (handles masked date inputs)
+  await input.click({ clickCount: 3, force: true });
+  await page.keyboard.press('Control+a');
+  await page.keyboard.press('Delete');
+  await page.waitForTimeout(200);
+
+  // Type the date digits only (strip slashes) — Angular Material date mask auto-inserts slashes
+  const digitsOnly = dateValue.replace(/\//g, '');
+  await input.pressSequentially(digitsOnly, { delay: 60 });
+  await page.waitForTimeout(200);
+
+  // If the mask didn't format it correctly, fall back to filling the full value directly
+  const currentValue = await input.inputValue();
+  if (!currentValue.includes('/') || currentValue.length < 10) {
+    // Mask not active — clear and type with slashes
+    await input.click({ clickCount: 3, force: true });
+    await page.keyboard.press('Control+a');
+    await page.keyboard.press('Delete');
+    await page.waitForTimeout(200);
+    await input.pressSequentially(dateValue, { delay: 60 });
+    await page.waitForTimeout(200);
+  }
+
   await input.evaluate(el => {
     el.dispatchEvent(new Event('input', { bubbles: true }));
     el.dispatchEvent(new Event('change', { bubbles: true }));
