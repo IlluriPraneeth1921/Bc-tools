@@ -53,7 +53,7 @@
     "test:phase7": "npx playwright test tests/ujt/enrollment/phase-7*.spec.ts --project=ujt",
     "test:phase8": "npx playwright test tests/ujt/enrollment/phase-8*.spec.ts --project=ujt",
     "test:all-phases": "npx playwright test tests/ujt/enrollment/phase-*.spec.ts --project=ujt",
-    "report": "npx playwright show-report"
+    "report": "npx playwright show-report reports/html"
   },
   "devDependencies": {
     "@playwright/test": "1.44.0",

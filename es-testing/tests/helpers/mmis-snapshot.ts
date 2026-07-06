@@ -79,6 +79,40 @@ async function waitForMmisContent(page: Page, timeoutMs: number): Promise<boolea
   return false;
 }
 
+/**
+ * Waits for the Waiver Enrollment panel to fully render after a Refresh click.
+ * Polls until either table data rows (with dates) appear OR the explicit
+ * "No Waiver Enrollment" message is shown, indicating MMIS data has loaded.
+ */
+async function waitForWaiverEnrollmentPanel(page: Page, timeoutMs: number): Promise<boolean> {
+  const deadline = Date.now() + timeoutMs;
+
+  while (Date.now() < deadline) {
+    // Check if waiver enrollment data rows are visible (contains date patterns)
+    const rows = page.locator('table tr, mat-row');
+    const rowCount = await rows.count().catch(() => 0);
+    for (let i = 0; i < rowCount; i++) {
+      const text = await rows.nth(i).textContent().catch(() => '') || '';
+      if (/\d{2}\/\d{2}\/\d{4}/.test(text)) {
+        console.log('[mmis-snapshot] ✓ Waiver Enrollment data loaded');
+        return true;
+      }
+    }
+
+    // Check for "No Waiver Enrollment" message (pristine/cleared state)
+    const noWaiver = await page.locator('text=No Waiver Enrollment').first().isVisible().catch(() => false);
+    if (noWaiver) {
+      console.log('[mmis-snapshot] ✓ "No Waiver Enrollment" message visible');
+      return true;
+    }
+
+    await page.waitForTimeout(2000);
+  }
+
+  console.warn('[mmis-snapshot] ⚠ Timed out waiting for Waiver Enrollment panel');
+  return false;
+}
+
 // ─── Main Function ───────────────────────────────────────────────────────────
 
 /**
@@ -111,9 +145,9 @@ export async function getMmisSnapshotState(page: Page, participantUuid: string):
   if (await refreshBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
     console.log('[mmis-snapshot] Clicking Refresh...');
     await refreshBtn.click();
-    await page.waitForTimeout(3000);
     await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-    await page.waitForTimeout(2000);
+    // Wait for the Waiver Enrollment panel to fully render after refresh
+    await waitForWaiverEnrollmentPanel(page, 30_000);
   }
 
   // Parse waiver enrollment records
