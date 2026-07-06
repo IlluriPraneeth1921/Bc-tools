@@ -223,14 +223,14 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '07/15/2026',
       enrollmentEndDate: '12/31/2299',
-      newEnrollmentEndDate: '09/30/2026',
+      newEnrollmentEndDate: '10/31/2026',
       statusChange: 'Disenrolled',
     },
     mmisBefore: [
       { label: 'Span-B', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-B', status: 'A', beginDate: '07/15/2026', endDate: '09/30/2026' },
+      { label: 'Span-B', status: 'A', beginDate: '07/15/2026', endDate: '10/31/2026' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S340', type: 'C', status: 'A', startReason: '2W', stopReason: '2W', description: 'Shorten end date via Closure (disenrollment)' },
