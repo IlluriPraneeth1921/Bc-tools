@@ -15,9 +15,9 @@ import { Page, expect } from '@playwright/test';
 import { navigateToEnrollments } from '../../../helpers/participant-resolver';
 import {
   addIrisEnrollment,
-  openFirstEnrollmentDetail,
   openEnrollmentByText,
   addSuspension,
+  deleteSuspension,
   verifyMmisSync,
   getSyncStatus,
 } from './enrollment.actions';
@@ -407,7 +407,6 @@ export async function deleteExistingSuspension(
   page: Page,
   config: SuspensionDeleteStepConfig
 ): Promise<void> {
-  const { deleteSuspension } = await import('./enrollment.actions');
   const deleted = await deleteSuspension(page);
   expect(deleted, 'Suspension deletion failed').toBe(true);
   console.log(`${config.logPrefix} Suspension successfully deleted`);
