@@ -509,16 +509,16 @@ Complete these in order. Each builds on the previous one.
 ## Learning Path Summary
 
 ```
-Week 1:  Module 1 (Command Line) + Module 2 (Git)
+Day 1:  Module 1 (Command Line) + Module 2 (Git)
          → You can download the project and navigate it
 
-Week 2:  Module 3 (Node/npm) + Module 6 (VS Code)
+Day 2:  Module 3 (Node/npm) + Module 6 (VS Code)
          → You can install dependencies and use the editor
 
-Week 3:  Module 4 (Playwright) + Environment Setup (this guide)
+Day 3:  Module 4 (Playwright) + Environment Setup (this guide)
          → You can run tests and read results
 
-Week 4+: Module 5 (Domain Knowledge)
+Day 4+: Module 5 (Domain Knowledge)
          → You understand what the tests are validating
 ```
 
