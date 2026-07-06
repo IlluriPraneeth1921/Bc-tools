@@ -6,13 +6,15 @@
  * (e.g., "Deceased" → reason code "64"). This triggers S345 to re-send
  * the Closure with real translated reason codes.
  *
+ * Similar to TC-006 but uses statusReason="Deceased" instead of "Not Applicable".
+ *
  * Flow:
  * 1. Navigate to enrollment list → verify end-dated enrollment exists
- * 2. Click "+ New Program Enrollment" → set Status = Disenrolled, Reason = Deceased
+ * 2. Click "+ New Program Enrollment" → set Status=Disenrolled, Reason=Deceased
  * 3. Save → triggers S345 MMIS re-send closure with real reason codes
  * 4. Verify SU response
  *
- * Test Participant: MA ID 1430000013
+ * Test Participant: MA ID 1430000013 (THREE TESTFEI)
  * Prerequisite: TC-006 must have completed successfully (end-dated enrollment with S340 closure).
  */
 import { test, expect, Page, Browser } from '@playwright/test';
@@ -21,18 +23,22 @@ import { loginAndSelectContext } from '../../helpers/login';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
-  addIrisEnrollment,
-  openEnrollmentByText,
-  verifyMmisSync,
-  getSyncStatus,
 } from './actions/enrollment.actions';
+import {
+  createDisenrolledWithEarlierEndDate,
+  verifyDisenrollmentMmisSync,
+  verifyFinalSyncStatus,
+  DisenrollmentStepConfig,
+  EnrollmentStepConfig,
+} from './actions/enrollment-lifecycle.steps';
 import { SCENARIOS } from '../../data/scenario-test-data';
-import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
+import { closeDb } from '../../helpers/db';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_033;
 const DISENROLLMENT_REASON = DATA.bcInput.statusReason || 'Deceased';
+const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
 const ENROLLMENT_END_DATE = DATA.bcInput.enrollmentEndDate;
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
@@ -55,6 +61,17 @@ test.describe.serial('TC-033: Disenrolled Span Created — Real Reason Code (S34
     await browser.close();
   });
 
+  // Shared config for disenrollment steps — uses "Deceased" as the real reason
+  const getStepConfig = (): DisenrollmentStepConfig => ({
+    program: 'IRIS',
+    startDate: ENROLLMENT_END_DATE,  // Re-send uses the end date as start
+    newEndDate: ENROLLMENT_END_DATE,
+    statusReason: DISENROLLMENT_REASON,
+    participantUuid,
+    mockMmis: MOCK_MMIS,
+    logPrefix: '[TC-033]',
+  });
+
   test('ATC-ES-131 - Precondition: Verify end-dated enrollment exists (TC-006 completed)', async () => {
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -65,60 +82,29 @@ test.describe.serial('TC-033: Disenrolled Span Created — Real Reason Code (S34
     expect(rowCount, 'No enrollment rows found — TC-006 prerequisite may not have run').toBeGreaterThanOrEqual(1);
 
     const pageText = await page.locator('body').textContent().catch(() => '') || '';
-    const hasEnrolled = pageText.includes('Enrolled');
-    expect(hasEnrolled || pageText.includes('Disenrolled'), 'No Enrolled or Disenrolled row found').toBe(true);
+    const hasValidState = pageText.includes('Enrolled') || pageText.includes('Disenrolled');
+    expect(hasValidState, 'No Enrolled or Disenrolled row found').toBe(true);
+    console.log('[TC-033] ✓ Precondition met — end-dated enrollment exists');
   });
 
   test('ATC-ES-132 - Create Disenrolled span with real reason code (Deceased)', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-
-    const saved = await addIrisEnrollment(page, {
-      program: 'IRIS',
-      status: 'Disenrolled',
-      statusReason: DISENROLLMENT_REASON,
-      startDate: ENROLLMENT_END_DATE,
-    });
-    expect(saved, 'Failed to create Disenrolled span').toBe(true);
-
-    // Confirm Disenrolled appears on the enrollment list
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
-    const pageText = await page.locator('body').textContent().catch(() => '') || '';
-    expect(pageText, 'Disenrolled status not found on page after save').toContain('Disenrolled');
-
-    console.log(`[TC-033] Disenrolled span created with reason "${DISENROLLMENT_REASON}" — S345 re-send closure triggered`);
+    await createDisenrolledWithEarlierEndDate(page, getStepConfig());
   });
 
   test('ATC-ES-133 - Verify MMIS sync completes with SU response (S345)', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
-
-    const opened = await openEnrollmentByText(page, /Disenrolled/);
-    expect(opened, 'Could not open Disenrolled enrollment detail').toBe(true);
-
-    const status = await verifyMmisSync(page, {
-      participantUuid,
-      mockMmis: MOCK_MMIS,
-      mockFn: mockMmisSuccess,
-      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
-      maxAttempts: 12,
-      pollIntervalMs: 10_000,
-    });
-
-    expect(status.responseStatus, 'Expected SU/SE response from MMIS').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
-
-    const _txnListVisible = await page.getByText('MMIS Transaction List').first().isVisible({ timeout: 15_000 }).catch(() => false);
-    console.log(`[TC-033] ✓ S345 closure re-send completed successfully (${status.responseStatus})`);
+    await verifyDisenrollmentMmisSync(page, getStepConfig());
   });
 
   test('ATC-ES-134 - Verify SU response and no conflict', async () => {
-    const status = await getSyncStatus(page);
-    console.log(`[TC-033] Final sync status: ${JSON.stringify(status)}`);
-
-    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
+    // Reuse EnrollmentStepConfig-based verifyFinalSyncStatus
+    const syncConfig: EnrollmentStepConfig = {
+      program: 'IRIS',
+      startDate: ENROLLMENT_END_DATE,
+      participantUuid,
+      mockMmis: MOCK_MMIS,
+      logPrefix: '[TC-033]',
+    };
+    await verifyFinalSyncStatus(page, syncConfig);
   });
 
 }); // end describe.serial
