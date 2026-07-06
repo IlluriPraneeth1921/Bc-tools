@@ -152,7 +152,7 @@ cd C:\Whitelisted\Projects
 Then clone the repository:
 
 ```cmd
-git clone <repository-url-provided-by-your-team-lead>
+git clone https://tfs2.feisystems.com/tfs/FEICollection203/DC-ST/_git/bc-tools-validation-helper
 ```
 
 This creates a folder with all the project files.
