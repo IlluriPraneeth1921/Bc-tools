@@ -1,29 +1,29 @@
 /**
- * ATC: TC-018 — New SDPC Suspension
+ * ATC: TC-018 — New SDPC Suspension (Bounded)
  *
  * Adds a bounded suspension to an active SDPC enrollment.
- * Expects 3 MMIS transactions: S500 + S510 + S520 for SDPC program.
+ * Expects 3 MMIS transactions: Close Span-A (S500), Add Span-B (S510), Create Span-C (S520).
  *
- * State-aware: Checks that SDPC enrollment is Enrolled before attempting.
- * Skips gracefully if preconditions not met.
+ * Similar to TC-002 (IRIS suspension) but targets the SDPC program enrollment.
  *
- * Test Participant: MA ID 1430000013
+ * Test Participant: MA ID 1430000013 (THREE TESTFEI)
  * Prerequisite: TC-015 must have completed successfully (active SDPC enrollment with SU sync).
  */
 import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
 import { loginAndSelectContext } from '../../helpers/login';
-import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
-  openEnrollmentByText,
-  addSuspension,
-  verifyMmisSync,
-  getSyncStatus,
 } from './actions/enrollment.actions';
-import { getCurrentSdpcState } from '../../helpers/state-checker';
+import {
+  openEnrolledProgramDetail,
+  addBoundedSuspension,
+  verifySuspensionMmisSync,
+  verifySuspensionFinalStatus,
+  SuspensionStepConfig,
+} from './actions/enrollment-lifecycle.steps';
 import { SCENARIOS } from '../../data/scenario-test-data';
-import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
+import { closeDb } from '../../helpers/db';
 
 // ─── Test Data ────────────────────────────────────────────────────────────────
 
@@ -36,7 +36,7 @@ let browser: Browser;
 let page: Page;
 let participantUuid: string;
 
-test.describe.serial('TC-018: New SDPC Suspension', () => {
+test.describe.serial('TC-018: New SDPC Suspension (Bounded)', () => {
 
   test.beforeAll(async () => {
     browser = await chromium.launch({ headless: true });
@@ -51,66 +51,31 @@ test.describe.serial('TC-018: New SDPC Suspension', () => {
     await browser.close();
   });
 
-  test('ATC-ES-077 - Navigate to SDPC enrollment detail (only if SDPC Enrolled)', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  // Shared config for suspension steps
+  const getStepConfig = (): SuspensionStepConfig => ({
+    program: 'SDPC',
+    suspensionStartDate: SUSPENSION_START,
+    suspensionEndDate: SUSPENSION_END,
+    reason: 'Hospitalized',
+    participantUuid,
+    mockMmis: MOCK_MMIS,
+    logPrefix: '[TC-018]',
+  });
 
-    const sdpcState = await getCurrentSdpcState(page);
-    console.log(`[TC-018] State: SDPC=${sdpcState}`);
-
-    if (sdpcState !== 'Enrolled') {
-      console.log(`[TC-018] Skipping — precondition not met (SDPC current: ${sdpcState})`);
-      return;
-    }
-
-    const opened = await openEnrollmentByText(page, /SDPC.*Enrolled|Enrolled.*SDPC/);
-    expect(opened, 'Could not open SDPC Enrolled enrollment detail').toBe(true);
+  test('ATC-ES-077 - Precondition: SDPC is Enrolled — open enrollment detail', async () => {
+    await openEnrolledProgramDetail(page, getStepConfig());
   });
 
   test('ATC-ES-078 - Add bounded suspension to SDPC enrollment', async () => {
-    if (!page.url().includes('/programenrollment/')) {
-      console.log('[TC-018] Skipping — previous step was skipped');
-      return;
-    }
-
-    const result = await addSuspension(page, {
-      startDate: SUSPENSION_START,
-      endDate: SUSPENSION_END,
-      reason: 'Hospital Admission',
-    });
-    expect(result, 'Failed to add suspension').toBe(true);
-    console.log('[TC-018] SDPC suspension added');
+    await addBoundedSuspension(page, getStepConfig());
   });
 
-  test('ATC-ES-079 - Verify 3 MMIS transactions (S500 + S510 + S520)', async () => {
-    const status = await verifyMmisSync(page, {
-      participantUuid,
-      mockMmis: MOCK_MMIS,
-      mockFn: mockMmisSuccess,
-      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
-    });
-
-    expect(status.responseStatus, 'Expected SU/SE response from MMIS').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
-
-    const txnListVisible = await page.getByText('MMIS Transaction List').first().isVisible({ timeout: 15_000 }).catch(() => false);
-    if (txnListVisible) {
-      // Refresh page to load latest transaction data
-      await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-      await page.waitForTimeout(2000);
-      const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
-    const count = await transactionRows.count();
-    console.log(`[TC-018] MMIS transaction rows found: ${count}`);
-    // Transaction row count is informational � MMIS sync status is the authoritative check
-    }
+  test('ATC-ES-079 - Verify MMIS sync (3 transactions: S500+S510+S520)', async () => {
+    await verifySuspensionMmisSync(page, getStepConfig());
   });
 
   test('ATC-ES-080 - Verify SU response and no conflict', async () => {
-    const status = await getSyncStatus(page);
-    console.log(`[TC-018] Sync status: ${JSON.stringify(status)}`);
-
-    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
+    await verifySuspensionFinalStatus(page, getStepConfig());
   });
 
 }); // end describe.serial

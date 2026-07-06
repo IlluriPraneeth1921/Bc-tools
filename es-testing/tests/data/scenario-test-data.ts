@@ -570,16 +570,16 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      suspensionStartDate: '08/15/2026',
-      suspensionEndDate: '09/14/2026',
+      suspensionStartDate: '07/01/2026',
+      suspensionEndDate: '07/15/2026',
     },
     mmisBefore: [
       { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/15/2026' },
-      { label: 'Span-B', status: 'S', beginDate: '08/16/2026', endDate: '09/13/2026' },
-      { label: 'Span-C', status: 'A', beginDate: '09/14/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/02/2026', endDate: '07/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S500', type: 'C', status: 'A', description: 'Close Span-A before SDPC suspension' },

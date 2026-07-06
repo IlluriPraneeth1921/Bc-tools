@@ -1,33 +1,41 @@
 /**
  * ATC: TC-026 — SDPC End Date Earlier (Disenrollment)
  *
- * Updates the SDPC enrollment end date to an earlier date (disenrollment).
- * Expects 1 MMIS transaction: S340 (SDPC disenrollment).
+ * Creates a Disenrolled enrollment via "+ New Program Enrollment" dialog,
+ * setting an earlier end date for the SDPC program (disenrollment).
+ * Expects 1 MMIS transaction (closure via S340).
  *
- * State-aware: Checks that SDPC enrollment is Enrolled before attempting.
- * Skips gracefully if preconditions not met.
+ * Similar to TC-006 (IRIS disenrollment) but targets the SDPC program.
  *
- * Test Participant: MA ID 1430000013
- * Prerequisite: TC-015 must have completed successfully (active SDPC enrollment exists).
+ * Flow:
+ * 1. Navigate to enrollment list → verify SDPC Enrolled state
+ * 2. Open "+ New Program Enrollment" dialog
+ * 3. Set Program="SDPC", Status="Disenrolled", Start Date, End Date (earlier)
+ * 4. Save → triggers MMIS closure transaction
+ * 5. Verify SU response
+ *
+ * Test Participant: MA ID 1430000013 (THREE TESTFEI)
+ * Prerequisite: TC-015 must have completed successfully (active SDPC enrollment with SU sync).
  */
 import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
 import { loginAndSelectContext } from '../../helpers/login';
-import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
-  openEnrollmentByText,
-  editEnrollment,
-  verifyMmisSync,
-  getSyncStatus,
 } from './actions/enrollment.actions';
-import { getCurrentSdpcState } from '../../helpers/state-checker';
+import {
+  verifyEnrolledPrecondition,
+  createDisenrolledWithEarlierEndDate,
+  verifyDisenrollmentMmisSync,
+  DisenrollmentStepConfig,
+} from './actions/enrollment-lifecycle.steps';
 import { SCENARIOS } from '../../data/scenario-test-data';
-import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
+import { closeDb } from '../../helpers/db';
 
 // ─── Test Data ────────────────────────────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_026;
+const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
 const NEW_END_DATE = DATA.bcInput.newEnrollmentEndDate!;
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
@@ -50,62 +58,27 @@ test.describe.serial('TC-026: SDPC End Date Earlier (Disenrollment)', () => {
     await browser.close();
   });
 
-  test('ATC-ES-109 - Navigate to SDPC enrollment detail (only if SDPC Enrolled)', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-
-    const sdpcState = await getCurrentSdpcState(page);
-    console.log(`[TC-026] State: SDPC=${sdpcState}`);
-
-    if (sdpcState !== 'Enrolled') {
-      console.log(`[TC-026] Skipping — precondition not met (SDPC current: ${sdpcState})`);
-      return;
-    }
-
-    const opened = await openEnrollmentByText(page, /SDPC/);
-    expect(opened, 'Could not open SDPC enrollment detail').toBe(true);
+  // Shared config for disenrollment steps
+  const getStepConfig = (): DisenrollmentStepConfig => ({
+    program: 'SDPC',
+    startDate: ENROLLMENT_START,
+    newEndDate: NEW_END_DATE,
+    statusReason: 'Not Applicable',
+    participantUuid,
+    mockMmis: MOCK_MMIS,
+    logPrefix: '[TC-026]',
   });
 
-  test('ATC-ES-110 - Update SDPC enrollment end date to earlier date', async () => {
-    if (!page.url().includes('/programenrollment/')) {
-      console.log('[TC-026] Skipping — previous step was skipped');
-      return;
-    }
-
-    const edited = await editEnrollment(page, { endDate: NEW_END_DATE });
-    expect(edited, 'Edit dialog did not close — validation errors').toBe(true);
-    console.log('[TC-026] SDPC enrollment end date set earlier — S340 disenrollment triggered');
+  test('ATC-ES-109 - Precondition: SDPC is Enrolled', async () => {
+    await verifyEnrolledPrecondition(page, getStepConfig());
   });
 
-  test('ATC-ES-111 - Verify 1 MMIS transaction (S340 for SDPC)', async () => {
-    const status = await verifyMmisSync(page, {
-      participantUuid,
-      mockMmis: MOCK_MMIS,
-      mockFn: mockMmisSuccess,
-      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
-    });
-
-    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
-
-    const txnListVisible = await page.getByText('MMIS Transaction List').first().isVisible({ timeout: 15_000 }).catch(() => false);
-    if (txnListVisible) {
-      // Refresh page to load latest transaction data
-      await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-      await page.waitForTimeout(2000);
-      const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
-    const count = await transactionRows.count();
-    console.log(`[TC-026] MMIS transaction rows found: ${count}`);
-    // Transaction row count is informational � MMIS sync status is the authoritative check
-    }
+  test('ATC-ES-110 - Set Disenrolled with earlier end date via New Program Enrollment', async () => {
+    await createDisenrolledWithEarlierEndDate(page, getStepConfig());
   });
 
-  test('ATC-ES-112 - Verify SU response and no conflict', async () => {
-    const status = await getSyncStatus(page);
-    console.log(`[TC-026] Sync status: ${JSON.stringify(status)}`);
-
-    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
+  test('ATC-ES-111 - Verify MMIS sync completes with SU response (S340)', async () => {
+    await verifyDisenrollmentMmisSync(page, getStepConfig());
   });
 
 }); // end describe.serial
