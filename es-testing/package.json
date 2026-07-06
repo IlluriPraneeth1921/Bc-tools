@@ -44,6 +44,7 @@
     "test:prereq": "npx playwright test tests/atc/enrollment/PREREQ-disenroll.spec.ts --project=atc",
     "test:auth-setup": "npx playwright test tests/auth.setup.ts --project=atc",
     "test:lifecycle": "npx playwright test tests/ujt/enrollment/cascade-a-iris-lifecycle.spec.ts --project=ujt",
+    "test:lifecycle:from": "node scripts/run-from.js tests/ujt/enrollment/cascade-a-iris-lifecycle.spec.ts",
     "test:phase1": "npx playwright test tests/ujt/enrollment/phase-1-baseline.spec.ts --project=ujt",
     "test:phase2": "npx playwright test tests/ujt/enrollment/phase-2*.spec.ts --project=ujt",
     "test:phase3": "npx playwright test tests/ujt/enrollment/phase-3*.spec.ts --project=ujt",

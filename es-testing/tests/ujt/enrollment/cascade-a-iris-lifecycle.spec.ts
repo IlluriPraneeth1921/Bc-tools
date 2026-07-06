@@ -50,6 +50,7 @@ import { ensurePristineState } from '../../helpers/reset-enrollment';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
 import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
 import { SCENARIOS } from '../../data/scenario-test-data';
+import { skipIfBeforeTarget } from '../../helpers/skip-to';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
 
@@ -218,6 +219,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('Step 01 | TC-001: New IRIS Enrollment — Happy Path', async () => {
+    skipIfBeforeTarget('Step 01');
     console.log('\n─── Step 1: TC-001 — New IRIS Enrollment ───');
     await establishEnrolled();
 
@@ -230,6 +232,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 02 | TC-014: Address-Only Update (S700 Cond 1)', async () => {
+    skipIfBeforeTarget('Step 02');
     console.log('\n─── Step 2: TC-014 — Address-Only Update ───');
     const state = await getCurrentIrisState(page);
     if (state !== 'Enrolled') {
@@ -252,6 +255,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 03 | TC-003: ICA Transfer — Active Span', async () => {
+    skipIfBeforeTarget('Step 03');
     console.log('\n─── Step 3: TC-003 — ICA Transfer ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -280,6 +284,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 04 | TC-016: FEA Transfer — Close + Open', async () => {
+    skipIfBeforeTarget('Step 04');
     console.log('\n─── Step 4: TC-016 — FEA Transfer ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -294,6 +299,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 05 | TC-019: Begin Date → Earlier (Delete + Recreate)', async () => {
+    skipIfBeforeTarget('Step 05');
     console.log('\n─── Step 5: TC-019 — Begin Date Earlier ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -308,6 +314,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 06 | TC-020: Begin Date → Later (Delete + Recreate)', async () => {
+    skipIfBeforeTarget('Step 06');
     console.log('\n─── Step 6: TC-020 — Begin Date Later ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -322,6 +329,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 07 | TC-006: End Date → Earlier (Disenrollment)', async () => {
+    skipIfBeforeTarget('Step 07');
     console.log('\n─── Step 7: TC-006 — End Date Earlier (Disenrollment) ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -353,6 +361,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('Step 09 | TC-032: Address Update — No Current Span (No Txn)', async () => {
+    skipIfBeforeTarget('Step 09');
     console.log('\n─── Step 9: TC-032 — Address Update (no active span) ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -374,6 +383,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 10 | TC-007: End Date → Later (Extension / Re-open)', async () => {
+    skipIfBeforeTarget('Step 10');
     console.log('\n─── Step 10: TC-007 — End Date Later (Extension) ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -413,6 +423,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 11 | TC-002: Enrolled → Suspended (bounded, 3 spans)', async () => {
+    skipIfBeforeTarget('Step 11');
     console.log('\n─── Step 11: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -431,6 +442,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 12 | TC-012: Suspension Deleted (spans merged)', async () => {
+    skipIfBeforeTarget('Step 12');
     console.log('\n─── Step 12: TC-012 — Suspension Deleted ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -448,10 +460,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #1: Clear MMIS + Fresh Enrollment (for Steps 13–14)', async () => {
+    skipIfBeforeTarget('RESET #1');
     await performReset('Reset #1 — before TC-017 ICA Transfer During Suspension');
   });
 
   test('Step 13 | TC-002: Enrolled → Suspended (repeat for TC-017)', async () => {
+    skipIfBeforeTarget('Step 13');
     console.log('\n─── Step 13: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -470,6 +484,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 14 | TC-017: ICA Transfer During Suspension', async () => {
+    skipIfBeforeTarget('Step 14');
     console.log('\n─── Step 14: TC-017 — ICA Transfer During Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -487,10 +502,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #2: Clear MMIS + Fresh Enrollment (for Steps 15–16)', async () => {
+    skipIfBeforeTarget('RESET #2');
     await performReset('Reset #2 — before TC-021 Suspension Begin Earlier');
   });
 
   test('Step 15 | TC-002: Enrolled → Suspended (repeat for TC-021)', async () => {
+    skipIfBeforeTarget('Step 15');
     console.log('\n─── Step 15: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -509,6 +526,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 16 | TC-021: Suspension Begin Date → Earlier', async () => {
+    skipIfBeforeTarget('Step 16');
     console.log('\n─── Step 16: TC-021 — Suspension Begin Earlier ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -526,10 +544,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #3: Clear MMIS + Fresh Enrollment (for Steps 17–18)', async () => {
+    skipIfBeforeTarget('RESET #3');
     await performReset('Reset #3 — before TC-022 Suspension Begin Later');
   });
 
   test('Step 17 | TC-002: Enrolled → Suspended (repeat for TC-022)', async () => {
+    skipIfBeforeTarget('Step 17');
     console.log('\n─── Step 17: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -548,6 +568,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 18 | TC-022: Suspension Begin Date → Later', async () => {
+    skipIfBeforeTarget('Step 18');
     console.log('\n─── Step 18: TC-022 — Suspension Begin Later ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -565,10 +586,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #4: Clear MMIS + Fresh Enrollment (for Steps 19–20)', async () => {
+    skipIfBeforeTarget('RESET #4');
     await performReset('Reset #4 — before TC-023 Suspension End Earlier');
   });
 
   test('Step 19 | TC-002: Enrolled → Suspended (repeat for TC-023)', async () => {
+    skipIfBeforeTarget('Step 19');
     console.log('\n─── Step 19: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -587,6 +610,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 20 | TC-023: Suspension End Date → Earlier', async () => {
+    skipIfBeforeTarget('Step 20');
     console.log('\n─── Step 20: TC-023 — Suspension End Earlier ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -604,10 +628,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #5: Clear MMIS + Fresh Enrollment (for Steps 21–22)', async () => {
+    skipIfBeforeTarget('RESET #5');
     await performReset('Reset #5 — before TC-024 Suspension End Later');
   });
 
   test('Step 21 | TC-002: Enrolled → Suspended (repeat for TC-024)', async () => {
+    skipIfBeforeTarget('Step 21');
     console.log('\n─── Step 21: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -626,6 +652,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 22 | TC-024: Suspension End Date → Later', async () => {
+    skipIfBeforeTarget('Step 22');
     console.log('\n─── Step 22: TC-024 — Suspension End Later ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -643,10 +670,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #6: Clear MMIS + Fresh Enrollment (for Steps 23–24)', async () => {
+    skipIfBeforeTarget('RESET #6');
     await performReset('Reset #6 — before TC-025 Suspension End Valid→Null');
   });
 
   test('Step 23 | TC-002: Enrolled → Suspended (repeat for TC-025)', async () => {
+    skipIfBeforeTarget('Step 23');
     console.log('\n─── Step 23: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -665,6 +694,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 24 | TC-025: Suspension End Date Valid → Null (open-ended)', async () => {
+    skipIfBeforeTarget('Step 24');
     console.log('\n─── Step 24: TC-025 — Suspension End Valid→Null ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -682,10 +712,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #7: Clear MMIS + Fresh Enrollment (for Steps 25–26)', async () => {
+    skipIfBeforeTarget('RESET #7');
     await performReset('Reset #7 — before TC-031 ICA Transfer Span-C Exists');
   });
 
   test('Step 25 | TC-002: Enrolled → Suspended (repeat for TC-031)', async () => {
+    skipIfBeforeTarget('Step 25');
     console.log('\n─── Step 25: TC-002 — Add Bounded Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -704,6 +736,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 26 | TC-031: ICA Transfer — Span-C Exists', async () => {
+    skipIfBeforeTarget('Step 26');
     console.log('\n─── Step 26: TC-031 — ICA Transfer with Span-C ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -721,10 +754,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #8: Clear MMIS + Fresh Enrollment (for Steps 27–28)', async () => {
+    skipIfBeforeTarget('RESET #8');
     await performReset('Reset #8 — before TC-010 Open-Ended Suspension');
   });
 
   test('Step 27 | TC-010: Open-Ended Suspension (no end date)', async () => {
+    skipIfBeforeTarget('Step 27');
     console.log('\n─── Step 27: TC-010 — Open-Ended Suspension ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -743,6 +778,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 28 | TC-013: Suspension End Null → Valid', async () => {
+    skipIfBeforeTarget('Step 28');
     console.log('\n─── Step 28: TC-013 — Suspension End Null→Valid ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -760,10 +796,12 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   // ═══════════════════════════════════════════════════════════════════════════
 
   test('RESET #9: Clear MMIS + Fresh Enrollment (for Steps 29–31)', async () => {
+    skipIfBeforeTarget('RESET #9');
     await performReset('Reset #9 — before TC-011/TC-028/TC-008 final sequence');
   });
 
   test('Step 29 | TC-011: Suspension < 3 Days (Error — No MMIS Txn)', async () => {
+    skipIfBeforeTarget('Step 29');
     console.log('\n─── Step 29: TC-011 — Suspension Too Short ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
@@ -787,6 +825,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 30 | TC-028: End Date Later + Last Span Suspended', async () => {
+    skipIfBeforeTarget('Step 30');
     console.log('\n─── Step 30: TC-028 — End Date Later While Suspended ───');
     // TC-028 requires bounded suspension — add one first
     await navigateToEnrollments(page, participantUuid);
@@ -816,6 +855,7 @@ test.describe.serial('Cascade A: IRIS Enrollment Lifecycle', () => {
   });
 
   test('Step 31 | TC-008: Enrolled → Referral Withdrawn (final cleanup)', async () => {
+    skipIfBeforeTarget('Step 31');
     console.log('\n─── Step 31: TC-008 — Referral Withdrawn ───');
     await navigateToEnrollments(page, participantUuid);
     await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
