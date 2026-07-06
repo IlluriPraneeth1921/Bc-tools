@@ -1,11 +1,12 @@
 /**
  * ATC: TC-015 — New SDPC Enrollment
  *
- * Creates a new SDPC enrollment through Assessing → Referred → Enrolled lifecycle.
- * Expects 1 MMIS transaction and SU response.
+ * Lifecycle: Verify IRIS Enrolled → SDPC Assessing → SDPC Referred → SDPC Enrolled → Verify MMIS sync
  *
- * Test Participant: MA ID 1430000013
- * Prerequisite: Participant must be accessible with ISP start date set.
+ * Prerequisite: Participant must already be enrolled in the IRIS program.
+ *
+ * Test Participant: MA ID 1430000013 (THREE TESTFEI)
+ * Person UUID: c7a3862e-f166-466d-a5fb-b4670130aebd
  */
 import { test, expect, Page, Browser } from '@playwright/test';
 import { chromium } from '@playwright/test';
@@ -14,17 +15,25 @@ import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
   addIrisEnrollment,
-  openEnrollmentByText,
-  verifyMmisSync,
-  getSyncStatus,
 } from './actions/enrollment.actions';
+import {
+  createReferredEnrollment,
+  verifyReferredState,
+  createEnrolledEnrollment,
+  verifyEnrolledState,
+  verifyMmisSyncSuccess,
+  verifyFinalSyncStatus,
+  EnrollmentStepConfig,
+} from './actions/enrollment-lifecycle.steps';
 import { SCENARIOS } from '../../data/scenario-test-data';
-import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
+import { closeDb } from '../../helpers/db';
 
 // ─── Test Data ────────────────────────────────────────────────────────────────
 
 const DATA = SCENARIOS.TC_015;
-const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;
+const ENROLLMENT_START = DATA.bcInput.enrollmentStartDate;   // 06/01/2026 for Assessing & Referred
+const ENROLLED_START = '06/02/2026';                         // 06/02/2026 for Enrolled step
+const ENROLLMENT_END = DATA.bcInput.enrollmentEndDate;
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let browser: Browser;
@@ -45,6 +54,35 @@ test.describe.serial('TC-015: New SDPC Enrollment', () => {
     if (MOCK_MMIS) await closeDb();
     await browser.close();
   });
+
+  // Shared config for reusable lifecycle steps
+  const getStepConfig = (overrides?: Partial<EnrollmentStepConfig>): EnrollmentStepConfig => ({
+    program: 'SDPC',
+    startDate: ENROLLMENT_START,
+    endDate: ENROLLMENT_END,
+    statusReason: 'Not Applicable',
+    participantUuid,
+    mockMmis: MOCK_MMIS,
+    logPrefix: '[TC-015]',
+    ...overrides,
+  });
+
+  // ─── Precondition: Participant must already be enrolled in IRIS ──────────
+
+  test('ATC-ES-064 - Precondition: Verify participant has IRIS enrollment', async () => {
+    await navigateToEnrollments(page, participantUuid);
+    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
+
+    const irisRow = page.locator('mat-row').filter({ hasText: /IRIS/ }).first();
+    await expect(irisRow).toBeVisible({ timeout: 15_000 });
+    const rowText = await irisRow.textContent() || '';
+    console.log(`[TC-015] IRIS row: ${rowText.trim().substring(0, 120)}`);
+    expect(rowText).toContain('IRIS');
+    expect(rowText).toContain('Enrolled');
+    console.log('[TC-015] ✓ Precondition met — participant is enrolled in IRIS');
+  });
+
+  // ─── Step 1: Create SDPC Assessing enrollment ───────────────────────────
 
   test('ATC-ES-065a - Create SDPC Assessing enrollment', async () => {
     await navigateToEnrollments(page, participantUuid);
@@ -68,94 +106,37 @@ test.describe.serial('TC-015: New SDPC Enrollment', () => {
     const rowText = await sdpcRow.textContent() || '';
     console.log(`[TC-015] SDPC row: ${rowText.trim().substring(0, 120)}`);
     expect(rowText).toContain('SDPC');
+    expect(rowText).toContain('Assessing');
   });
 
-  test('ATC-ES-065b - Create SDPC Referred enrollment', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  // ─── Step 2: Create SDPC Referred enrollment (shared step) ──────────────
 
-    const saved = await addIrisEnrollment(page, {
-      program: 'SDPC',
-      status: 'Referred',
-      statusReason: 'Not Applicable',
-      startDate: ENROLLMENT_START,
-    });
-    expect(saved, 'Failed to create SDPC Referred enrollment').toBe(true);
-    console.log('[TC-015] SDPC Referred created');
+  test('ATC-ES-065b - Create SDPC Referred enrollment', async () => {
+    await createReferredEnrollment(page, getStepConfig());
   });
 
   test('ATC-ES-065b-verify - State check: SDPC row is Referred', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
-    const sdpcRow = page.locator('mat-row').filter({ hasText: /SDPC/ }).first();
-    await expect(sdpcRow).toBeVisible({ timeout: 15_000 });
-    const rowText = await sdpcRow.textContent() || '';
-    console.log(`[TC-015] SDPC row: ${rowText.trim().substring(0, 120)}`);
-    expect(rowText).toContain('SDPC');
-    expect(rowText).toContain('Referred');
+    await verifyReferredState(page, getStepConfig());
   });
+
+  // ─── Step 3: Create SDPC Enrolled enrollment (shared step, triggers MMIS) ─
 
   test('ATC-ES-065c - Create SDPC Enrolled enrollment (triggers MMIS)', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-
-    const saved = await addIrisEnrollment(page, {
-      program: 'SDPC',
-      status: 'Enrolled',
-      statusReason: 'Not Applicable',
-      startDate: ENROLLMENT_START,
-      endDate: DATA.bcInput.enrollmentEndDate,
-    });
-    expect(saved, 'Failed to create SDPC Enrolled enrollment').toBe(true);
-    console.log('[TC-015] SDPC Enrolled created — MMIS sync triggered');
+    await createEnrolledEnrollment(page, getStepConfig({ startDate: ENROLLED_START }));
   });
 
-  test('ATC-ES-066 - Verify SDPC enrollment appears in list', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
-    const sdpcRow = page.locator('mat-row').filter({ hasText: /SDPC/ }).first();
-    await expect(sdpcRow).toBeVisible({ timeout: 15_000 });
-    const rowText = await sdpcRow.textContent() || '';
-    console.log(`[TC-015] SDPC row: ${rowText.trim().substring(0, 120)}`);
-    expect(rowText).toContain('SDPC');
-    expect(rowText).toContain('Enrolled');
+  test('ATC-ES-066 - Verify SDPC enrollment appears as Enrolled', async () => {
+    await verifyEnrolledState(page, getStepConfig({ startDate: ENROLLED_START }));
   });
 
-  test('ATC-ES-067 - Verify 1 MMIS transaction and SU response', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
+  // ─── MMIS Verification (shared steps) ───────────────────────────────────
 
-    const opened = await openEnrollmentByText(page, /SDPC/);
-    expect(opened, 'Could not open SDPC enrollment detail').toBe(true);
-
-    const status = await verifyMmisSync(page, {
-      participantUuid,
-      mockMmis: MOCK_MMIS,
-      mockFn: mockMmisSuccess,
-      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
-    });
-
-    expect(status.responseStatus, 'Expected SU/SE response from MMIS').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
-
-    const txnListVisible = await page.getByText('MMIS Transaction List').first().isVisible({ timeout: 15_000 }).catch(() => false);
-    if (txnListVisible) {
-      // Refresh page to load latest transaction data
-      await page.reload({ waitUntil: 'networkidle', timeout: 30_000 }).catch(() => {});
-      await page.waitForTimeout(2000);
-      const transactionRows = page.locator('mat-row, tr').filter({ hasText: /[CSO]/ });
-    const count = await transactionRows.count();
-    console.log(`[TC-015] MMIS transaction rows found: ${count}`);
-    // Transaction row count is informational � MMIS sync status is the authoritative check
-    }
+  test('ATC-ES-067 - Verify MMIS sync success and SU response', async () => {
+    await verifyMmisSyncSuccess(page, getStepConfig({ startDate: ENROLLED_START }));
   });
 
   test('ATC-ES-068 - Verify SU response and no conflict', async () => {
-    const status = await getSyncStatus(page);
-    console.log(`[TC-015] Sync status: ${JSON.stringify(status)}`);
-
-    expect(status.responseStatus ?? 'SU').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
+    await verifyFinalSyncStatus(page, getStepConfig({ startDate: ENROLLED_START }));
   });
 
 }); // end describe.serial

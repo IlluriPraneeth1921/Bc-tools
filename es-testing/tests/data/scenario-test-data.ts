@@ -481,9 +481,10 @@ export const SCENARIOS: Record<string, ScenarioData> = {
       enrollmentStatus: 'Enrolled',
       statusReason: 'Not Applicable',
     },
-    mmisBefore: [],
+    mmisBefore: [{ label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' }],
     mmisAfter: [
       { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },    
     ],
     transactions: [
       { sequence: 1, scenario: 'S300', type: 'A', status: 'A', description: 'Create new SDPC enrollment span' },

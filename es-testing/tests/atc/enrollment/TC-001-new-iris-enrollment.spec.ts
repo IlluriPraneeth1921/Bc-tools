@@ -13,12 +13,18 @@ import { navigateToParticipant, navigateToEnrollments } from '../../helpers/part
 import {
   resolveParticipantUuid,
   addIrisEnrollment,
-  openFirstEnrollmentDetail,
-  verifyMmisSync,
 } from './actions/enrollment.actions';
+import {
+  createReferredEnrollment,
+  verifyReferredState,
+  createEnrolledEnrollment,
+  verifyEnrolledState,
+  verifyMmisSyncSuccess,
+  EnrollmentStepConfig,
+} from './actions/enrollment-lifecycle.steps';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
 import { ensurePristineState } from '../../helpers/reset-enrollment';
-import { mockMmisSuccess, extractProgramEnrollmentKeyFromUrl, closeDb } from '../../helpers/db';
+import { closeDb } from '../../helpers/db';
 import { SCENARIOS } from '../../data/scenario-test-data';
 
 // ─── Configuration ────────────────────────────────────────────────────────────
@@ -46,6 +52,18 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
   test.afterAll(async () => {
     if (MOCK_MMIS) await closeDb();
     await browser.close();
+  });
+
+  // Shared config for reusable lifecycle steps
+  const getStepConfig = (overrides?: Partial<EnrollmentStepConfig>): EnrollmentStepConfig => ({
+    program: 'IRIS',
+    startDate: ISP_START_DATE,
+    endDate: ENROLLMENT_END_DATE,
+    statusReason: 'IRIS Consultant',
+    participantUuid,
+    mockMmis: MOCK_MMIS,
+    logPrefix: '[TC-001]',
+    ...overrides,
   });
 
   test('ATC-ES-001 - Precondition: Participant is accessible', async () => {
@@ -102,42 +120,21 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     expect(rowText).toContain('Draft');
   });
 
-  test('ATC-ES-006 - Create Referred enrollment', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  // ─── Referred step (shared with TC-015) ─────────────────────────────────
 
-    const saved = await addIrisEnrollment(page, {
-      program: 'IRIS',
-      status: 'Referred',
-      statusReason: 'IRIS Consultant',
-      startDate: ISP_START_DATE,
-    });
-    expect(saved, 'Failed to create Referred enrollment').toBe(true);
-    console.log('[TC-001] Referred enrollment created');
+  test('ATC-ES-006 - Create Referred enrollment', async () => {
+    await createReferredEnrollment(page, getStepConfig());
   });
 
   test('ATC-ES-007 - State check: First row is Referred', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    const firstRow = page.locator('mat-row').first();
-    await expect(firstRow).toBeVisible({ timeout: 15_000 });
-    const rowText = await firstRow.textContent() || '';
-    expect(rowText).toContain('IRIS');
-    expect(rowText).toContain('Referred');
+    await verifyReferredState(page, getStepConfig());
   });
 
-  test('ATC-ES-008 - Create Enrolled enrollment (triggers MMIS sync)', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  // ─── Enrolled step (shared with TC-015, triggers MMIS sync) ─────────────
 
-    const saved = await addIrisEnrollment(page, {
-      program: 'IRIS',
-      status: 'Enrolled',
-      statusReason: 'Not Applicable',
-      startDate: ISP_START_DATE,
-      endDate: ENROLLMENT_END_DATE,
-    });
-    expect(saved, 'Failed to create Enrolled enrollment').toBe(true);
-    console.log('[TC-001] Enrolled enrollment created — MMIS sync triggered');
+  test('ATC-ES-008 - Create Enrolled enrollment (triggers MMIS sync)', async () => {
+    // For TC-001 Enrolled step, statusReason is 'Not Applicable' (differs from Referred)
+    await createEnrolledEnrollment(page, getStepConfig({ statusReason: 'Not Applicable' }));
   });
 
   test('ATC-ES-009 - Verify: First row is Enrolled with sync badge', async () => {
@@ -149,24 +146,10 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     expect(rowText.includes('Success') || rowText.includes('Warning') || rowText.includes('Pending')).toBe(true);
   });
 
+  // ─── MMIS Verification (shared with TC-015) ─────────────────────────────
+
   test('ATC-ES-010 - Verify: MMIS sync success, no conflict', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-    const opened = await openFirstEnrollmentDetail(page);
-    expect(opened).toBe(true);
-
-    const status = await verifyMmisSync(page, {
-      participantUuid,
-      mockMmis: MOCK_MMIS,
-      mockFn: mockMmisSuccess,
-      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
-    });
-
-    expect(status.responseStatus, 'Expected SU or SE response from MMIS').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
-
-    const _txnListVisible = await page.getByText('MMIS Transaction List').first().isVisible({ timeout: 15_000 }).catch(() => false);
-    console.log(`[TC-001] ✓ Enrollment created and MMIS sync verified (${status.responseStatus})`);
+    await verifyMmisSyncSuccess(page, getStepConfig({ statusReason: 'Not Applicable' }));
   });
 
 });
