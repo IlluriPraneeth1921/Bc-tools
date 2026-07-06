@@ -153,7 +153,6 @@ async function establishEnrolled(): Promise<void> {
   console.log(`[establish] Final state: ${finalState}`);
   expect(finalState).toBe('Enrolled');
 }
-}
 
 // ─── Helper: RESET = TC-008 + TC-001 ─────────────────────────────────────────
 
