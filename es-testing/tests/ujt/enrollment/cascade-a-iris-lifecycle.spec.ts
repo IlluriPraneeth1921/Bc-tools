@@ -96,46 +96,46 @@ async function verifySyncSuccess(label: string): Promise<void> {
 // ─── Helper: Establish fresh Enrolled state (TC-001 flow) ─────────────────────
 
 async function establishEnrolled(): Promise<void> {
+  // Uses the same resilient pattern as TC-001: check row text, skip if already progressed
+
+  // Step 1: Draft
   await navigateToEnrollments(page, participantUuid);
   await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  let rowText = await page.locator('mat-row').first().textContent().catch(() => '') || '';
+  console.log(`[establish] Initial row: ${rowText.trim().substring(0, 80)}`);
 
-  const state = await getCurrentIrisState(page);
-  console.log(`[establish] Current state: ${state}`);
-  if (state === 'Enrolled') {
-    console.log('[establish] Already Enrolled — skipping');
-    return;
-  }
-
-  // Draft (skip if already Draft or Referred)
-  if (state !== 'Draft' && state !== 'Referred') {
+  if (!rowText.includes('Draft') && !rowText.includes('Referred') && !rowText.includes('Enrolled')) {
+    console.log('[establish] Creating Draft...');
     const ok = await addIrisEnrollment(page, {
       program: 'IRIS', status: 'Draft',
       statusReason: 'Not Applicable', startDate: TC001.bcInput.enrollmentStartDate,
     });
     expect(ok, 'Failed to create Draft').toBe(true);
-    console.log('[establish] Draft created');
   }
 
-  // Referred (skip if already Referred)
+  // Step 2: Referred
   await navigateToEnrollments(page, participantUuid);
   await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-  const s1 = await getCurrentIrisState(page);
-  console.log(`[establish] State after Draft step: ${s1}`);
-  if (s1 !== 'Referred' && s1 !== 'Enrolled') {
+  rowText = await page.locator('mat-row').first().textContent().catch(() => '') || '';
+  console.log(`[establish] After Draft — row: ${rowText.trim().substring(0, 80)}`);
+
+  if (!rowText.includes('Referred') && !rowText.includes('Enrolled')) {
+    console.log('[establish] Creating Referred...');
     const ok = await addIrisEnrollment(page, {
       program: 'IRIS', status: 'Referred',
       statusReason: 'IRIS Consultant', startDate: TC001.bcInput.enrollmentStartDate,
     });
     expect(ok, 'Failed to create Referred').toBe(true);
-    console.log('[establish] Referred created');
   }
 
-  // Enrolled
+  // Step 3: Enrolled
   await navigateToEnrollments(page, participantUuid);
   await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-  const s2 = await getCurrentIrisState(page);
-  console.log(`[establish] State after Referred step: ${s2}`);
-  if (s2 !== 'Enrolled') {
+  rowText = await page.locator('mat-row').first().textContent().catch(() => '') || '';
+  console.log(`[establish] After Referred — row: ${rowText.trim().substring(0, 80)}`);
+
+  if (!rowText.includes('Enrolled')) {
+    console.log('[establish] Creating Enrolled...');
     const ok = await addIrisEnrollment(page, {
       program: 'IRIS', status: 'Enrolled',
       statusReason: 'Not Applicable',
@@ -143,15 +143,14 @@ async function establishEnrolled(): Promise<void> {
       endDate: TC001.bcInput.enrollmentEndDate,
     });
     expect(ok, 'Failed to create Enrolled').toBe(true);
-    console.log('[establish] Enrolled created');
   }
 
   // Final verify
   await navigateToEnrollments(page, participantUuid);
   await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-  const finalState = await getCurrentIrisState(page);
-  console.log(`[establish] Final state: ${finalState}`);
-  expect(finalState).toBe('Enrolled');
+  rowText = await page.locator('mat-row').first().textContent().catch(() => '') || '';
+  console.log(`[establish] Final row: ${rowText.trim().substring(0, 80)}`);
+  expect(rowText, '[establish] Expected Enrolled in first row').toContain('Enrolled');
 }
 
 // ─── Helper: RESET = TC-008 + TC-001 ─────────────────────────────────────────
