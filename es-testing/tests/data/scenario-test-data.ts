@@ -1053,6 +1053,465 @@ export const SCENARIOS: Record<string, ScenarioData> = {
       { sequence: 1, scenario: 'S345', type: 'C', status: 'A', startReason: '64', stopReason: '64', description: 'Re-send closure with real disenrollment reason code' },
     ],
   },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-034: SDPC End Date Later (Extension) — SDPC version of TC-007
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_034: {
+    testCaseId: 'TC-034',
+    scenarioId: 'S220_005_SDPC',
+    title: 'SDPC End Date Later (Extension)',
+    program: 'SDPC',
+    decisionTablePath: 'S100(8)→S210→S220(5)→S350(Col2)',
+    transactionCount: 1,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '09/30/2026',
+      newEnrollmentEndDate: '12/31/2299',
+    },
+    mmisBefore: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '09/30/2026' },
+    ],
+    mmisAfter: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S350', type: 'A', status: 'A', description: 'Extend SDPC end date' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-035: SDPC Disenrolled → Enrolled (Reinstatement) — SDPC version of TC-009
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_035: {
+    testCaseId: 'TC-035',
+    scenarioId: 'S220_001_SDPC_REINSTATE',
+    title: 'SDPC Disenrolled → Enrolled (Reinstatement)',
+    program: 'SDPC',
+    decisionTablePath: 'S100(7)→S210→S220(1)→S300(Col2)',
+    transactionCount: 1,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '10/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      enrollmentStatus: 'Enrolled',
+      statusReason: 'Not Applicable',
+    },
+    mmisBefore: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '09/30/2026' },
+    ],
+    mmisAfter: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '09/30/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '10/01/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S300', type: 'A', status: 'A', description: 'Create new SDPC enrollment span (reinstatement)' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-036: SDPC Open-Ended Suspension (No End Date) — SDPC version of TC-010
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_036: {
+    testCaseId: 'TC-036',
+    scenarioId: 'S240_002_SDPC',
+    title: 'SDPC Open-Ended Suspension (No End Date)',
+    program: 'SDPC',
+    decisionTablePath: 'S100(9)→S210→S240(2)→S500+S510(Col2)',
+    transactionCount: 2,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S500', type: 'A', status: 'A', description: 'Close Span-A before SDPC open-ended suspension' },
+      { sequence: 2, scenario: 'S510', type: 'A', status: 'S', description: 'Add SDPC open-ended suspension span' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-037: SDPC Suspension < 3 Days (No Transaction) — SDPC version of TC-011
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_037: {
+    testCaseId: 'TC-037',
+    scenarioId: 'S240_003_SDPC',
+    title: 'SDPC Suspension < 3 Days (No Transaction)',
+    program: 'SDPC',
+    decisionTablePath: 'S100(9)→S210→S240(3)→⛔',
+    transactionCount: 0,
+    expectedResponse: 'NONE',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      suspensionEndDate: '08/02/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-038: SDPC Suspension End: Null → Valid — SDPC version of TC-013
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_038: {
+    testCaseId: 'TC-038',
+    scenarioId: 'S230_006_SDPC',
+    title: 'SDPC Suspension End: Null → Valid',
+    program: 'SDPC',
+    decisionTablePath: 'S100(10)→S210→S230(6)→S440+S520(Col2)',
+    transactionCount: 2,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      newSuspensionEndDate: '08/15/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/15/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/16/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S440', type: 'A', status: 'S', description: 'Shorten SDPC Span-B end date' },
+      { sequence: 2, scenario: 'S520', type: 'A', status: 'A', description: 'Create SDPC Span-C (post-suspension)' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-039: SDPC Address Update (No Transaction) — SDPC version of TC-014
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_039: {
+    testCaseId: 'TC-039',
+    scenarioId: 'S700_001_SDPC',
+    title: 'SDPC Address Update (No Transaction — SDPC Excluded)',
+    program: 'SDPC',
+    decisionTablePath: 'S100(11)→S210→S700→⛔',
+    transactionCount: 0,
+    expectedResponse: 'NONE',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-040: SDPC Begin Date Changed to Earlier — SDPC version of TC-019
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_040: {
+    testCaseId: 'TC-040',
+    scenarioId: 'S220_002_SDPC',
+    title: 'SDPC Begin Date Changed to Earlier',
+    program: 'SDPC',
+    decisionTablePath: 'S100(8)→S210→S220(2)→S310+S300(Col2)',
+    transactionCount: 2,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '07/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      newEnrollmentStartDate: '06/01/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-B', status: 'A', beginDate: '07/01/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S310', type: 'A', status: 'I', description: 'Delete existing SDPC span' },
+      { sequence: 2, scenario: 'S300', type: 'A', status: 'A', description: 'Create SDPC span with earlier begin date' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-041: SDPC Begin Date Changed to Later — SDPC version of TC-020
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_041: {
+    testCaseId: 'TC-041',
+    scenarioId: 'S220_003_SDPC',
+    title: 'SDPC Begin Date Changed to Later',
+    program: 'SDPC',
+    decisionTablePath: 'S100(8)→S210→S220(3)→S310+S300(Col2)',
+    transactionCount: 2,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      newEnrollmentStartDate: '07/15/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-B', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S310', type: 'A', status: 'I', description: 'Delete existing SDPC span' },
+      { sequence: 2, scenario: 'S300', type: 'A', status: 'A', description: 'Create SDPC span with later begin date' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-042: SDPC Suspension Begin Date Earlier — SDPC version of TC-021
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_042: {
+    testCaseId: 'TC-042',
+    scenarioId: 'S230_001_SDPC',
+    title: 'SDPC Suspension Begin Date Earlier',
+    program: 'SDPC',
+    decisionTablePath: 'S100(10)→S210→S230(1)→S400+S410+S300+S510(Col2)',
+    transactionCount: 4,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      suspensionEndDate: '08/15/2026',
+      newSuspensionStartDate: '07/30/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/15/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '07/30/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '07/31/2026', endDate: '08/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/15/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S400', type: 'A', status: 'A', description: 'Shorten SDPC Span-A end date' },
+      { sequence: 2, scenario: 'S410', type: 'A', status: 'I', description: 'Delete existing SDPC Span-B' },
+      { sequence: 3, scenario: 'S300', type: 'A', status: 'A', description: 'Recreate SDPC Span-A' },
+      { sequence: 4, scenario: 'S510', type: 'A', status: 'S', description: 'Create new SDPC Span-B with earlier begin' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-043: SDPC Suspension Begin Date Later — SDPC version of TC-022
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_043: {
+    testCaseId: 'TC-043',
+    scenarioId: 'S230_002_SDPC',
+    title: 'SDPC Suspension Begin Date Later',
+    program: 'SDPC',
+    decisionTablePath: 'S100(10)→S210→S230(2)→S410+S510+S400(Col2)',
+    transactionCount: 3,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      suspensionEndDate: '08/15/2026',
+      newSuspensionStartDate: '08/03/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/15/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/03/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/04/2026', endDate: '08/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/15/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S410', type: 'A', status: 'I', description: 'Delete existing SDPC Span-B' },
+      { sequence: 2, scenario: 'S510', type: 'A', status: 'S', description: 'Create new SDPC Span-B with later begin' },
+      { sequence: 3, scenario: 'S400', type: 'A', status: 'A', description: 'Extend SDPC Span-A end date' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-044: SDPC Suspension End Date Earlier — SDPC version of TC-023
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_044: {
+    testCaseId: 'TC-044',
+    scenarioId: 'S230_003_SDPC',
+    title: 'SDPC Suspension End Date Earlier',
+    program: 'SDPC',
+    decisionTablePath: 'S100(10)→S210→S230(3)→S440+S310+S510+S520(Col2)',
+    transactionCount: 4,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      suspensionEndDate: '08/15/2026',
+      newSuspensionEndDate: '08/12/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/15/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/11/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/12/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S440', type: 'A', status: 'S', description: 'Shorten SDPC Span-B end date' },
+      { sequence: 2, scenario: 'S310', type: 'A', status: 'I', description: 'Delete existing SDPC Span-C' },
+      { sequence: 3, scenario: 'S510', type: 'A', status: 'S', description: 'Recreate SDPC Span-B' },
+      { sequence: 4, scenario: 'S520', type: 'A', status: 'A', description: 'Create new SDPC Span-C' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-045: SDPC Suspension End Date Later — SDPC version of TC-024
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_045: {
+    testCaseId: 'TC-045',
+    scenarioId: 'S230_004_SDPC',
+    title: 'SDPC Suspension End Date Later',
+    program: 'SDPC',
+    decisionTablePath: 'S100(10)→S210→S230(4)→S310+S445+S520(Col2)',
+    transactionCount: 3,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      suspensionEndDate: '08/15/2026',
+      newSuspensionEndDate: '08/20/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/15/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/19/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/20/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S310', type: 'A', status: 'I', description: 'Delete existing SDPC Span-C' },
+      { sequence: 2, scenario: 'S445', type: 'A', status: 'S', description: 'Extend SDPC Span-B end date' },
+      { sequence: 3, scenario: 'S520', type: 'A', status: 'A', description: 'Create new SDPC Span-C' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-046: SDPC Suspension End: Valid → Null — SDPC version of TC-025
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_046: {
+    testCaseId: 'TC-046',
+    scenarioId: 'S230_007_SDPC',
+    title: 'SDPC Suspension End: Valid → Null',
+    program: 'SDPC',
+    decisionTablePath: 'S100(10)→S210→S230(7)→S310+S445(Col2)',
+    transactionCount: 2,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      suspensionEndDate: '08/15/2026',
+      newSuspensionEndDate: null,
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/14/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/15/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S310', type: 'A', status: 'I', description: 'Delete existing SDPC Span-C' },
+      { sequence: 2, scenario: 'S445', type: 'A', status: 'S', description: 'Extend SDPC Span-B to 12/31/2299' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-047: SDPC End Date Later with Suspension — SDPC version of TC-028
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_047: {
+    testCaseId: 'TC-047',
+    scenarioId: 'S220_005b_SDPC',
+    title: 'SDPC End Date Later with Suspension',
+    program: 'SDPC',
+    decisionTablePath: 'S100(8)→S210→S220(5)→S350(1)→S360(Col2)',
+    transactionCount: 1,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      suspensionStartDate: '08/01/2026',
+      suspensionEndDate: '08/02/2026',
+      newSuspensionEndDate: '08/10/2026',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '08/01/2026' },
+      { label: 'Span-B', status: 'S', beginDate: '08/02/2026', endDate: '08/09/2026' },
+      { label: 'Span-C', status: 'A', beginDate: '08/10/2026', endDate: '12/31/2299' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S360', type: 'A', status: 'A', description: 'Create SDPC post-suspension span' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-048: SDPC Disenrolled Span — Real Reason Code (S345) — SDPC version of TC-033
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_048: {
+    testCaseId: 'TC-048',
+    scenarioId: 'S220_008_SDPC',
+    title: 'SDPC Disenrolled Span — Real Reason Code (S345)',
+    program: 'SDPC',
+    decisionTablePath: 'S100(8)→S210→S220(8)→S345(Col2)',
+    transactionCount: 1,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '09/30/2026',
+      enrollmentStatus: 'Disenrolled',
+      statusChange: 'Disenrolled',
+      statusReason: 'Deceased',
+      disenrollmentReason: 'Deceased',
+    },
+    mmisBefore: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '09/30/2026' },
+    ],
+    mmisAfter: [
+      { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '09/30/2026' },
+    ],
+    transactions: [
+      { sequence: 1, scenario: 'S345', type: 'A', status: 'A', startReason: '64', stopReason: '64', description: 'Re-send SDPC closure with real reason code' },
+    ],
+  },
 };
 
 // ─── Helper: Get scenario by test case ID ─────────────────────────────────────

@@ -431,3 +431,261 @@ export async function verifySuspensionDeleteMmisSync(
   expect(status.hasConflict).toBe(false);
   console.log(`${config.logPrefix} ✓ Suspension delete sync completed (${status.responseStatus})`);
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EDIT ENROLLMENT (Begin Date / End Date Change) STEPS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface EditEnrollmentStepConfig {
+  program: 'IRIS' | 'SDPC' | string;
+  participantUuid: string;
+  mockMmis: boolean;
+  logPrefix: string;
+  /** New start date (optional, for begin-date-change tests) */
+  newStartDate?: string;
+  /** New end date (optional, for end-date-change tests) */
+  newEndDate?: string;
+}
+
+/**
+ * Verifies the program enrollment is in Enrolled state, opens its detail,
+ * and edits the enrollment (start/end date change).
+ */
+export async function editEnrolledProgramEnrollment(
+  page: Page,
+  config: EditEnrollmentStepConfig
+): Promise<void> {
+  await navigateToEnrollments(page, config.participantUuid);
+  await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+  const opened = await openEnrollmentByText(page, new RegExp(config.program));
+  expect(opened, `Could not open ${config.program} enrollment detail`).toBe(true);
+
+  const { editEnrollment } = await import('./enrollment.actions');
+  const opts: Record<string, string> = {};
+  if (config.newStartDate) opts.startDate = config.newStartDate;
+  if (config.newEndDate) opts.endDate = config.newEndDate;
+
+  const edited = await editEnrollment(page, opts);
+  expect(edited, 'Edit dialog did not close — validation errors').toBe(true);
+  if (config.newStartDate) console.log(`${config.logPrefix} Begin date changed to: ${config.newStartDate}`);
+  if (config.newEndDate) console.log(`${config.logPrefix} End date changed to: ${config.newEndDate}`);
+}
+
+/**
+ * Verifies MMIS sync after an enrollment edit (begin/end date change).
+ */
+export async function verifyEditEnrollmentMmisSync(
+  page: Page,
+  config: EditEnrollmentStepConfig
+): Promise<void> {
+  const status = await verifyMmisSync(page, {
+    participantUuid: config.participantUuid,
+    mockMmis: config.mockMmis,
+    mockFn: mockMmisSuccess,
+    extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+  });
+
+  expect(status.responseStatus, 'Expected SU/SE response from MMIS').toMatch(/^(SU|SE)$/);
+  expect(status.hasConflict).toBe(false);
+  console.log(`${config.logPrefix} ✓ MMIS sync verified (${status.responseStatus})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// EDIT SUSPENSION (Begin/End Date Change) STEPS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface EditSuspensionStepConfig {
+  program: 'IRIS' | 'SDPC' | string;
+  participantUuid: string;
+  mockMmis: boolean;
+  logPrefix: string;
+  /** New suspension start date (optional) */
+  newSuspensionStartDate?: string;
+  /** New suspension end date (optional, use empty string to clear) */
+  newSuspensionEndDate?: string | null;
+}
+
+/**
+ * Opens the program enrollment detail (must be Enrolled/Suspended with suspension),
+ * then edits the suspension dates.
+ */
+export async function editProgramSuspension(
+  page: Page,
+  config: EditSuspensionStepConfig
+): Promise<void> {
+  await navigateToEnrollments(page, config.participantUuid);
+  await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+  const opened = await openEnrollmentByText(page, new RegExp(config.program));
+  expect(opened, `Could not open ${config.program} enrollment detail`).toBe(true);
+
+  const { editSuspension } = await import('./enrollment.actions');
+  const opts: Record<string, string | null | undefined> = {};
+  if (config.newSuspensionStartDate !== undefined) opts.startDate = config.newSuspensionStartDate;
+  if (config.newSuspensionEndDate !== undefined) opts.endDate = config.newSuspensionEndDate;
+
+  const edited = await editSuspension(page, opts as any);
+  expect(edited, 'Edit suspension dialog did not close — validation errors').toBe(true);
+  if (config.newSuspensionStartDate) console.log(`${config.logPrefix} Suspension begin changed to: ${config.newSuspensionStartDate}`);
+  if (config.newSuspensionEndDate !== undefined) console.log(`${config.logPrefix} Suspension end changed to: ${config.newSuspensionEndDate ?? 'NULL (open-ended)'}`);
+}
+
+/**
+ * Verifies MMIS sync after a suspension edit.
+ */
+export async function verifyEditSuspensionMmisSync(
+  page: Page,
+  config: EditSuspensionStepConfig
+): Promise<void> {
+  const status = await verifyMmisSync(page, {
+    participantUuid: config.participantUuid,
+    mockMmis: config.mockMmis,
+    mockFn: mockMmisSuccess,
+    extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+  });
+
+  expect(status.responseStatus, 'Expected SU/SE response from MMIS').toMatch(/^(SU|SE)$/);
+  expect(status.hasConflict).toBe(false);
+  console.log(`${config.logPrefix} ✓ MMIS sync verified (${status.responseStatus})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// OPEN-ENDED SUSPENSION STEP
+// ═══════════════════════════════════════════════════════════════════════════════
+
+/**
+ * Adds an open-ended suspension (no end date) to the currently open enrollment detail.
+ */
+export async function addOpenEndedSuspension(
+  page: Page,
+  config: SuspensionStepConfig
+): Promise<void> {
+  const result = await addSuspension(page, {
+    startDate: config.suspensionStartDate,
+    // No endDate — open-ended
+    reason: config.reason || 'Hospital Admission',
+  });
+  expect(result, 'Failed to add open-ended suspension').toBe(true);
+  console.log(`${config.logPrefix} Open-ended suspension added: ${config.suspensionStartDate} → (none)`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REINSTATEMENT (Disenrolled → Enrolled) STEPS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ReinstatementStepConfig {
+  program: 'IRIS' | 'SDPC' | string;
+  startDate: string;
+  endDate?: string;
+  statusReason?: string;
+  participantUuid: string;
+  mockMmis: boolean;
+  logPrefix: string;
+}
+
+/**
+ * Verifies the program is Disenrolled, then creates a new Enrolled enrollment (reinstatement).
+ */
+export async function reinstateEnrollment(
+  page: Page,
+  config: ReinstatementStepConfig
+): Promise<void> {
+  await navigateToEnrollments(page, config.participantUuid);
+  await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+  const saved = await addIrisEnrollment(page, {
+    program: config.program,
+    status: 'Enrolled',
+    statusReason: config.statusReason || 'Not Applicable',
+    startDate: config.startDate,
+    endDate: config.endDate || '12/31/2299',
+  });
+  expect(saved, `Failed to create ${config.program} Enrolled enrollment (reinstatement)`).toBe(true);
+  console.log(`${config.logPrefix} Enrolled enrollment created (reinstatement)`);
+}
+
+/**
+ * Verifies MMIS sync after reinstatement.
+ */
+export async function verifyReinstatementMmisSync(
+  page: Page,
+  config: ReinstatementStepConfig
+): Promise<void> {
+  await navigateToEnrollments(page, config.participantUuid);
+  await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  const opened = await openEnrollmentByText(page, new RegExp(`${config.program}.*Enrolled|Enrolled.*${config.program}`));
+  expect(opened, `Could not open ${config.program} Enrolled detail`).toBe(true);
+
+  const status = await verifyMmisSync(page, {
+    participantUuid: config.participantUuid,
+    mockMmis: config.mockMmis,
+    mockFn: mockMmisSuccess,
+    extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+  });
+  expect(status.responseStatus, 'Expected SU/SE response').toMatch(/^(SU|SE)$/);
+  expect(status.hasConflict).toBe(false);
+  console.log(`${config.logPrefix} ✓ Reinstatement MMIS sync verified (${status.responseStatus})`);
+}
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// END DATE LATER (Extension) STEPS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface EndDateLaterStepConfig {
+  program: 'IRIS' | 'SDPC' | string;
+  startDate: string;
+  newEndDate: string;
+  statusReason?: string;
+  participantUuid: string;
+  mockMmis: boolean;
+  logPrefix: string;
+}
+
+/**
+ * Verifies participant is Disenrolled in the given program, then creates
+ * a new Enrolled enrollment with a later end date (extension / re-enrollment).
+ * For IRIS this goes through Draft → Referred → Enrolled; for SDPC it can go
+ * Assessing → Referred → Enrolled or direct Enrolled depending on test flow.
+ */
+export async function createEnrolledWithLaterEndDate(
+  page: Page,
+  config: EndDateLaterStepConfig
+): Promise<void> {
+  await navigateToEnrollments(page, config.participantUuid);
+  await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+  const saved = await addIrisEnrollment(page, {
+    program: config.program,
+    status: 'Enrolled',
+    statusReason: config.statusReason || 'Not Applicable',
+    startDate: config.startDate,
+    endDate: config.newEndDate,
+  });
+  expect(saved, `Failed to create ${config.program} Enrolled enrollment with later end date`).toBe(true);
+  console.log(`${config.logPrefix} Enrolled enrollment created with end date ${config.newEndDate}`);
+}
+
+/**
+ * Verifies MMIS sync after end date later (extension).
+ */
+export async function verifyEndDateLaterMmisSync(
+  page: Page,
+  config: EndDateLaterStepConfig
+): Promise<void> {
+  await navigateToEnrollments(page, config.participantUuid);
+  await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+  const opened = await openEnrollmentByText(page, /Enrolled/, /Disenrolled/);
+  expect(opened, `Could not open Enrolled enrollment detail`).toBe(true);
+
+  const status = await verifyMmisSync(page, {
+    participantUuid: config.participantUuid,
+    mockMmis: config.mockMmis,
+    mockFn: mockMmisSuccess,
+    extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+  });
+  expect(status.responseStatus, 'Expected SU/SE response').toMatch(/^(SU|SE)$/);
+  expect(status.hasConflict).toBe(false);
+  console.log(`${config.logPrefix} ✓ End date later sync verified (${status.responseStatus})`);
+}

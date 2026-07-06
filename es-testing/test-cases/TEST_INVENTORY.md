@@ -2,7 +2,7 @@
 
 **Feature:** Enrollment Service (ICD-D01 V6.0)
 **Test Participant:** MA ID 1430000013
-**Total Test Cases:** 33
+**Total Test Cases:** 48
 **Last Updated:** 2026-06-28
 
 ---
@@ -35,9 +35,9 @@
 
 | Metric                           | Value                                                        |
 | -------------------------------- | ------------------------------------------------------------ |
-| Total Test Cases                 | 33                                                           |
+| Total Test Cases                 | 48                                                           |
 | IRIS Test Cases                  | 29                                                           |
-| SDPC Test Cases                  | 4                                                            |
+| SDPC Test Cases                  | 19                                                           |
 | Happy Path (SU expected)         | 28                                                           |
 | Error / Negative Cases           | 4 (TC-004 FL, TC-011 no txn, TC-029 FL multi, TC-032 no txn) |
 | Edge Cases                       | 1 (TC-030 SE response)                                       |
@@ -96,7 +96,22 @@
 | TC-030 | SE Response — Enrollment Activated     | IRIS    | Pristine               | Enrolled (with warnings)        | SE       | ✅ Working                                                                                                                                                                                      |
 | TC-031 | ICA Transfer — Span-C Exists           | IRIS    | Suspended (bounded)    | Suspended (new ICA on Span-C)   | SU       | HOLD                                                                                                                                                                                            |
 | TC-032 | Address Update — No Current Span       | IRIS    | Disenrolled            | Disenrolled (unchanged)         | No Txn   | ✅ Working                                                                                                                                                                                      |
-| TC-033 | Disenrolled Span — Real Reason Code    | IRIS    | Disenrolled            | Disenrolled (real reason)       | SU       | —                                                                                                                                                                                              |
+| TC-033 | Disenrolled Span — Real Reason Code    | IRIS    | Disenrolled            | Disenrolled (real reason)       | SU       | ✅ Working                                                                                                                                                                                      |
+| TC-034 | SDPC End Date → Later (Extension)    | SDPC    | SDPC Disenrolled       | SDPC Enrolled (re-opened)       | SU       | —                                                                                                                                                                                              |
+| TC-035 | SDPC Disenrolled → Enrolled          | SDPC    | SDPC Disenrolled       | SDPC Enrolled (reinstated)      | SU       | —                                                                                                                                                                                              |
+| TC-036 | SDPC Open-Ended Suspension            | SDPC    | SDPC Enrolled          | SDPC Suspended (open-ended)     | SU       | —                                                                                                                                                                                              |
+| TC-037 | SDPC Suspension < 3 Days (No Txn)     | SDPC    | SDPC Enrolled          | SDPC Enrolled (unchanged)       | No Txn   | —                                                                                                                                                                                              |
+| TC-038 | SDPC Suspension End: Null → Valid    | SDPC    | SDPC Suspended (open)  | SDPC Suspended (bounded)        | SU       | —                                                                                                                                                                                              |
+| TC-039 | SDPC Address Update (No Txn)          | SDPC    | SDPC Enrolled          | SDPC Enrolled (unchanged)       | No Txn   | —                                                                                                                                                                                              |
+| TC-040 | SDPC Begin Date → Earlier            | SDPC    | SDPC Enrolled          | SDPC Enrolled (earlier begin)   | SU       | —                                                                                                                                                                                              |
+| TC-041 | SDPC Begin Date → Later              | SDPC    | SDPC Enrolled          | SDPC Enrolled (later begin)     | SU       | —                                                                                                                                                                                              |
+| TC-042 | SDPC Suspension Begin → Earlier      | SDPC    | SDPC Suspended         | SDPC Suspended (modified)       | SU       | —                                                                                                                                                                                              |
+| TC-043 | SDPC Suspension Begin → Later        | SDPC    | SDPC Suspended         | SDPC Suspended (modified)       | SU       | —                                                                                                                                                                                              |
+| TC-044 | SDPC Suspension End → Earlier        | SDPC    | SDPC Suspended         | SDPC Suspended (modified)       | SU       | —                                                                                                                                                                                              |
+| TC-045 | SDPC Suspension End → Later          | SDPC    | SDPC Suspended         | SDPC Suspended (modified)       | SU       | —                                                                                                                                                                                              |
+| TC-046 | SDPC Suspension End: Valid → Null    | SDPC    | SDPC Suspended         | SDPC Suspended (open-ended)     | SU       | —                                                                                                                                                                                              |
+| TC-047 | SDPC End Date Later + Suspended       | SDPC    | SDPC Suspended         | SDPC Suspended (3 spans)        | SU       | —                                                                                                                                                                                              |
+| TC-048 | SDPC Disenrolled — Real Reason Code  | SDPC    | SDPC Disenrolled       | SDPC Disenrolled (real reason)  | SU       | —                                                                                                                                                                                              |
 
 ---
 
@@ -104,27 +119,27 @@ Tests are arranged below so each test's output state feeds the next test's requi
 
 ### Cascade A: IRIS Enrollment Lifecycle
 
-| Step | TC #   | Scenario                                | Starting State                      | Output State                 | Txns | Expected | Automation                    |
-| ---- | ------ | --------------------------------------- | ----------------------------------- | ---------------------------- | ---- | -------- | ----------------------------- |
-| 1    | TC-001 | New IRIS Enrollment — Happy Path       | Pristine (no enrollment)            | Enrolled (active, SU synced) | 1    | SU       | ✅ Working                    |
-| 2    | TC-014 | Address-Only Update (S700 Cond 1)       | Enrolled (active, SU synced)        | Enrolled (unchanged)         | 1    | SU       | ✅ Working                    |
-| 3    | TC-003 | ICA Transfer — Active Span             | Enrolled (active, SU synced)        | Enrolled (new ICA agency)    | 2    | SU       | ✅ Working                    |
-| 4    | TC-016 | FEA Transfer — Close + Open            | Enrolled (active, SU synced)        | Enrolled (new FEA agency)    | 2    | SU       | — Don'y know to how invoke   |
-| 5    | TC-019 | Begin Date → Earlier (Delete+Recreate) | Enrolled (active, SU synced)        | Enrolled (earlier begin)     | 2    | SU       | ✅ Working                    |
-| 6    | TC-020 | Begin Date → Later (Delete+Recreate)   | Enrolled (active, SU synced)        | Enrolled (later begin)       | 2    | SU       | ✅ Working                    |
-| 7    | TC-006 | End Date → Earlier (Disenrollment)     | Enrolled (active, SU synced)        | Disenrolled (end-dated)      | 1    | SU       | ✅ Working                    |
-| 8    | TC-033 | Disenrolled Span — Real Reason Code    | Disenrolled (placeholder 2W codes)  | Disenrolled (real reason)    | 1    | SU       | — Need to figure out testing |
-| 9    | TC-032 | Address Update — No Current Span       | Disenrolled (no active span)        | Disenrolled (unchanged)      | 0    | No Txn   | ✅ Working                    |
-| 10   | TC-007 | End Date → Later (Extension)           | Disenrolled (end-dated)             | Enrolled (re-opened)         | 1    | SU       | ✅ Working                    |
-| 11   | TC-002 | Enrolled → Suspended (with end date)   | Enrolled (active, SU synced)        | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working                    |
-| 12   | TC-012 | Suspension Deleted                      | Suspended (bounded, 3 spans synced) | Enrolled (spans merged)      | 2    | SU       | ✅ Working                    |
+| Step | TC #   | Scenario                                | Starting State                      | Output State                 | Txns | Expected | Automation        |
+| ---- | ------ | --------------------------------------- | ----------------------------------- | ---------------------------- | ---- | -------- | ----------------- |
+| 1    | TC-001 | New IRIS Enrollment — Happy Path       | Pristine (no enrollment)            | Enrolled (active, SU synced) | 1    | SU       | ✅ Working        |
+| 2    | TC-014 | Address-Only Update (S700 Cond 1)       | Enrolled (active, SU synced)        | Enrolled (unchanged)         | 1    | SU       | ✅ Working        |
+| 3    | TC-003 | ICA Transfer — Active Span             | Enrolled (active, SU synced)        | Enrolled (new ICA agency)    | 2    | SU       | ✅ Working        |
+| 4    | TC-016 | FEA Transfer — Close + Open            | Enrolled (active, SU synced)        | Enrolled (new FEA agency)    | 2    | SU       | ✅ Working - HOLD |
+| 5    | TC-019 | Begin Date → Earlier (Delete+Recreate) | Enrolled (active, SU synced)        | Enrolled (earlier begin)     | 2    | SU       | ✅ Working        |
+| 6    | TC-020 | Begin Date → Later (Delete+Recreate)   | Enrolled (active, SU synced)        | Enrolled (later begin)       | 2    | SU       | ✅ Working        |
+| 7    | TC-006 | End Date → Earlier (Disenrollment)     | Enrolled (active, SU synced)        | Disenrolled (end-dated)      | 1    | SU       | ✅ Working        |
+| 8    | TC-033 | Disenrolled Span — Real Reason Code    | Disenrolled (placeholder 2W codes)  | Disenrolled (real reason)    | 1    | SU       | ✅ Working        |
+| 9    | TC-032 | Address Update — No Current Span       | Disenrolled (no active span)        | Disenrolled (unchanged)      | 0    | No Txn   | ✅ Working        |
+| 10   | TC-007 | End Date → Later (Extension)           | Disenrolled (end-dated)             | Enrolled (re-opened)         | 1    | SU       | ✅ Working        |
+| 11   | TC-002 | Enrolled → Suspended (with end date)   | Enrolled (active, SU synced)        | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working        |
+| 12   | TC-012 | Suspension Deleted                      | Suspended (bounded, 3 spans synced) | Enrolled (spans merged)      | 2    | SU       | ✅ Working        |
 
 **[RESET via TC-008 + TC-001]**
 
-| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation |
-| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ---------- |
-| 13   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working |
-| 14   | TC-017 | ICA Transfer During Suspension | Suspended (bounded, 3 spans) | Suspended (new ICA)          | 3    | SU       | ✅ Working |
+| Step | TC #   | Scenario                       | Starting State               | Output State                 | Txns | Expected | Automation        |
+| ---- | ------ | ------------------------------ | ---------------------------- | ---------------------------- | ---- | -------- | ----------------- |
+| 13   | TC-002 | Enrolled → Suspended (repeat) | Enrolled (active, SU synced) | Suspended (bounded, 3 spans) | 3    | SU       | ✅ Working        |
+| 14   | TC-017 | ICA Transfer During Suspension | Suspended (bounded, 3 spans) | Suspended (new ICA)          | 3    | SU       | ✅ Working - HOLD |
 
 **[RESET via TC-008 + TC-001]**
 
@@ -201,6 +216,72 @@ Tests are arranged below so each test's output state feeds the next test's requi
 | 38   | TC-015 | New SDPC Enrollment (re-run)             | Pristine (no SDPC enrollment)     | SDPC Enrolled (SU synced) | 1    | SU       | —         |
 | 39   | TC-018 | New SDPC Suspension                      | SDPC Enrolled (active, SU synced) | SDPC Suspended (3 spans)  | 3    | SU       | —         |
 | 40   | TC-027 | SDPC Suspension Deleted                  | SDPC Suspended (bounded, 3 spans) | SDPC Enrolled (merged)    | 2    | SU       | —         |
+
+### Cascade D: SDPC Enrollment Lifecycle (Full Coverage)
+
+> Mirrors IRIS Cascade A scenarios for the SDPC program. All tests require participant to be enrolled in IRIS (TC-015 precondition).
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 41   | TC-015 | New SDPC Enrollment                      | Pristine (IRIS Enrolled)          | SDPC Enrolled (SU synced)       | 1    | SU       | TC-001     |
+| 42   | TC-039 | SDPC Address Update (No Txn)             | SDPC Enrolled                     | SDPC Enrolled (unchanged)       | 0    | No Txn   | TC-014     |
+| 43   | TC-040 | SDPC Begin Date → Earlier               | SDPC Enrolled                     | SDPC Enrolled (earlier begin)   | 2    | SU       | TC-019     |
+| 44   | TC-041 | SDPC Begin Date → Later                 | SDPC Enrolled                     | SDPC Enrolled (later begin)     | 2    | SU       | TC-020     |
+| 45   | TC-026 | SDPC End Date → Earlier (Disenrollment) | SDPC Enrolled                     | SDPC Disenrolled                | 1    | SU       | TC-006     |
+| 46   | TC-048 | SDPC Disenrolled — Real Reason Code     | SDPC Disenrolled                  | SDPC Disenrolled (real reason)  | 1    | SU       | TC-033     |
+| 47   | TC-034 | SDPC End Date → Later (Extension)       | SDPC Disenrolled                  | SDPC Enrolled (re-opened)       | 1    | SU       | TC-007     |
+| 48   | TC-035 | SDPC Disenrolled → Enrolled             | SDPC Disenrolled                  | SDPC Enrolled (reinstated)      | 1    | SU       | TC-009     |
+| 49   | TC-018 | New SDPC Suspension (Bounded)            | SDPC Enrolled                     | SDPC Suspended (3 spans)        | 3    | SU       | TC-002     |
+| 50   | TC-027 | SDPC Suspension Deleted                  | SDPC Suspended (bounded)          | SDPC Enrolled (merged)          | 2    | SU       | TC-012     |
+
+**[Re-run TC-015 to reset SDPC enrollment]**
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 51   | TC-018 | SDPC Suspension (repeat)                 | SDPC Enrolled                     | SDPC Suspended (3 spans)        | 3    | SU       | TC-002     |
+| 52   | TC-042 | SDPC Suspension Begin → Earlier         | SDPC Suspended (bounded)          | SDPC Suspended (modified)       | 4    | SU       | TC-021     |
+
+**[Re-run TC-015 to reset]**
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 53   | TC-018 | SDPC Suspension (repeat)                 | SDPC Enrolled                     | SDPC Suspended (3 spans)        | 3    | SU       | TC-002     |
+| 54   | TC-043 | SDPC Suspension Begin → Later           | SDPC Suspended (bounded)          | SDPC Suspended (modified)       | 3    | SU       | TC-022     |
+
+**[Re-run TC-015 to reset]**
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 55   | TC-018 | SDPC Suspension (repeat)                 | SDPC Enrolled                     | SDPC Suspended (3 spans)        | 3    | SU       | TC-002     |
+| 56   | TC-044 | SDPC Suspension End → Earlier           | SDPC Suspended (bounded)          | SDPC Suspended (modified)       | 4    | SU       | TC-023     |
+
+**[Re-run TC-015 to reset]**
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 57   | TC-018 | SDPC Suspension (repeat)                 | SDPC Enrolled                     | SDPC Suspended (3 spans)        | 3    | SU       | TC-002     |
+| 58   | TC-045 | SDPC Suspension End → Later             | SDPC Suspended (bounded)          | SDPC Suspended (modified)       | 3    | SU       | TC-024     |
+
+**[Re-run TC-015 to reset]**
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 59   | TC-018 | SDPC Suspension (repeat)                 | SDPC Enrolled                     | SDPC Suspended (3 spans)        | 3    | SU       | TC-002     |
+| 60   | TC-046 | SDPC Suspension End: Valid → Null       | SDPC Suspended (bounded)          | SDPC Suspended (open-ended)     | 2    | SU       | TC-025     |
+
+**[Re-run TC-015 to reset]**
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 61   | TC-036 | SDPC Open-Ended Suspension               | SDPC Enrolled                     | SDPC Suspended (open-ended)     | 2    | SU       | TC-010     |
+| 62   | TC-038 | SDPC Suspension End: Null → Valid       | SDPC Suspended (open-ended)       | SDPC Suspended (bounded)        | 2    | SU       | TC-013     |
+
+**[Re-run TC-015 to reset]**
+
+| Step | TC #   | Scenario                                 | Starting State                    | Output State                    | Txns | Expected | IRIS Equiv |
+| ---- | ------ | ---------------------------------------- | --------------------------------- | ------------------------------- | ---- | -------- | ---------- |
+| 63   | TC-037 | SDPC Suspension < 3 Days (No Txn)        | SDPC Enrolled                     | SDPC Enrolled (unchanged)       | 0    | No Txn   | TC-011     |
+| 64   | TC-047 | SDPC End Date Later + Suspended          | SDPC Suspended                    | SDPC Suspended (3 spans)        | 1    | SU       | TC-028     |
 
 ### Cascade Notes
 
