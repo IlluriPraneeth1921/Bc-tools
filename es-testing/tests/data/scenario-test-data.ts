@@ -1233,7 +1233,7 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     transactionCount: 2,
     expectedResponse: 'SU',
     bcInput: {
-      enrollmentStartDate: '07/01/2026',
+      enrollmentStartDate: '06/02/2026',
       enrollmentEndDate: '12/31/2299',
       newEnrollmentStartDate: '06/01/2026',
     },
