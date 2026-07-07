@@ -1263,13 +1263,13 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     bcInput: {
       enrollmentStartDate: '06/01/2026',
       enrollmentEndDate: '12/31/2299',
-      newEnrollmentStartDate: '07/15/2026',
+      newEnrollmentStartDate: '06/15/2026',
     },
     mmisBefore: [
       { label: 'Span-B', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
     ],
     mmisAfter: [
-      { label: 'Span-B', status: 'A', beginDate: '07/15/2026', endDate: '12/31/2299' },
+      { label: 'Span-B', status: 'A', beginDate: '06/15/2026', endDate: '12/31/2299' },
     ],
     transactions: [
       { sequence: 1, scenario: 'S310', type: 'A', status: 'I', description: 'Delete existing SDPC span' },
@@ -1510,6 +1510,32 @@ export const SCENARIOS: Record<string, ScenarioData> = {
     ],
     transactions: [
       { sequence: 1, scenario: 'S345', type: 'A', status: 'A', startReason: '64', stopReason: '64', description: 'Re-send SDPC closure with real reason code' },
+    ],
+  },
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // TC-049: SDPC Referral Withdrawn (Reset to Pristine) — SDPC version of TC-008
+  // ═══════════════════════════════════════════════════════════════════════════
+  TC_049: {
+    testCaseId: 'TC-049',
+    scenarioId: 'S220_006_SDPC',
+    title: 'SDPC Referral Withdrawn (Reset to Pristine)',
+    program: 'SDPC',
+    decisionTablePath: 'S100(8)→S210→S220(6)→S310(Col2)',
+    transactionCount: 1,
+    expectedResponse: 'SU',
+    bcInput: {
+      enrollmentStartDate: '06/01/2026',
+      enrollmentEndDate: '12/31/2299',
+      statusChange: 'Referral Withdrawn',
+      statusReason: 'Not Provided',
+    },
+    mmisBefore: [
+      { label: 'Span-A', status: 'A', beginDate: '06/01/2026', endDate: '12/31/2299' },
+    ],
+    mmisAfter: [],
+    transactions: [
+      { sequence: 1, scenario: 'S310', type: 'A', status: 'I', description: 'Delete SDPC enrollment span (referral withdrawn)' },
     ],
   },
 };

@@ -689,3 +689,57 @@ export async function verifyEndDateLaterMmisSync(
   expect(status.hasConflict).toBe(false);
   console.log(`${config.logPrefix} ✓ End date later sync verified (${status.responseStatus})`);
 }
+
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// REFERRAL WITHDRAWN (Reset to Pristine) STEPS
+// ═══════════════════════════════════════════════════════════════════════════════
+
+export interface ReferralWithdrawnStepConfig {
+  program: 'IRIS' | 'SDPC' | string;
+  participantUuid: string;
+  mockMmis: boolean;
+  logPrefix: string;
+}
+
+/**
+ * Opens the program enrollment detail and changes status to "Referral Withdrawn".
+ * This deletes the MMIS span and resets the enrollment to pristine state.
+ */
+export async function withdrawReferral(
+  page: Page,
+  config: ReferralWithdrawnStepConfig
+): Promise<void> {
+  await navigateToEnrollments(page, config.participantUuid);
+  await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+  const { editEnrollment } = await import('./enrollment.actions');
+  const opened = await openEnrollmentByText(page, new RegExp(config.program));
+  expect(opened, `Could not open ${config.program} enrollment detail`).toBe(true);
+
+  const edited = await editEnrollment(page, {
+    status: 'Referral Withdrawn',
+    statusReason: 'Not Provided',
+  });
+  expect(edited, 'Edit dialog did not close — validation errors').toBe(true);
+  console.log(`${config.logPrefix} Status changed to Referral Withdrawn — MMIS delete triggered`);
+}
+
+/**
+ * Verifies MMIS sync after referral withdrawal (1 transaction: S310 delete).
+ */
+export async function verifyWithdrawalMmisSync(
+  page: Page,
+  config: ReferralWithdrawnStepConfig
+): Promise<void> {
+  const status = await verifyMmisSync(page, {
+    participantUuid: config.participantUuid,
+    mockMmis: config.mockMmis,
+    mockFn: mockMmisSuccess,
+    extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+  });
+
+  expect(status.responseStatus, 'Expected SU/SE response from MMIS').toMatch(/^(SU|SE)$/);
+  expect(status.hasConflict).toBe(false);
+  console.log(`${config.logPrefix} ✓ Referral withdrawal MMIS sync verified (${status.responseStatus})`);
+}
