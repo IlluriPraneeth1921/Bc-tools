@@ -73,9 +73,8 @@ class DatabaseManager:
             return cur.rowcount
 
     def execute_many(self, target: str, query: str, param_list: List[tuple]) -> int:
-        """Batch insert/update."""
+        """Batch insert/update. Disables fast_executemany to avoid issues with NVARCHAR(MAX) columns."""
         with self.cursor(target) as cur:
-            cur.fast_executemany = True
             cur.executemany(query, param_list)
             return cur.rowcount
 

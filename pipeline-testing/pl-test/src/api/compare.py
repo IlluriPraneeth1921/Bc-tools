@@ -255,6 +255,13 @@ def _update_progress(test_run_id: str, step: str, stage: Optional[int] = None,
 async def run_comparison(request: CompareRequest):
     """Run the full comparison pipeline for a file using the appropriate interface plugin."""
     from src.api.files import _parsed_files
+    from src.core.db_migration import ensure_test_verification_tables
+
+    # Ensure all required tables exist before running comparison
+    try:
+        ensure_test_verification_tables()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database migration failed: {str(e)}")
 
     # Get the plugin for this interface type
     try:
@@ -405,7 +412,7 @@ async def run_comparison(request: CompareRequest):
         completed += 1
 
     # --- Store mismatches ---
-    _update_progress(test_run_id, "finalizing", detail="Storing mismatch report...",
+    _update_progress(test_run_id, "finalizing", detail="Storing comparison results...",
                      completed_stages=completed, total_stages=total_stages)
     if all_mismatches:
         _store_mismatches(test_run_id, request.interface_type, filename, all_mismatches)
@@ -472,6 +479,13 @@ async def run_single_stage(request: StageRunRequest):
     Call this sequentially for each stage to get per-stage progress in the UI.
     """
     from src.api.files import _parsed_files
+    from src.core.db_migration import ensure_test_verification_tables
+
+    # Ensure all required tables exist
+    try:
+        ensure_test_verification_tables()
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database migration failed: {str(e)}")
 
     try:
         plugin = get_interface(request.interface_type)
@@ -588,7 +602,7 @@ async def get_mismatches(
     status: Optional[str] = None, provider: Optional[str] = None, limit: int = 100,
 ):
     """Get mismatch report for a test run."""
-    query = "SELECT TOP (?) * FROM [TestVerification].[MismatchReport] WHERE TestRunId = ?"
+    query = "SELECT TOP (?) * FROM [TestVerification].[MismatchReport] WHERE TestRunId = ? AND Status != 'PASS'"
     params: list = [limit, test_run_id]
     if stage is not None:
         query += " AND Stage = ?"

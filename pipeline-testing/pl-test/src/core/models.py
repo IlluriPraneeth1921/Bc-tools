@@ -60,6 +60,8 @@ class ComparatorResult:
 
     def add_pass(self, record: Optional[MismatchRecord] = None):
         self.pass_count += 1
+        if record is not None:
+            self.mismatches.append(record)
 
     def add_mismatch(self, record: MismatchRecord):
         self.mismatches.append(record)

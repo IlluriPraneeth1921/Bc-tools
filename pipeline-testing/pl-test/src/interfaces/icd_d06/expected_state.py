@@ -102,9 +102,13 @@ class IcdD06ExpectedStateGenerator(BaseExpectedStateGenerator):
         return mapper(fields) if mapper else None
 
     def _map_01(self, f):
+        # Stage 2 stored proc reformats Personal names: "Last(25)First(13)MI(1)" → "First MI Last"
+        raw_name = self._get_field(f, 2, 50)
+        name_type = self._get_field(f, 3, 1)
+        formatted_name = self._format_name_for_stage2(raw_name, name_type)
         return {"table": "MedicaidProviderMain", "columns": {
             "MedicaidProviderNumber": self._get_field(f, 1, 15),
-            "ProviderFullName": self._get_field(f, 2, 50),
+            "ProviderFullName": formatted_name,
             "ProviderNameType": self._get_field(f, 3, 1),
             "OrganizationTypeCode": self._get_field(f, 4, 1),
             "OrganizationTypeDescription": self._get_field(f, 5, 25),
@@ -113,20 +117,22 @@ class IcdD06ExpectedStateGenerator(BaseExpectedStateGenerator):
         }}
 
     def _map_02(self, f):
+        # PSV layout: 02|MCD_ID|AddrType|NameType|NameSpecific|Street1|Street2|City|State|Zip|ZipExt|County|Email|Contact|Phone|???|PhoneMemberUse
+        # Indices:      0   1       2       3         4          5       6      7    8    9   10     11    12    13     14   15   16
         return {"table": "MedicaidProviderAddress", "columns": {
             "MedicaidProviderNumber": self._get_field(f, 1, 15),
             "AddressTypeCode": self._get_field(f, 2, 1),
             "NameTypeCode": self._get_field(f, 3, 1),
-            "NameAddressSpecific": self._get_field(f, 3, 50),
-            "StreetAddress1": self._get_field(f, 4, 30),
-            "StreetAddress2": self._get_field(f, 5, 30),
-            "City": self._get_field(f, 6, 30),
-            "State": self._get_field(f, 7, 2),
-            "ZipCode": self._get_field(f, 8, 5),
-            "ZipCodeExtension": self._get_field(f, 9, 4),
-            "PracticeLocationCountyCode": self._get_field(f, 10, 10),
-            "EmailAddress": self._get_field(f, 11, 256),
-            "PhoneNumberMemberUse": self._get_field(f, 15, 10),
+            "NameAddressSpecific": self._get_field(f, 4, 50),
+            "StreetAddress1": self._get_field(f, 5, 30),
+            "StreetAddress2": self._get_field(f, 6, 30),
+            "City": self._get_field(f, 7, 30),
+            "State": self._get_field(f, 8, 2),
+            "ZipCode": self._get_field(f, 9, 5),
+            "ZipCodeExtension": self._get_field(f, 10, 4),
+            "PracticeLocationCountyCode": self._get_field(f, 11, 10),
+            "EmailAddress": self._get_field(f, 12, 256),
+            "PhoneNumberMemberUse": self._get_field(f, 16, 10),
         }}
 
     def _map_03(self, f):
@@ -234,6 +240,21 @@ class IcdD06ExpectedStateGenerator(BaseExpectedStateGenerator):
     def _get_field(fields: list, index: int, max_len: int = None) -> str:
         value = fields[index].strip() if index < len(fields) and fields[index] else ""
         return value[:max_len] if max_len and len(value) > max_len else value
+
+    @staticmethod
+    def _format_name_for_stage2(raw_name: str, name_type: str) -> str:
+        """
+        Format provider name the same way the Stage 2 stored proc does.
+        Personal (P): source is "Last(1-25) First(26-38) MI(39)" → target is "First MI Last"
+        Business (B): stored as-is.
+        """
+        if name_type == "P":
+            last = raw_name[0:25].strip() if len(raw_name) > 0 else ""
+            first = raw_name[25:38].strip() if len(raw_name) > 25 else ""
+            mi = raw_name[38:39].strip() if len(raw_name) > 38 else ""
+            parts = [p for p in [first, mi, last] if p]
+            return " ".join(parts)
+        return raw_name.strip()
 
     @staticmethod
     def _fmt_date(value: str) -> Optional[str]:
