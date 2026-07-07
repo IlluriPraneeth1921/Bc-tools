@@ -54,38 +54,38 @@ class TestDetailParsing:
         assert parsed_baseline.entity_count == 3
 
     def test_member_ids(self, parsed_baseline):
-        assert "0000000001" in parsed_baseline.entity_ids
-        assert "0000000002" in parsed_baseline.entity_ids
-        assert "0000000003" in parsed_baseline.entity_ids
+        assert "9999999001" in parsed_baseline.entity_ids
+        assert "9999999002" in parsed_baseline.entity_ids
+        assert "9999999003" in parsed_baseline.entity_ids
 
     def test_member1_demographics(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
-        assert m.medicaid_id == "0000000001"
+        m = parsed_baseline.members["9999999001"]
+        assert m.medicaid_id == "9999999001"
         assert m.first_name == "John"
         assert m.last_name == "Smith"
         assert m.middle_name == "M"
 
     def test_member2_demographics(self, parsed_baseline):
-        m = parsed_baseline.members["0000000002"]
-        assert m.medicaid_id == "0000000002"
+        m = parsed_baseline.members["9999999002"]
+        assert m.medicaid_id == "9999999002"
         assert m.first_name == "Mary"
         assert m.last_name == "Johnson"
         assert m.middle_name == "A"
 
     def test_member3_demographics(self, parsed_baseline):
-        m = parsed_baseline.members["0000000003"]
-        assert m.medicaid_id == "0000000003"
+        m = parsed_baseline.members["9999999003"]
+        assert m.medicaid_id == "9999999003"
         assert m.first_name == "Robert"
         assert m.last_name == "Williams"
         assert m.middle_name == "J"
 
     def test_living_situation_fields(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.appl_pref_live_cd == "024"
         assert m.gard_pref_live_cd == "001"
 
     def test_adl_fields(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.bath_help_cd == "001"
         assert m.bath_adpv_eqp_cd == "005"
         assert m.dres_help_cd == "001"
@@ -95,19 +95,19 @@ class TestDetailParsing:
         assert m.xfer_help_cd == "002"
 
     def test_multi_select_mobility_equipment(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.mbl_adpv_eqp_cd == "002003007"
 
     def test_multi_select_toileting_equipment(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.tlt_adpv_eqp_cd == "002003"
 
     def test_multi_select_transferring_equipment(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.xfer_adpv_eqp_cd == "001002003004"
 
     def test_iadl_fields(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.meal_prep_help_lvl_cd == "002"
         assert m.med_mgt_help_lvl_cd == "003"
         assert m.mony_mgt_help_lvl_cd == "001"
@@ -117,49 +117,49 @@ class TestDetailParsing:
         assert m.trnsp_drv_cd == "005"
 
     def test_employment_fields(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.empl_stat_cd == "001"
-        assert m.wkshp_empl_flg == "0"
-        assert m.indv_int_work_cmny_cd == "0"
-        assert m.cmny_empl_flg == "0"
+        assert m.wkshp_empl_flg == "N"
+        assert m.indv_int_work_cmny_cd == "N"
+        assert m.cmny_empl_flg == "N"
 
     def test_health_service_fields(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.bhv_itrvn_cd == "001"
         assert m.nurs_ases_cd == "001"
         assert m.othr_srvc_cd == "000"
         assert m.othr_srvc_txt == ""
 
     def test_other_service_text(self, parsed_baseline):
-        m = parsed_baseline.members["0000000003"]
+        m = parsed_baseline.members["9999999003"]
         assert "wound care" in m.othr_srvc_txt.lower()
 
     def test_cognition_fields(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.comm_cd == "001"
-        assert m.mem_ipar_flg == "1"
-        assert m.shrt_term_mem_loss_flg == "1"
-        assert m.uabl_to_rmbr_flg == "0"
-        assert m.long_term_mem_loss_flg == "0"
+        assert m.mem_ipar_flg == "Y"
+        assert m.shrt_term_mem_loss_flg == "Y"
+        assert m.uabl_to_rmbr_flg == "N"
+        assert m.long_term_mem_loss_flg == "N"
         assert m.dly_dcsn_make_cd == "001"
 
     def test_behavior_fields(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.wndr_cd == "001"
         assert m.self_injr_bhv_cd == "000"
         assert m.mntl_hlth_need_cd == "001"
-        assert m.sbtnc_abus_flg == "0"
+        assert m.sbtnc_abus_flg == "N"
 
     def test_eligibility_date(self, parsed_baseline):
-        m = parsed_baseline.members["0000000001"]
+        m = parsed_baseline.members["9999999001"]
         assert m.elg_calc_dt == "20260115"
 
     def test_member2_eligibility_date(self, parsed_baseline):
-        m = parsed_baseline.members["0000000002"]
+        m = parsed_baseline.members["9999999002"]
         assert m.elg_calc_dt == "20260210"
 
     def test_member3_eligibility_date(self, parsed_baseline):
-        m = parsed_baseline.members["0000000003"]
+        m = parsed_baseline.members["9999999003"]
         assert m.elg_calc_dt == "20260305"
 
 
@@ -242,14 +242,14 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage2 = gen.generate_stage2()
         ids = set(r["entity_id"] for r in stage2)
-        assert ids == {"0000000001", "0000000002", "0000000003"}
+        assert ids == {"9999999001", "9999999002", "9999999003"}
 
     def test_stage4_personal_care_yes(self, parsed_baseline):
         """Member 1 has ADL help codes 001/002 → personal care = Yes."""
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        pc = next(r for r in stage4 if r["row_key"] == "PersonalCare|0000000001")
+        pc = next(r for r in stage4 if r["row_key"] == "PersonalCare|9999999001")
         assert pc["expected_value"] == "Yes"
 
     def test_stage4_personal_care_no(self, parsed_baseline):
@@ -257,7 +257,7 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        pc = next(r for r in stage4 if r["row_key"] == "PersonalCare|0000000003")
+        pc = next(r for r in stage4 if r["row_key"] == "PersonalCare|9999999003")
         assert pc["expected_value"] == "No"
 
     def test_stage4_med_admin_yes(self, parsed_baseline):
@@ -265,7 +265,7 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        ma = next(r for r in stage4 if r["row_key"] == "MedAdmin|0000000001")
+        ma = next(r for r in stage4 if r["row_key"] == "MedAdmin|9999999001")
         assert ma["expected_value"] == "Yes"
 
     def test_stage4_med_admin_no(self, parsed_baseline):
@@ -273,7 +273,7 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        ma = next(r for r in stage4 if r["row_key"] == "MedAdmin|0000000003")
+        ma = next(r for r in stage4 if r["row_key"] == "MedAdmin|9999999003")
         assert ma["expected_value"] == "No"
 
     def test_stage4_transport_yes(self, parsed_baseline):
@@ -281,7 +281,7 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        t = next(r for r in stage4 if r["row_key"] == "Transportation|0000000001")
+        t = next(r for r in stage4 if r["row_key"] == "Transportation|9999999001")
         assert t["expected_value"] == "Yes"
 
     def test_stage4_transport_no(self, parsed_baseline):
@@ -289,7 +289,7 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        t = next(r for r in stage4 if r["row_key"] == "Transportation|0000000003")
+        t = next(r for r in stage4 if r["row_key"] == "Transportation|9999999003")
         assert t["expected_value"] == "No"
 
     def test_stage4_dme_yes(self, parsed_baseline):
@@ -297,7 +297,7 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        d = next(r for r in stage4 if r["row_key"] == "DME|0000000001")
+        d = next(r for r in stage4 if r["row_key"] == "DME|9999999001")
         assert d["expected_value"] == "Yes"
 
     def test_stage4_dme_no(self, parsed_baseline):
@@ -305,15 +305,16 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        d = next(r for r in stage4 if r["row_key"] == "DME|0000000003")
+        d = next(r for r in stage4 if r["row_key"] == "DME|9999999003")
         assert d["expected_value"] == "No"
 
-    def test_stage4_eligibility_date(self, parsed_baseline):
+    def test_stage4_eligibility_date_not_stored(self, parsed_baseline):
+        """Per v2.0, ELG_CALC_DT is NOT stored as a form field — no DateFieldAnswer row."""
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        e = next(r for r in stage4 if r["row_key"] == "ElgCalcDt|0000000001")
-        assert e["expected_value"] == "2026-01-15"
+        elg_rows = [r for r in stage4 if "ElgCalcDt" in r.get("row_key", "")]
+        assert len(elg_rows) == 0
 
     def test_stage3_returns_empty(self, parsed_baseline):
         """Stage 3 is skipped for D12 — returns empty list."""
@@ -326,7 +327,7 @@ class TestExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
-        fi = next(r for r in stage4 if r["row_key"] == "FormInstance|0000000001")
+        fi = next(r for r in stage4 if r["row_key"] == "FormInstance|9999999001")
         assert fi["target_table"] == "CustomFormModule.CustomFormInstance"
         assert fi["target_column"] == "CustomFormDefinitionKey"
         assert fi["expected_value"] == "964B0DFB-ED99-4F5A-8449-B43C013B9062"

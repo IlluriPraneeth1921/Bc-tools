@@ -176,8 +176,9 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         - CustomFormInstance records (linked to CustomFormDefinition EA2E961E-...)
         - CaseCustomFormInstance records (linking form to case)
         - FieldAnswerBase + SimpleSingleSelectFieldAnswer records
-        - DateFieldAnswer records (eligibility date)
         - PersonEmployment records
+
+        Note: Per v2.0, ELG_CALC_DT is no longer stored as a DateFieldAnswer.
 
         Business rules determine Yes/No mappings for composite fields.
         """
@@ -261,12 +262,9 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 ))
 
             # --- Eligibility date ---
-            if member.elg_calc_dt.strip():
-                expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.DateFieldAnswer",
-                    "Value", f"ElgCalcDt|{medicaid_id}",
-                    self._fmt_date(member.elg_calc_dt),
-                ))
+            # NOTE: Per v2.0, ELG_CALC_DT is NOT stored as a form field.
+            # The field is still present in the file layout and parsed in Stage 2,
+            # but no DateFieldAnswer record is created in Stage 4.
 
             # --- Employment (PersonEmployment record) ---
             if member.empl_stat_cd.strip() and member.empl_stat_cd != "000":
@@ -302,10 +300,10 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         """
         Set "Yes" if any contributing IADL/cognition field indicates need.
         Contributing fields: MEAL_PREP (001/002/003), LDRY_CHOR (001/002),
-        PHN_USE_ABTY (002), PHN_ACS (002), COMM (002/003),
-        MEM_IPAR_FLG (1), SHRT_TERM_MEM_LOSS_FLG (1), UABL_TO_RMBR_FLG (1),
-        LONG_TERM_MEM_LOSS_FLG (1), DLY_DCSN_MAKE (001/002/003),
-        PHY_RSIST_CARE (001/002)
+        PHN_USE_ABTY (002), PHN_ACS (002), COMM (001/002/003),
+        MEM_IPAR_FLG (Y), SHRT_TERM_MEM_LOSS_FLG (Y), UABL_TO_RMBR_FLG (Y),
+        LONG_TERM_MEM_LOSS_FLG (Y), DLY_DCSN_MAKE (001/002/003),
+        PHY_RSIST_CARE (001)
         """
         if member.meal_prep_help_lvl_cd.strip() in ("001", "002", "003"):
             return "Yes"
@@ -315,19 +313,19 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
             return "Yes"
         if member.phn_acs_cd.strip() == "002":
             return "Yes"
-        if member.comm_cd.strip() in ("002", "003"):
+        if member.comm_cd.strip() in ("001", "002", "003"):
             return "Yes"
-        if member.mem_ipar_flg.strip() == "1":
+        if member.mem_ipar_flg.strip() == "Y":
             return "Yes"
-        if member.shrt_term_mem_loss_flg.strip() == "1":
+        if member.shrt_term_mem_loss_flg.strip() == "Y":
             return "Yes"
-        if member.uabl_to_rmbr_flg.strip() == "1":
+        if member.uabl_to_rmbr_flg.strip() == "Y":
             return "Yes"
-        if member.long_term_mem_loss_flg.strip() == "1":
+        if member.long_term_mem_loss_flg.strip() == "Y":
             return "Yes"
         if member.dly_dcsn_make_cd.strip() in ("001", "002", "003"):
             return "Yes"
-        if member.phy_rsist_care_cd.strip() in ("001", "002"):
+        if member.phy_rsist_care_cd.strip() == "001":
             return "Yes"
         return "No"
 

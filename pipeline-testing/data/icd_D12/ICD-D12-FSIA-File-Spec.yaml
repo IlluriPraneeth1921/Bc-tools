@@ -41,9 +41,11 @@ record_types:
     position: "body"
 
 naming:
-  file_prefix: "WI_FSIA_FILE_EXTRACT"
-  environment_suffix: "_T"
+  file_prefix: "FSA-CMM-Adult_FS_Details"
+  environment_suffix: ""
   extension: ".txt"
+  pattern: "FSA-CMM-Adult_FS_Details-D-YYYYMMDD_HHMMSS_NNN.txt"
+  notes: "D=Daily frequency indicator, NNN=sequence number"
 
 fields:
   HDR:
@@ -478,8 +480,9 @@ fields:
       length: 8
       type: "date"
       required: true
-      description: "Eligibility Determined On date"
+      description: "Eligibility Determined On date. Present in file layout but NOT stored as a form field per v2.0."
       format: "YYYYMMDD"
+      mapping_notes: "Not stored as a form field. Mapping removed in v2.0."
 
 # =============================================================================
 # CODE TABLES
@@ -1004,13 +1007,13 @@ db_targets:
         filter_column: "FieldAnswerBaseKey"
         filter_type: "fk_to_FieldAnswerBase"
       - name: "DateFieldAnswer"
-        description: "Date field answers (ElgCalcDt → eligibility date)."
+        description: "Date field answers. Note: ELG_CALC_DT is NOT stored as a form field per v2.0 (mapping removed)."
         primary_key: "FieldAnswerBaseKey"
         columns:
           _answer_base: "FieldAnswerBaseKey"
-          elg_calc_dt: "DateTime"
         filter_column: "FieldAnswerBaseKey"
         filter_type: "fk_to_FieldAnswerBase"
+        notes: "ELG_CALC_DT mapping removed in v2.0. Field is still present in file layout but is not stored as a form field."
     mapping: "one_form_instance_per_member"
     notes: "Stage 4 uses CustomFormDefinitionKey 964B0DFB-ED99-4F5A-8449-B43C013B9062 (Version 55). Business rules determine composite Yes/No field values. PersonEmployment records are also created in PersonModule."
 
