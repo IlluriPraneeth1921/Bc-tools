@@ -68,7 +68,7 @@ with col1:
         format_func=lambda x: "All" if x is None else STAGE_NAMES.get(x, f"Stage {x}"),
     )
 with col2:
-    status_filter = st.selectbox("Status", [None, "FAIL", "MISSING", "PASS"], format_func=lambda x: "All" if x is None else x)
+    status_filter = st.selectbox("Status", [None, "FAIL", "MISSING"], format_func=lambda x: "All" if x is None else x)
 with col3:
     provider_filter = st.text_input("Entity ID", value="")
 with col4:

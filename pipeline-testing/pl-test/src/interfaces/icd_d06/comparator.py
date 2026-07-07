@@ -115,19 +115,7 @@ class IcdD06Comparator(BaseComparator):
                 act_val = str(actual.get(col, "")).strip() if actual.get(col) is not None else ""
 
                 if exp_val == act_val:
-                    result.add_pass(MismatchRecord(
-                        source_line_number=line_num,
-                        entity_id=mcd_id,
-                        record_type=rec_type,
-                        stage=1,
-                        target_database=settings.INTERFACE_DB_NAME,
-                        target_schema="CustomerInterfaceModule",
-                        target_table="MedicaidProviderRaw",
-                        target_column=col,
-                        expected_value=exp_val,
-                        actual_value=act_val,
-                        status="PASS",
-                    ))
+                    result.add_pass()
                 else:
                     result.add_mismatch(MismatchRecord(
                         source_line_number=line_num,
@@ -241,20 +229,7 @@ class IcdD06Comparator(BaseComparator):
 
             if matched_row is not None:
                 # Perfect row match — all columns pass
-                for col_name, exp_val in expected_cols.items():
-                    result.add_pass(MismatchRecord(
-                        source_line_number=line_num,
-                        entity_id=mcd_id,
-                        record_type=record_type,
-                        stage=2,
-                        target_database=settings.INTERFACE_DB_NAME,
-                        target_schema="CustomerInterfaceModule",
-                        target_table=table_name,
-                        target_column=col_name,
-                        expected_value=exp_val,
-                        actual_value=exp_val,
-                        status="PASS",
-                    ))
+                result.pass_count += len(expected_cols)
             else:
                 # No perfect match — find closest row and report per-column diffs
                 best_row = self._find_closest_row(provider_rows, expected_cols)
@@ -263,19 +238,7 @@ class IcdD06Comparator(BaseComparator):
                     if exp_val and "-" in exp_val and len(exp_val) == 10:
                         act_val = self._normalize_date(act_val)
                     if exp_val == act_val:
-                        result.add_pass(MismatchRecord(
-                            source_line_number=line_num,
-                            entity_id=mcd_id,
-                            record_type=record_type,
-                            stage=2,
-                            target_database=settings.INTERFACE_DB_NAME,
-                            target_schema="CustomerInterfaceModule",
-                            target_table=table_name,
-                            target_column=col_name,
-                            expected_value=exp_val,
-                            actual_value=act_val,
-                            status="PASS",
-                        ))
+                        result.add_pass()
                     else:
                         result.add_mismatch(MismatchRecord(
                             source_line_number=line_num,
@@ -366,24 +329,7 @@ class IcdD06Comparator(BaseComparator):
 
             if matched_row is not None:
                 # Perfect row match — all columns pass
-                for col_name, exp_val in expected_cols.items():
-                    meta = metadata.get(col_name, {})
-                    result.add_pass(MismatchRecord(
-                        source_line_number=0,
-                        entity_id=mcd_id,
-                        record_type=record_type,
-                        stage=3,
-                        target_database=settings.INTERFACE_DB_NAME,
-                        target_schema="InterfaceModule",
-                        target_table=table_name,
-                        target_column=col_name,
-                        expected_value=exp_val,
-                        actual_value=exp_val,
-                        status="PASS",
-                        business_rule=meta.get("business_rule"),
-                        vocab_used=meta.get("vocab_used"),
-                        notes=f"RowKey: {row_key}",
-                    ))
+                result.pass_count += len(expected_cols)
             else:
                 # No perfect match — find closest row and report per-column diffs
                 best_row = self._find_closest_row(provider_rows, expected_cols)
@@ -391,22 +337,7 @@ class IcdD06Comparator(BaseComparator):
                     meta = metadata.get(col_name, {})
                     act_val = str(best_row.get(col_name, "")).strip() if best_row.get(col_name) is not None else ""
                     if exp_val == act_val:
-                        result.add_pass(MismatchRecord(
-                            source_line_number=0,
-                            entity_id=mcd_id,
-                            record_type=record_type,
-                            stage=3,
-                            target_database=settings.INTERFACE_DB_NAME,
-                            target_schema="InterfaceModule",
-                            target_table=table_name,
-                            target_column=col_name,
-                            expected_value=exp_val,
-                            actual_value=act_val,
-                            status="PASS",
-                            business_rule=meta.get("business_rule"),
-                            vocab_used=meta.get("vocab_used"),
-                            notes=f"RowKey: {row_key}",
-                        ))
+                        result.add_pass()
                     else:
                         result.add_mismatch(MismatchRecord(
                             source_line_number=0,
@@ -570,19 +501,7 @@ class IcdD06Comparator(BaseComparator):
                         break
 
                 if found_match:
-                    result.add_pass(MismatchRecord(
-                        source_line_number=0,
-                        entity_id=mcd_id,
-                        record_type=exp.get("record_type", ""),
-                        stage=4,
-                        target_database=settings.CARITY_DB_NAME,
-                        target_schema=final_schema,
-                        target_table=final_table,
-                        target_column=col_name,
-                        expected_value=exp_val,
-                        actual_value=exp_val,
-                        status="PASS",
-                    ))
+                    result.add_pass()
                 else:
                     act_val = str(provider_rows[0].get(col_name, "")).strip() if provider_rows[0].get(col_name) is not None else ""
                     result.add_mismatch(MismatchRecord(
