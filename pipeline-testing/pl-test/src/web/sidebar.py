@@ -7,7 +7,7 @@ as possible. It sets the page config, checks auth, and renders the sidebar.
 Entity ID Prefix is persisted to browser localStorage via client-side JS.
 """
 import streamlit as st
-from src.web.local_storage import inject_local_storage_sync, save_entity_prefix_to_browser
+from src.web.local_storage import inject_local_storage_sync
 
 
 def page_setup():
@@ -93,15 +93,12 @@ def render_sidebar():
         help="Your unique test data prefix. Saved in your browser across sessions.",
     )
 
-    # Sync changes to session state
+    # Sync user edits to session state
     if entity_id_prefix != st.session_state.get("entity_id_prefix"):
         st.session_state["entity_id_prefix"] = entity_id_prefix
 
-    # Save current value to browser localStorage
-    save_entity_prefix_to_browser(st.session_state["entity_id_prefix"])
-
-    # Inject JS to restore value from localStorage on fresh page load
-    # (patches the text input DOM if localStorage has a saved value)
+    # Inject JS that loads from localStorage on DOM ready and saves on blur.
+    # This is the sole persistence mechanism — no server-side storage needed.
     inject_local_storage_sync()
 
     st.sidebar.caption(f"Active prefix: `{st.session_state['entity_id_prefix']}`")
