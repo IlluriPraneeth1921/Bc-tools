@@ -307,6 +307,7 @@ async def run_comparison(request: CompareRequest):
 
     stage_results: List[StageSummary] = []
     all_mismatches: List[MismatchRecord] = []
+    all_matches: List[MismatchRecord] = []
     completed = 0
 
     # --- Stage 1 ---
@@ -330,6 +331,7 @@ async def run_comparison(request: CompareRequest):
             pass_count=r.pass_count, fail_count=r.fail_count, missing_count=r.missing_count,
         ))
         all_mismatches.extend(r.mismatches)
+        all_matches.extend(r.matches)
         completed += 1
 
     # --- Stage 2 ---
@@ -353,6 +355,7 @@ async def run_comparison(request: CompareRequest):
             pass_count=r.pass_count, fail_count=r.fail_count, missing_count=r.missing_count,
         ))
         all_mismatches.extend(r.mismatches)
+        all_matches.extend(r.matches)
         completed += 1
 
     # --- Stage 3 (also used by Stage 4 for interfaces where stage3→4 is a copy) ---
@@ -378,6 +381,7 @@ async def run_comparison(request: CompareRequest):
             pass_count=r.pass_count, fail_count=r.fail_count, missing_count=r.missing_count,
         ))
         all_mismatches.extend(r.mismatches)
+        all_matches.extend(r.matches)
         completed += 1
 
     # --- Stage 4 ---
@@ -402,6 +406,7 @@ async def run_comparison(request: CompareRequest):
             pass_count=r.pass_count, fail_count=r.fail_count, missing_count=r.missing_count,
         ))
         all_mismatches.extend(r.mismatches)
+        all_matches.extend(r.matches)
         completed += 1
 
     # --- Store mismatches ---
@@ -409,6 +414,10 @@ async def run_comparison(request: CompareRequest):
                      completed_stages=completed, total_stages=total_stages)
     if all_mismatches:
         _store_mismatches(test_run_id, request.interface_type, filename, all_mismatches)
+
+    # --- Store matches ---
+    if all_matches:
+        _store_mismatches(test_run_id, request.interface_type, filename, all_matches)
 
     # --- Update TestRun record ---
     total_pass = sum(s.pass_count for s in stage_results)
@@ -536,6 +545,11 @@ async def run_single_stage(request: StageRunRequest):
         _store_mismatches(test_run_id, request.interface_type,
                           os.path.basename(filename), r.mismatches)
 
+    # Store matches for this stage
+    if r.matches:
+        _store_mismatches(test_run_id, request.interface_type,
+                          os.path.basename(filename), r.matches)
+
     return StageRunResponse(
         test_run_id=test_run_id,
         stage=stage,
@@ -608,6 +622,31 @@ async def get_mismatches(
             elif hasattr(v, "hex"):
                 row[k] = str(v)
     return {"test_run_id": test_run_id, "count": len(rows), "mismatches": rows}
+
+
+@router.get("/matches/{test_run_id}")
+async def get_matches(
+    test_run_id: str, stage: Optional[int] = None,
+    provider: Optional[str] = None, limit: int = 100,
+):
+    """Get match report for a test run (records with Status = 'PASS')."""
+    query = "SELECT TOP (?) * FROM [TestVerification].[MismatchReport] WHERE TestRunId = ? AND Status = 'PASS'"
+    params: list = [limit, test_run_id]
+    if stage is not None:
+        query += " AND Stage = ?"
+        params.append(stage)
+    if provider:
+        query += " AND EntityId = ?"
+        params.append(provider)
+    query += " ORDER BY Stage, SourceLineNumber, TargetTable, TargetColumn"
+    rows = db.execute_query(DatabaseManager.INTERFACE, query, tuple(params))
+    for row in rows:
+        for k, v in row.items():
+            if isinstance(v, datetime):
+                row[k] = v.isoformat()
+            elif hasattr(v, "hex"):
+                row[k] = str(v)
+    return {"test_run_id": test_run_id, "count": len(rows), "matches": rows}
 
 
 @router.get("/summary/{test_run_id}")

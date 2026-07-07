@@ -50,9 +50,19 @@ class IcdD06Stage3Generator:
             expected_rows.extend(self._generate_location(group))
             expected_rows.extend(self._generate_identifiers(group))
             expected_rows.extend(self._generate_addresses(group))
+            expected_rows.extend(self._generate_emails(group))
+            expected_rows.extend(self._generate_phones(group))
             expected_rows.extend(self._generate_business_types(group))
+            expected_rows.extend(self._generate_organization_types(group))
+            expected_rows.extend(self._generate_location_types(group))
+            expected_rows.extend(self._generate_location_type_subtypes(group))
             expected_rows.extend(self._generate_specialties(group))
             expected_rows.extend(self._generate_credentials(group))
+            expected_rows.extend(self._generate_taxonomies(group))
+            expected_rows.extend(self._generate_supported_programs(group))
+            expected_rows.extend(self._generate_point_of_contacts(group))
+            expected_rows.extend(self._generate_poc_associated_programs(group))
+            expected_rows.extend(self._generate_payment_suspensions(group))
             expected_rows.extend(self._generate_waiver_services(group))
 
         return expected_rows
@@ -127,17 +137,25 @@ class IcdD06Stage3Generator:
         mcd_id = group.medicaid_provider_number
         rows = []
 
-        # MCD ID identifier
+        # MCD ID identifier — no date range for MCD ID
         for table in ["IncomingOrganizationIdentifiers", "IncomingLocationIdentifiers"]:
             rows.append(self._row(mcd_id, "01", table, "Value", f"MCD|{mcd_id}", mcd_id))
             rows.append(self._row(mcd_id, "01", table, "TypeDisplayName", f"MCD|{mcd_id}", "Medicaid Provider ID"))
+            rows.append(self._row(mcd_id, "01", table, "EffectiveDateRangeStartDate", f"MCD|{mcd_id}", ""))
+            rows.append(self._row(mcd_id, "01", table, "EffectiveDateRangeEndDate", f"MCD|{mcd_id}", ""))
 
         # NPI — dedup: most recent effective date, tiebreaker: last in file (BR-D06-022)
         selected_npi = self._dedup_npi(group.records_06)
         if selected_npi:
+            npi_eff = self._parse_date(selected_npi.npi_effective_date)
+            npi_end = self._parse_date(selected_npi.npi_end_date)
+            npi_eff_str = npi_eff.isoformat() if npi_eff else ""
+            npi_end_str = npi_end.isoformat() if npi_end else ""
             for table in ["IncomingOrganizationIdentifiers", "IncomingLocationIdentifiers"]:
                 rows.append(self._row(mcd_id, "06", table, "Value", f"NPI|{selected_npi.npi}", selected_npi.npi, business_rule="BR-D06-022"))
                 rows.append(self._row(mcd_id, "06", table, "TypeDisplayName", f"NPI|{selected_npi.npi}", "National Provider Identifier"))
+                rows.append(self._row(mcd_id, "06", table, "EffectiveDateRangeStartDate", f"NPI|{selected_npi.npi}", npi_eff_str, business_rule="BR-D06-022"))
+                rows.append(self._row(mcd_id, "06", table, "EffectiveDateRangeEndDate", f"NPI|{selected_npi.npi}", npi_end_str, business_rule="BR-D06-022"))
 
         # TIN — dedup per type: most recent effective date, tiebreaker: last in file (BR-D06-023)
         for tin_type in ["S", "F"]:
@@ -146,9 +164,15 @@ class IcdD06Stage3Generator:
                 type_display = self.vocab.lookup_display_name("tax_id_type", tin_type)
                 if type_display is None:
                     type_display = "Federal Employer Identification Number" if tin_type == "F" else "Social Security Number"
+                tin_eff = self._parse_date(selected_tin.tin_effective_date)
+                tin_end = self._parse_date(selected_tin.tin_end_date)
+                tin_eff_str = tin_eff.isoformat() if tin_eff else ""
+                tin_end_str = tin_end.isoformat() if tin_end else ""
                 for table in ["IncomingOrganizationIdentifiers", "IncomingLocationIdentifiers"]:
                     rows.append(self._row(mcd_id, "03", table, "Value", f"TIN|{selected_tin.tax_id_number}", selected_tin.tax_id_number, business_rule="BR-D06-023", vocab_used="tax_id_type"))
                     rows.append(self._row(mcd_id, "03", table, "TypeDisplayName", f"TIN|{selected_tin.tax_id_number}", type_display, vocab_used="tax_id_type"))
+                    rows.append(self._row(mcd_id, "03", table, "EffectiveDateRangeStartDate", f"TIN|{selected_tin.tax_id_number}", tin_eff_str, business_rule="BR-D06-023"))
+                    rows.append(self._row(mcd_id, "03", table, "EffectiveDateRangeEndDate", f"TIN|{selected_tin.tax_id_number}", tin_end_str, business_rule="BR-D06-023"))
 
         return rows
 
@@ -192,6 +216,52 @@ class IcdD06Stage3Generator:
         return rows
 
     # =========================================================================
+    # Emails
+    # =========================================================================
+
+    def _generate_emails(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingOrganizationEmailAddresses + IncomingLocationEmailAddresses."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        for addr in group.records_02:
+            if not addr.email_address or not addr.email_address.strip():
+                continue
+
+            is_primary = "Yes" if addr.address_type_code == "S" else "No"
+            row_key = f"EMAIL|{addr.address_type_code}|{mcd_id}"
+
+            for table in ["IncomingOrganizationEmailAddresses", "IncomingLocationEmailAddresses"]:
+                rows.append(self._row(mcd_id, "02", table, "EmailAddress", row_key, addr.email_address.strip()))
+                rows.append(self._row(mcd_id, "02", table, "IsPrimary", row_key, is_primary))
+
+        return rows
+
+    # =========================================================================
+    # Phones
+    # =========================================================================
+
+    def _generate_phones(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingOrganizationPhones + IncomingLocationPhones."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        for addr in group.records_02:
+            if not addr.phone_number_contact or not addr.phone_number_contact.strip():
+                continue
+
+            is_primary = "Yes" if addr.address_type_code == "S" else "No"
+            row_key = f"PHONE|{addr.address_type_code}|{mcd_id}"
+            extension = addr.phone_extension_contact.strip() if addr.phone_extension_contact else ""
+
+            for table in ["IncomingOrganizationPhones", "IncomingLocationPhones"]:
+                rows.append(self._row(mcd_id, "02", table, "PhoneNumber", row_key, addr.phone_number_contact.strip()))
+                rows.append(self._row(mcd_id, "02", table, "PhoneExtensionNumber", row_key, extension))
+                rows.append(self._row(mcd_id, "02", table, "IsPrimary", row_key, is_primary))
+
+        return rows
+
+    # =========================================================================
     # Business Types
     # =========================================================================
 
@@ -206,7 +276,86 @@ class IcdD06Stage3Generator:
             if display is None:
                 display = rec01.organization_type_description
 
+            # Identifier is the organization_type_code, CodeSystemIdentifier is the code system
+            identifier = rec01.organization_type_code if rec01.organization_type_code else ""
+            code_system = self.vocab.lookup_display_name("org_business_type_code_system", rec01.organization_type_code)
+            if code_system is None:
+                code_system = "MMIS"
+
             rows.append(self._row(mcd_id, "01", "IncomingOrganizationBusinessTypes", "DisplayName", mcd_id, display, vocab_used="org_business_type"))
+            rows.append(self._row(mcd_id, "01", "IncomingOrganizationBusinessTypes", "Identifier", mcd_id, identifier))
+            rows.append(self._row(mcd_id, "01", "IncomingOrganizationBusinessTypes", "CodeSystemIdentifier", mcd_id, code_system))
+
+        return rows
+
+    # =========================================================================
+    # Organization Types
+    # =========================================================================
+
+    def _generate_organization_types(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingOrganizationOrganizationTypes."""
+        mcd_id = group.medicaid_provider_number
+        rec01 = group.record_01
+        rows = []
+
+        if rec01.organization_type_code:
+            display = self.vocab.lookup_display_name("org_type", rec01.organization_type_code)
+            if display is None:
+                display = rec01.organization_type_description.strip() if rec01.organization_type_description else rec01.organization_type_code
+
+            code_system = self.vocab.lookup_display_name("org_type_code_system", rec01.organization_type_code)
+            if code_system is None:
+                code_system = "MMIS"
+
+            rows.append(self._row(mcd_id, "01", "IncomingOrganizationOrganizationTypes", "DisplayName", mcd_id, display, vocab_used="org_type"))
+            rows.append(self._row(mcd_id, "01", "IncomingOrganizationOrganizationTypes", "Identifier", mcd_id, rec01.organization_type_code))
+            rows.append(self._row(mcd_id, "01", "IncomingOrganizationOrganizationTypes", "CodeSystemIdentifier", mcd_id, code_system))
+
+        return rows
+
+    # =========================================================================
+    # Location Types
+    # =========================================================================
+
+    def _generate_location_types(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingLocationType from Record Type 05."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        # Use the first (primary) provider type from records_05
+        if group.records_05:
+            ptps = group.records_05[0]
+            type_display = self.vocab.lookup_display_name("provider_type", ptps.provider_type_code)
+            if type_display is None:
+                type_display = ptps.provider_type_description.strip() if ptps.provider_type_description else ptps.provider_type_code
+
+            row_key = f"LOCTYPE|{ptps.provider_type_code}"
+            rows.append(self._row(mcd_id, "05", "IncomingLocationType", "PrimaryTypeDisplayName", row_key, type_display, vocab_used="provider_type"))
+
+        return rows
+
+    # =========================================================================
+    # Location Type Subtypes
+    # =========================================================================
+
+    def _generate_location_type_subtypes(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingLocationTypeSubtypes from Record Type 05."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        for ptps in group.records_05:
+            subtype_display = self.vocab.lookup_display_name("provider_specialty_subtype", ptps.provider_specialty_code)
+            if subtype_display is None:
+                subtype_display = ptps.provider_specialty_description.strip() if ptps.provider_specialty_description else ptps.provider_specialty_code
+
+            code_system = self.vocab.lookup_display_name("provider_specialty_subtype_code_system", ptps.provider_specialty_code)
+            if code_system is None:
+                code_system = "MMIS"
+
+            row_key = f"SUBTYPE|{ptps.provider_type_code}|{ptps.provider_specialty_code}"
+            rows.append(self._row(mcd_id, "05", "IncomingLocationTypeSubtypes", "DisplayName", row_key, subtype_display, vocab_used="provider_specialty_subtype"))
+            rows.append(self._row(mcd_id, "05", "IncomingLocationTypeSubtypes", "Identifier", row_key, ptps.provider_specialty_code))
+            rows.append(self._row(mcd_id, "05", "IncomingLocationTypeSubtypes", "CodeSystemIdentifier", row_key, code_system))
 
         return rows
 
@@ -219,13 +368,24 @@ class IcdD06Stage3Generator:
         mcd_id = group.medicaid_provider_number
         rows = []
 
-        for ptps in group.records_05:
+        for idx, ptps in enumerate(group.records_05):
             specialty_display = self.vocab.lookup_display_name("provider_specialty", ptps.provider_specialty_code)
             if specialty_display is None:
                 specialty_display = ptps.provider_specialty_description
 
+            eff_date = self._parse_date(ptps.provider_type_specialty_effective_date)
+            end_date = self._parse_date(ptps.provider_type_specialty_end_date)
+            eff_str = eff_date.isoformat() if eff_date else ""
+            end_str = end_date.isoformat() if end_date else ""
+
+            # First specialty in the list is primary
+            is_primary = "Yes" if idx == 0 else "No"
+
             row_key = f"{ptps.provider_specialty_code}|{ptps.provider_type_specialty_effective_date}"
             rows.append(self._row(mcd_id, "05", "IncomingLocationSpecialty", "TypeDisplayName", row_key, specialty_display, vocab_used="provider_specialty"))
+            rows.append(self._row(mcd_id, "05", "IncomingLocationSpecialty", "EffectiveDateRangeStartDate", row_key, eff_str))
+            rows.append(self._row(mcd_id, "05", "IncomingLocationSpecialty", "EffectiveDateRangeEndDate", row_key, end_str))
+            rows.append(self._row(mcd_id, "05", "IncomingLocationSpecialty", "IsPrimary", row_key, is_primary))
 
         return rows
 
@@ -241,18 +401,32 @@ class IcdD06Stage3Generator:
         # Licenses (Record Type 13) → TypeDisplayName = "Licensed"
         for lic in group.records_13:
             row_key = f"LIC|{lic.license_number}"
+            lic_eff = self._parse_date(lic.license_effective_date)
+            lic_end = self._parse_date(lic.license_end_date)
+            lic_eff_str = lic_eff.isoformat() if lic_eff else ""
+            lic_end_str = lic_end.isoformat() if lic_end else ""
+
             for table in ["IncomingOrganizationCredentials", "IncomingLocationCredentials"]:
                 rows.append(self._row(mcd_id, "13", table, "CredentialNumber", row_key, lic.license_number))
                 rows.append(self._row(mcd_id, "13", table, "TypeDisplayName", row_key, "Licensed"))
+                rows.append(self._row(mcd_id, "13", table, "EffectiveDateRangeStartDate", row_key, lic_eff_str))
+                rows.append(self._row(mcd_id, "13", table, "EffectiveDateRangeEndDate", row_key, lic_end_str))
                 if lic.licensure_board_description:
                     rows.append(self._row(mcd_id, "13", table, "LicensureBoardDisplayName", row_key, lic.licensure_board_description, vocab_used="licensure_board"))
 
         # Certifications (Record Type 14) → TypeDisplayName = "Certified"
         for cert in group.records_14:
             row_key = f"CERT|{cert.certification_number}|{cert.certification_type_code}"
+            cert_eff = self._parse_date(cert.certification_effective_date)
+            cert_end = self._parse_date(cert.certification_end_date)
+            cert_eff_str = cert_eff.isoformat() if cert_eff else ""
+            cert_end_str = cert_end.isoformat() if cert_end else ""
+
             for table in ["IncomingOrganizationCredentials", "IncomingLocationCredentials"]:
                 rows.append(self._row(mcd_id, "14", table, "CredentialNumber", row_key, cert.certification_number))
                 rows.append(self._row(mcd_id, "14", table, "TypeDisplayName", row_key, "Certified"))
+                rows.append(self._row(mcd_id, "14", table, "EffectiveDateRangeStartDate", row_key, cert_eff_str))
+                rows.append(self._row(mcd_id, "14", table, "EffectiveDateRangeEndDate", row_key, cert_end_str))
                 if cert.certification_type_description:
                     rows.append(self._row(mcd_id, "14", table, "CertificationTypeDisplayName", row_key, cert.certification_type_description, vocab_used="certification_type"))
 
@@ -275,8 +449,171 @@ class IcdD06Stage3Generator:
             if svc_display is None:
                 svc_display = ws.waiver_service_description
 
+            ws_eff = self._parse_date(ws.waiver_service_effective_date)
+            ws_end = self._parse_date(ws.waiver_service_end_date)
+            ws_eff_str = ws_eff.isoformat() if ws_eff else ""
+            ws_end_str = ws_end.isoformat() if ws_end else ""
+
             rows.append(self._row(mcd_id, "11", "IncomingLocationExtensionWaiverServices", "WaiverServiceCodeDisplayName", row_key, svc_display, vocab_used="waiver_service", business_rule="BR-D06-015"))
+            rows.append(self._row(mcd_id, "11", "IncomingLocationExtensionWaiverServices", "EffectiveDateRangeStartDate", row_key, ws_eff_str))
+            rows.append(self._row(mcd_id, "11", "IncomingLocationExtensionWaiverServices", "EffectiveDateRangeEndDate", row_key, ws_end_str))
             rows.append(self._row(mcd_id, "11", "IncomingLocationExtensionWaiverServices", "IsActive", row_key, is_active))
+
+        return rows
+
+    # =========================================================================
+    # Taxonomies
+    # =========================================================================
+
+    def _generate_taxonomies(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingLocationTaxonomies from Record Type 07."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        for tax in group.records_07:
+            code = tax.taxonomy_code.strip()
+            row_key = f"TAX|{code}"
+
+            # Taxonomy classification/specialization names come from a taxonomy lookup
+            classification = self.vocab.lookup_display_name("taxonomy_classification", code)
+            if classification is None:
+                classification = ""
+            specialization = self.vocab.lookup_display_name("taxonomy_specialization", code)
+            if specialization is None:
+                specialization = ""
+
+            rows.append(self._row(mcd_id, "07", "IncomingLocationTaxonomies", "Code", row_key, code))
+            rows.append(self._row(mcd_id, "07", "IncomingLocationTaxonomies", "ClassificationName", row_key, classification, vocab_used="taxonomy_classification"))
+            rows.append(self._row(mcd_id, "07", "IncomingLocationTaxonomies", "SpecializationName", row_key, specialization, vocab_used="taxonomy_specialization"))
+
+        return rows
+
+    # =========================================================================
+    # Supported Programs
+    # =========================================================================
+
+    def _generate_supported_programs(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingOrganizationSupportedPrograms + IncomingLocationSupportedPrograms from Record Type 10."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        for prog in group.records_10:
+            program_display = self.vocab.lookup_display_name("waiver_program", prog.waiver_program_code)
+            if program_display is None:
+                program_display = prog.waiver_program_description.strip() if prog.waiver_program_description else prog.waiver_program_code
+
+            eff_date = self._parse_date(prog.waiver_program_effective_date)
+            end_date = self._parse_date(prog.waiver_program_end_date)
+            eff_str = eff_date.isoformat() if eff_date else ""
+            end_str = end_date.isoformat() if end_date else ""
+
+            row_key = f"PROG|{prog.waiver_program_code}"
+
+            for table in ["IncomingOrganizationSupportedPrograms", "IncomingLocationSupportedPrograms"]:
+                rows.append(self._row(mcd_id, "10", table, "ProgramKey", row_key, program_display, vocab_used="waiver_program"))
+                rows.append(self._row(mcd_id, "10", table, "EffectiveDateRangeStartDate", row_key, eff_str))
+                rows.append(self._row(mcd_id, "10", table, "EffectiveDateRangeEndDate", row_key, end_str))
+
+        return rows
+
+    # =========================================================================
+    # Point of Contacts
+    # =========================================================================
+
+    def _generate_point_of_contacts(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingOrganizationPointOfContact + IncomingLocationPointOfContact from Record Type 02."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        for addr in group.records_02:
+            contact_name = addr.contact_person.strip() if addr.contact_person else ""
+            if not contact_name:
+                continue
+
+            row_key = f"POC|{addr.address_type_code}|{mcd_id}"
+            phone = addr.phone_number_contact.strip() if addr.phone_number_contact else ""
+            email = addr.email_address.strip() if addr.email_address else ""
+
+            # Map address type to POC type display name
+            poc_type_map = {
+                "S": "Rendering/Location",
+                "P": "Billing",
+                "M": "Mailing",
+                "I": "1099",
+            }
+            type_display = self.vocab.lookup_display_name("poc_type", addr.address_type_code)
+            if type_display is None:
+                type_display = poc_type_map.get(addr.address_type_code, addr.address_type_code)
+
+            for table in ["IncomingOrganizationPointOfContact", "IncomingLocationPointOfContact"]:
+                rows.append(self._row(mcd_id, "02", table, "Name", row_key, contact_name))
+                rows.append(self._row(mcd_id, "02", table, "Title", row_key, ""))
+                rows.append(self._row(mcd_id, "02", table, "TypeDisplayName", row_key, type_display))
+                if phone:
+                    rows.append(self._row(mcd_id, "02", table, "PhoneNumber", row_key, phone))
+                if email:
+                    rows.append(self._row(mcd_id, "02", table, "EmailAddressAddress", row_key, email))
+
+        return rows
+
+    # =========================================================================
+    # POC Associated Programs
+    # =========================================================================
+
+    def _generate_poc_associated_programs(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingOrganizationPointOfContactAssociatedPrograms + IncomingLocationPointOfContactAssociatedPrograms."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        # Each POC (derived from address records with contact person) gets associated
+        # with the supported programs (from records_10) for this provider.
+        has_contacts = any(
+            addr.contact_person and addr.contact_person.strip()
+            for addr in group.records_02
+        )
+        if not has_contacts or not group.records_10:
+            return rows
+
+        for addr in group.records_02:
+            contact_name = addr.contact_person.strip() if addr.contact_person else ""
+            if not contact_name:
+                continue
+
+            for prog in group.records_10:
+                program_display = self.vocab.lookup_display_name("waiver_program", prog.waiver_program_code)
+                if program_display is None:
+                    program_display = prog.waiver_program_description.strip() if prog.waiver_program_description else prog.waiver_program_code
+
+                row_key = f"POCPROG|{addr.address_type_code}|{prog.waiver_program_code}|{mcd_id}"
+
+                rows.append(self._row(mcd_id, "10", "IncomingOrganizationPointOfContactAssociatedPrograms", "ProgramKey", row_key, program_display, vocab_used="waiver_program"))
+                rows.append(self._row(mcd_id, "10", "IncomingLocationPointOfContactAssociatedPrograms", "ProgramKey", row_key, program_display, vocab_used="waiver_program"))
+
+        return rows
+
+    # =========================================================================
+    # Payment Suspensions
+    # =========================================================================
+
+    def _generate_payment_suspensions(self, group: ProviderGroup) -> List[Dict]:
+        """Generate IncomingPaymentSuspension from Record Type 08 (ACA Payment Hold)."""
+        mcd_id = group.medicaid_provider_number
+        rows = []
+
+        for hold in group.records_08:
+            eff_date = self._parse_date(hold.aca_payment_hold_effective_date)
+            end_date = self._parse_date(hold.aca_payment_hold_end_date)
+            eff_str = eff_date.isoformat() if eff_date else ""
+            end_str = end_date.isoformat() if end_date else ""
+
+            # Map ACA indicator to status display name
+            status_map = {"A": "Active", "C": "Closed", "T": "Terminated"}
+            status_display = status_map.get(hold.aca_payment_hold_indicator, hold.aca_payment_hold_indicator)
+
+            row_key = f"PAYSUS|{hold.aca_payment_hold_effective_date}|{hold.aca_payment_hold_indicator}"
+            rows.append(self._row(mcd_id, "08", "IncomingPaymentSuspension", "StatusDisplayName", row_key, status_display))
+            rows.append(self._row(mcd_id, "08", "IncomingPaymentSuspension", "EffectiveDateRangeStartDate", row_key, eff_str))
+            rows.append(self._row(mcd_id, "08", "IncomingPaymentSuspension", "EffectiveDateRangeEndDate", row_key, end_str))
 
         return rows
 

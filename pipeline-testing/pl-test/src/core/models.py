@@ -50,6 +50,7 @@ class ComparatorResult:
 
     def __init__(self):
         self.mismatches: List[MismatchRecord] = []
+        self.matches: List[MismatchRecord] = []
         self.pass_count: int = 0
         self.fail_count: int = 0
         self.missing_count: int = 0
@@ -58,8 +59,10 @@ class ComparatorResult:
     def total_checks(self) -> int:
         return self.pass_count + self.fail_count + self.missing_count
 
-    def add_pass(self):
+    def add_pass(self, record: Optional[MismatchRecord] = None):
         self.pass_count += 1
+        if record is not None:
+            self.matches.append(record)
 
     def add_mismatch(self, record: MismatchRecord):
         self.mismatches.append(record)
