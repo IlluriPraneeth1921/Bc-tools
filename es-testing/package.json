@@ -71,13 +71,18 @@
     "test:phase7": "npx playwright test tests/ujt/enrollment/phase-7*.spec.ts --project=ujt",
     "test:phase8": "npx playwright test tests/ujt/enrollment/phase-8*.spec.ts --project=ujt",
     "test:all-phases": "npx playwright test tests/ujt/enrollment/phase-*.spec.ts --project=ujt",
-    "report": "npx playwright show-report reports/html"
+    "report": "npx playwright show-report reports/html",
+    "reset-tool": "npx ts-node --project reset-tool/tsconfig.json reset-tool/index.ts"
   },
   "devDependencies": {
-    "@playwright/test": "1.44.0",
+    "@inquirer/prompts": "^8.5.2",
+    "@playwright/test": "^1.61.1",
     "@types/mssql": "^12.3.0",
     "@types/node": "^22.0.0",
+    "chalk": "^4.1.2",
+    "msnodesqlv8": "^5.2.1",
     "mssql": "^12.6.0",
+    "ts-node": "^10.9.2",
     "typescript": "5.4.5"
   }
 }

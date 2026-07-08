@@ -7,3 +7,6 @@ dist/
 
 # Auth tokens (contain secrets — never commit)
 .auth/
+
+# Reset tool user config (contains server/person preferences)
+.reset-tool.json
