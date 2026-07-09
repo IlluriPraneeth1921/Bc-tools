@@ -1,7 +1,9 @@
 /**
  * ATC: TC-001 — New IRIS Enrollment Happy Path
  *
- * Lifecycle: Pristine Check → (Reset if needed) → Draft → Referred → Enrolled → Verify MMIS sync
+ * Lifecycle: Pristine Check → Draft → Referred → Enrolled → Verify MMIS sync
+ *
+ * Prerequisite: Participant must be in pristine state (no active MMIS waiver enrollment).
  *
  * Test Participant: MA ID 1430000013 (THREE TESTFEI)
  * Person UUID: c7a3862e-f166-466d-a5fb-b4670130aebd
@@ -27,7 +29,6 @@ import {
 } from './actions/enrollment-lifecycle.steps';
 import { getMmisSnapshotState } from '../../helpers/mmis-snapshot';
 import { captureMmisScreenshot } from '../../helpers/mmis-snapshot-capture';
-import { ensurePristineState } from '../../helpers/reset-enrollment';
 import { closeDb } from '../../helpers/db';
 import { SCENARIOS } from '../../data/scenario-test-data';
 import { createStepTracker, StepTracker } from '../../helpers/test-summary';
@@ -41,7 +42,6 @@ const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
 let page: Page;
 let participantUuid: string;
-let isPristine = false;
 let tracker: StepTracker;
 
 test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
@@ -96,41 +96,20 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     }
   });
 
-  test('ATC-ES-002 - Check MMIS Snapshot: Determine waiver enrollment state', async () => {
+  test('ATC-ES-002 - Precondition: Participant must be in pristine state (no active MMIS waiver enrollment)', async () => {
     test.setTimeout(60_000);
     try {
       const mmisState = await getMmisSnapshotState(page, participantUuid);
       expect(mmisState.loaded).toBe(true);
-
-      if (!mmisState.hasActiveWaiverEnrollment) {
-        isPristine = true;
-        console.log('[TC-001] ✓ Pristine state — no active MMIS waiver enrollment');
-      } else {
-        isPristine = false;
-        console.log('[TC-001] ✗ Active enrollment found — reset required');
-      }
-      tracker.record('ATC-ES-002 - Check MMIS Snapshot', 'passed');
+      expect(
+        mmisState.hasActiveWaiverEnrollment,
+        'Participant is NOT in pristine state — an active MMIS waiver enrollment exists. ' +
+        'Please reset the participant manually before running this test.'
+      ).toBe(false);
+      console.log('[TC-001] ✓ Pristine state confirmed — no active MMIS waiver enrollment');
+      tracker.record('ATC-ES-002 - Precondition: Pristine state', 'passed');
     } catch (err) {
-      tracker.record('ATC-ES-002 - Check MMIS Snapshot', 'failed', (err as Error).message);
-      throw err;
-    }
-  });
-
-  test('ATC-ES-003 - Reset: Withdraw referral to clear MMIS (if not pristine)', async () => {
-    test.setTimeout(120_000);
-    try {
-      if (isPristine) {
-        console.log('[TC-001] Skipping reset — already pristine');
-        tracker.record('ATC-ES-003 - Reset', 'skipped');
-        return;
-      }
-      const resetSuccess = await ensurePristineState(page, participantUuid);
-      expect(resetSuccess, 'Failed to reset participant to pristine state').toBe(true);
-      isPristine = true;
-      console.log('[TC-001] ✓ Reset complete');
-      tracker.record('ATC-ES-003 - Reset', 'passed');
-    } catch (err) {
-      tracker.record('ATC-ES-003 - Reset', 'failed', (err as Error).message);
+      tracker.record('ATC-ES-002 - Precondition: Pristine state', 'failed', (err as Error).message);
       throw err;
     }
   });
@@ -140,14 +119,6 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
     try {
       await navigateToEnrollments(page, participantUuid);
       await page.locator('mat-row, [class*="enrollment"]').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
-
-      const firstRow = page.locator('mat-row').first();
-      const rowText = await firstRow.textContent().catch(() => '') || '';
-      if (rowText.includes('Draft') || rowText.includes('Referred') || rowText.includes('Enrolled')) {
-        console.log(`[TC-001] Enrollment already exists — skipping Draft creation`);
-        tracker.record('ATC-ES-004 - Create Draft enrollment', 'skipped');
-        return;
-      }
 
       const saved = await addIrisEnrollment(page, {
         program: 'IRIS',
@@ -183,14 +154,6 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
   test('ATC-ES-006 - Create Referred enrollment', async () => {
     test.setTimeout(60_000);
     try {
-      const firstRow = page.locator('mat-row').first();
-      await expect(firstRow).toBeVisible({ timeout: 15_000 });
-      const rowText = await firstRow.textContent() || '';
-      if (rowText.includes('Referred') || rowText.includes('Enrolled')) {
-        console.log(`[TC-001] Already at ${rowText.includes('Enrolled') ? 'Enrolled' : 'Referred'} — skipping`);
-        tracker.record('ATC-ES-006 - Create Referred enrollment', 'skipped');
-        return;
-      }
       await createReferredEnrollment(page, getStepConfig());
       tracker.record('ATC-ES-006 - Create Referred enrollment', 'passed');
     } catch (err) {
@@ -217,14 +180,6 @@ test.describe.serial('TC-001: New IRIS Enrollment Happy Path', () => {
   test('ATC-ES-008 - Create Enrolled enrollment (triggers MMIS sync)', async () => {
     test.setTimeout(90_000);
     try {
-      const firstRow = page.locator('mat-row').first();
-      await expect(firstRow).toBeVisible({ timeout: 15_000 });
-      const rowText = await firstRow.textContent() || '';
-      if (rowText.includes('Enrolled')) {
-        console.log('[TC-001] Already Enrolled — skipping');
-        tracker.record('ATC-ES-008 - Create Enrolled enrollment', 'skipped');
-        return;
-      }
       await createEnrolledEnrollment(page, getStepConfig({ statusReason: 'Not Applicable' }));
       tracker.record('ATC-ES-008 - Create Enrolled enrollment', 'passed');
     } catch (err) {

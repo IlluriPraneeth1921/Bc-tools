@@ -91,6 +91,34 @@ test.describe.serial('TC-015: New SDPC Enrollment', () => {
     }
   });
 
+  test('ATC-ES-064a - Precondition: Participant must NOT already have SDPC enrollment', async () => {
+    test.setTimeout(30_000);
+    try {
+      await navigateToEnrollments(page, participantUuid);
+      await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 });
+
+      const sdpcRow = page.locator('mat-row').filter({ hasText: /SDPC/ }).first();
+      const sdpcExists = await sdpcRow.isVisible({ timeout: 5_000 }).catch(() => false);
+
+      if (sdpcExists) {
+        const rowText = await sdpcRow.textContent() || '';
+        const hasActiveState = rowText.includes('Assessing') || rowText.includes('Referred') || rowText.includes('Enrolled');
+        expect(
+          hasActiveState,
+          'Participant already has an active SDPC enrollment (Assessing/Referred/Enrolled). ' +
+          'Please reset the participant manually before running this test. ' +
+          `Found: ${rowText.trim().substring(0, 120)}`
+        ).toBe(false);
+      }
+
+      console.log('[TC-015] ✓ Precondition met — no active SDPC enrollment exists');
+      tracker.record('ATC-ES-064a - Precondition: No active SDPC enrollment', 'passed');
+    } catch (err) {
+      tracker.record('ATC-ES-064a - Precondition: No active SDPC enrollment', 'failed', (err as Error).message);
+      throw err;
+    }
+  });
+
   test('Capture MMIS snapshot (before)', async () => {
     test.setTimeout(60_000);
     try {
