@@ -164,10 +164,17 @@ export function createStepTracker(testId: string, participantUuid: string): Step
           const mmisSection = page.locator('text=MMIS Transaction List').first();
           await mmisSection.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
 
-          // Collapse the Overview section so MMIS Transaction List is fully visible
+          // Collapse Overview section if visible
           const overviewToggle = page.locator('text=Overview').first();
           if (await overviewToggle.isVisible({ timeout: 3_000 }).catch(() => false)) {
             await overviewToggle.click();
+            await page.waitForTimeout(500);
+          }
+
+          // Collapse Suspensions section if visible
+          const suspensionsToggle = page.locator('text=Suspensions').first();
+          if (await suspensionsToggle.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            await suspensionsToggle.click();
             await page.waitForTimeout(500);
           }
 
