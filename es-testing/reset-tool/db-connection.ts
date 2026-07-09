@@ -8,9 +8,41 @@
  *      — requires domain, username, and password from the user.
  */
 import * as sql from 'mssql';
+import { execSync } from 'child_process';
 
 let pool: sql.ConnectionPool | null = null;
 let usingNativeDriver = false;
+
+/**
+ * Detect the installed ODBC Driver for SQL Server on Windows.
+ * Checks the registry for installed drivers and returns the highest version found.
+ * Falls back to "ODBC Driver 17 for SQL Server" if detection fails.
+ */
+function detectOdbcDriver(): string {
+  const fallback = 'ODBC Driver 17 for SQL Server';
+  try {
+    const output = execSync(
+      'reg query "HKLM\\SOFTWARE\\ODBC\\ODBCINST.INI\\ODBC Drivers" /s',
+      { encoding: 'utf-8', timeout: 5000 }
+    );
+    // Match entries like "ODBC Driver 17 for SQL Server" or "ODBC Driver 18 for SQL Server"
+    const driverPattern = /ODBC Driver (\d+) for SQL Server/g;
+    let match: RegExpExecArray | null;
+    let highestVersion = 0;
+    let bestDriver = fallback;
+
+    while ((match = driverPattern.exec(output)) !== null) {
+      const version = parseInt(match[1], 10);
+      if (version > highestVersion) {
+        highestVersion = version;
+        bestDriver = match[0];
+      }
+    }
+    return bestDriver;
+  } catch {
+    return fallback;
+  }
+}
 
 /**
  * Detect whether msnodesqlv8 is available at runtime.
@@ -54,8 +86,9 @@ export async function connect(opts: ConnectionOptions): Promise<sql.ConnectionPo
     // Use mssql/msnodesqlv8 sub-module for true Windows Integrated Auth.
     // Pass a raw ODBC connection string to match exactly what SSMS uses.
     const nativeSql = require('mssql/msnodesqlv8');
+    const driver = detectOdbcDriver();
     const connectionString =
-      `Driver={ODBC Driver 17 for SQL Server};` +
+      `Driver={${driver}};` +
       `Server=${opts.server};` +
       `Database=${opts.database};` +
       `Trusted_Connection=yes;` +
