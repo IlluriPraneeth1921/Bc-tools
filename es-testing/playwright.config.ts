@@ -42,7 +42,7 @@ export default defineConfig({
       name: 'atc',
       testDir: './tests/atc',
       testMatch: '**/*.spec.ts',
-      use: { ...devices['Desktop Chrome'] },
+      use: { ...devices['Desktop Chrome'], screenshot: 'off' },
     },
     {
       name: 'ujt',

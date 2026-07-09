@@ -49,13 +49,12 @@ export async function saveTokensToDisk(tokens: StoredTokens): Promise<void> {
     fs.mkdirSync(AUTH_DIR, { recursive: true });
   }
   fs.writeFileSync(TOKEN_STORAGE_PATH, JSON.stringify(tokens, null, 2), 'utf-8');
-  console.log(`[auth-tokens] Tokens saved to ${TOKEN_STORAGE_PATH}`);
+  console.log(`[auth-tokens] Tokens saved`);
 }
 
 /** Loads previously saved tokens from disk. Returns null if missing/expired. */
 export function loadTokensFromDisk(): StoredTokens | null {
   if (!fs.existsSync(TOKEN_STORAGE_PATH)) {
-    console.log('[auth-tokens] No saved tokens found on disk.');
     return null;
   }
   try {
@@ -65,11 +64,9 @@ export function loadTokensFromDisk(): StoredTokens | null {
     if (tokens.expiresAt) {
       const expiry = new Date(tokens.expiresAt);
       if (new Date() >= expiry) {
-        console.log(`[auth-tokens] Saved tokens expired at ${tokens.expiresAt}. Will re-login.`);
+        console.log(`[auth-tokens] Saved tokens expired — will re-login.`);
         return null;
       }
-      const minutesLeft = Math.round((expiry.getTime() - Date.now()) / 60_000);
-      console.log(`[auth-tokens] Tokens valid for ~${minutesLeft} minutes.`);
     }
     return tokens;
   } catch (err) {
@@ -82,7 +79,6 @@ export function loadTokensFromDisk(): StoredTokens | null {
 export function deleteStoredTokens(): void {
   if (fs.existsSync(TOKEN_STORAGE_PATH)) {
     fs.unlinkSync(TOKEN_STORAGE_PATH);
-    console.log('[auth-tokens] Deleted stored tokens.');
   }
   const stateFile = path.resolve(AUTH_DIR, 'storage-state.json');
   if (fs.existsSync(stateFile)) {
@@ -186,11 +182,6 @@ export async function injectAuthTokens(page: Page, tokens: StoredTokens): Promis
       await page.context().addCookies(validCookies);
     }
   }
-
-  console.log(
-    `[auth-tokens] Injected ${Object.keys(localData).length} localStorage + ` +
-    `${Object.keys(sessionData).length} sessionStorage + ${tokens.cookies?.length || 0} cookies`
-  );
 }
 
 // ─── Verification ────────────────────────────────────────────────────────────
@@ -220,36 +211,30 @@ export async function verifyFullyAuthenticated(page: Page): Promise<boolean> {
 
   // FAIL: Redirected to Cognito
   if (url.includes('amazoncognito.com') || url.includes('/auth')) {
-    console.log('[auth-tokens] verify: FAILED — redirected to Cognito');
     return false;
   }
 
   // FAIL: Stuck on Acknowledge
   if (await page.getByRole('button', { name: 'Acknowledge' }).isVisible({ timeout: 2_000 }).catch(() => false)) {
-    console.log('[auth-tokens] verify: FAILED — Acknowledge dialog visible');
     return false;
   }
 
   // FAIL: Stuck on context selection
   if (url.includes('choose-context') || await page.locator('input[id^="organization_"]').first().isVisible({ timeout: 2_000 }).catch(() => false)) {
-    console.log('[auth-tokens] verify: FAILED — context selection page');
     return false;
   }
 
   // SUCCESS: If we have a person UUID, check we landed on the person page
   if (personUuid && url.includes(personUuid)) {
-    console.log('[auth-tokens] verify: SUCCESS — reached person page');
     return true;
   }
 
   // SUCCESS: On home or any app page (not redirected)
   if (url.includes('/#/') && !url.endsWith('/#/')) {
-    console.log('[auth-tokens] verify: SUCCESS — on app page');
     return true;
   }
 
   // FAIL: Redirected to root /#/ (likely context not set)
-  console.log(`[auth-tokens] verify: FAILED — ended up at: ${url}`);
   return false;
 }
 
@@ -277,7 +262,6 @@ export async function clearAllAuthState(page: Page): Promise<void> {
 
   // Delete stored tokens file so they aren't re-injected on next attempt
   deleteStoredTokens();
-  console.log('[auth-tokens] Cleared all auth state (storage + cookies + disk)');
 }
 
 // ─── Main Entry Point ────────────────────────────────────────────────────────
@@ -305,7 +289,6 @@ export async function authenticateWithTokenInjection(
   if (useInjection) {
     const savedTokens = loadTokensFromDisk();
     if (savedTokens) {
-      console.log('[auth-tokens] Attempting token injection...');
       await injectAuthTokens(page, savedTokens);
 
       // Navigate to verify (addInitScript will fire on this navigation)
@@ -315,13 +298,11 @@ export async function authenticateWithTokenInjection(
         return { method: 'injected', tokensRefreshed: false };
       }
 
-      console.log('[auth-tokens] ✗ Token injection failed — clearing state and doing full login');
+      console.log('[auth-tokens] ✗ Token injection failed — doing full login');
       // IMPORTANT: addInitScript is still active on this page and will re-inject
       // stale tokens on every navigation. We must clear storage after each navigation
       // in performFullLogin to counteract it. clearAllAuthState handles this.
     }
-  } else {
-    console.log('[auth-tokens] Token injection disabled — going straight to full login');
   }
 
   // ─── Full Clean Login ────────────────────────────────────────────────────
@@ -336,10 +317,8 @@ export async function authenticateWithTokenInjection(
   }
 
   const postLoginUrl = page.url();
-  console.log(`[auth-tokens] Full login completed — now at: ${postLoginUrl}`);
 
   // Capture and save tokens for next run
-  console.log('[auth-tokens] Capturing tokens after login...');
   const freshTokens = await captureAuthTokens(page);
   await saveTokensToDisk(freshTokens);
   await saveStorageStateFile(freshTokens);
@@ -358,12 +337,9 @@ export async function authenticateWithTokenInjection(
  */
 export async function ensureSessionAlive(page: Page): Promise<boolean> {
   const alive = await verifyFullyAuthenticated(page);
-  if (alive) {
-    console.log('[auth-tokens] ensureSessionAlive: session is alive');
-    return false;
-  }
+  if (alive) return false;
 
-  console.log('[auth-tokens] 🔑 Session is NOT alive — performing full re-authentication...');
+  console.log('[auth-tokens] Session expired — re-authenticating...');
   await clearAllAuthState(page);
 
   const { loginAndSelectContext } = await import('./login');
@@ -382,7 +358,6 @@ export async function ensureSessionAlive(page: Page): Promise<boolean> {
   await saveTokensToDisk(freshTokens);
   await saveStorageStateFile(freshTokens);
 
-  console.log('[auth-tokens] ✓ Re-authentication complete');
   return true;
 }
 

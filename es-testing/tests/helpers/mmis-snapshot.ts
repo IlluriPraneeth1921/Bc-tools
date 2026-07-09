@@ -46,7 +46,6 @@ async function navigateToMmisPage(page: Page, participantUuid: string): Promise<
   await page.waitForTimeout(2000);
 
   if (!page.url().includes(participantUuid)) {
-    console.log(`[mmis-snapshot] Could not reach person page. URL: ${page.url()}`);
     return false;
   }
 
@@ -71,7 +70,6 @@ async function waitForMmisContent(page: Page, timeoutMs: number): Promise<boolea
       || await page.locator('button').filter({ hasText: /Refresh/i }).first().isVisible().catch(() => false);
 
     if (visible) {
-      console.log('[mmis-snapshot] ✓ Page rendered');
       return true;
     }
     await page.waitForTimeout(2000);
@@ -94,7 +92,6 @@ async function waitForWaiverEnrollmentPanel(page: Page, timeoutMs: number): Prom
     for (let i = 0; i < rowCount; i++) {
       const text = await rows.nth(i).textContent().catch(() => '') || '';
       if (/\d{2}\/\d{2}\/\d{4}/.test(text)) {
-        console.log('[mmis-snapshot] ✓ Waiver Enrollment data loaded');
         return true;
       }
     }
@@ -102,14 +99,13 @@ async function waitForWaiverEnrollmentPanel(page: Page, timeoutMs: number): Prom
     // Check for "No Waiver Enrollment" message (pristine/cleared state)
     const noWaiver = await page.locator('text=No Waiver Enrollment').first().isVisible().catch(() => false);
     if (noWaiver) {
-      console.log('[mmis-snapshot] ✓ "No Waiver Enrollment" message visible');
       return true;
     }
 
     await page.waitForTimeout(2000);
   }
 
-  console.warn('[mmis-snapshot] ⚠ Timed out waiting for Waiver Enrollment panel');
+  console.warn('[mmis-snapshot] Timed out waiting for Waiver Enrollment panel');
   return false;
 }
 
@@ -122,13 +118,10 @@ async function waitForWaiverEnrollmentPanel(page: Page, timeoutMs: number): Prom
 export async function getMmisSnapshotState(page: Page, participantUuid: string): Promise<MmisSnapshotState> {
   const emptyResult: MmisSnapshotState = { loaded: false, hasWaiverEnrollment: false, hasActiveWaiverEnrollment: false, waiverRecords: [], rawText: '' };
 
-  console.log(`[mmis-snapshot] Navigating to MMIS Snapshot for ${participantUuid}`);
-
   // Attempt navigation (with one session-recovery retry)
   let rendered = await navigateToMmisPage(page, participantUuid);
 
   if (!rendered) {
-    console.log('[mmis-snapshot] Page did not render — checking session...');
     const recovered = await ensureSessionAlive(page);
     if (recovered) {
       rendered = await navigateToMmisPage(page, participantUuid);
@@ -136,17 +129,15 @@ export async function getMmisSnapshotState(page: Page, participantUuid: string):
   }
 
   if (!rendered) {
-    console.warn(`[mmis-snapshot] Failed to render. URL: ${page.url()}`);
+    console.warn(`[mmis-snapshot] Failed to render MMIS page`);
     return emptyResult;
   }
 
   // Click Refresh to get latest MMIS data
   const refreshBtn = page.locator('button').filter({ hasText: /Refresh/i }).first();
   if (await refreshBtn.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    console.log('[mmis-snapshot] Clicking Refresh...');
     await refreshBtn.click();
     await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-    // Wait for the Waiver Enrollment panel to fully render after refresh
     await waitForWaiverEnrollmentPanel(page, 30_000);
   }
 
@@ -201,7 +192,6 @@ async function parseWaiverEnrollment(page: Page): Promise<MmisSnapshotState> {
 
     if (record.waiverStatus === 'A') hasActiveWaiverEnrollment = true;
     waiverRecords.push(record);
-    console.log(`[mmis-snapshot] Record: Program=${record.waiverProgram}, Status=${record.waiverStatus}, Eff=${record.effectiveDate}, End=${record.endDate}`);
   }
 
   // Fallback: scan page text if no table rows found
@@ -219,7 +209,7 @@ async function parseWaiverEnrollment(page: Page): Promise<MmisSnapshotState> {
     ? pageText.substring(pageText.indexOf('Waiver Enrollment'), pageText.indexOf('Waiver Enrollment') + 500)
     : '';
 
-  console.log(`[mmis-snapshot] Result: loaded=true, hasWaiver=${hasWaiverEnrollment}, hasActive=${hasActiveWaiverEnrollment}, records=${waiverRecords.length}`);
+  console.log(`[mmis-snapshot] hasActive=${hasActiveWaiverEnrollment}, records=${waiverRecords.length}`);
   return { loaded: true, hasWaiverEnrollment, hasActiveWaiverEnrollment, waiverRecords, rawText };
 }
 
