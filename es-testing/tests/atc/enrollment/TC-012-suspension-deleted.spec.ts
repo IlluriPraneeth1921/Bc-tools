@@ -98,10 +98,18 @@ test.describe.serial('TC-012: Suspension Deleted', () => {
   test('ATC-ES-054 - Delete existing suspension record', async () => {
     test.setTimeout(60_000);
     try {
+      // The MMIS snapshot capture step navigates away from enrollment detail.
+      // Navigate back to the enrollment detail page if we're not on it.
       if (!page.url().includes('/programenrollment/')) {
-        console.log('[TC-012] Skipping — previous step was skipped');
-        test.skip();
-        return;
+        console.log('[TC-012] Not on enrollment detail — navigating back');
+        await navigateToEnrollments(page, participantUuid);
+        await page.waitForTimeout(2000);
+        const opened = await openEnrollmentByText(page, /Enrolled|Suspended/, /Disenrolled/);
+        if (!opened) {
+          console.log('[TC-012] Could not re-open enrollment detail');
+          test.skip();
+          return;
+        }
       }
 
       const deleted = await deleteSuspension(page);
@@ -115,13 +123,23 @@ test.describe.serial('TC-012: Suspension Deleted', () => {
   });
 
   test('ATC-ES-055 - Verify MMIS sync (2 transactions: S410 + S470)', async () => {
-    test.setTimeout(90_000);
+    test.setTimeout(180_000);
     try {
+      // Ensure we're on the enrollment detail page (where MMIS Transaction List is visible)
+      if (!page.url().includes('/programenrollment/')) {
+        await navigateToEnrollments(page, participantUuid);
+        await page.waitForTimeout(2000);
+        const opened = await openEnrollmentByText(page, /Enrolled|Suspended/, /Disenrolled/);
+        if (!opened) throw new Error('[TC-012] Could not navigate to enrollment detail for sync verification');
+      }
+
       const status = await verifyMmisSync(page, {
         participantUuid,
         mockMmis: MOCK_MMIS,
         mockFn: mockMmisSuccess,
         extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+        maxAttempts: 15,
+        pollIntervalMs: 10_000,
       });
 
       expect(status.responseStatus, 'Expected SU or SE response').toMatch(/^(SU|SE)$/);

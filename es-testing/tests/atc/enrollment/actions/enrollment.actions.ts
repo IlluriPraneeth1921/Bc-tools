@@ -572,8 +572,16 @@ export async function deleteSuspension(page: Page): Promise<boolean> {
   await expect(suspensionsHeading).toBeVisible({ timeout: 15_000 });
   await suspensionsHeading.scrollIntoViewIfNeeded();
 
-  // Wait for menu button to be ready
+  // Expand the Suspensions accordion if it's collapsed
   const menuBtn = page.locator('button.ellipse-action-menu[aria-label="Expand menu"]').first();
+  const menuAlreadyVisible = await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false);
+  if (!menuAlreadyVisible) {
+    // Accordion is collapsed — click the Suspensions heading to expand it
+    await suspensionsHeading.click();
+    await page.waitForTimeout(1000); // Allow accordion animation to complete
+  }
+
+  // Wait for menu button to be ready
   await menuBtn.waitFor({ state: 'visible', timeout: 10_000 });
   await menuBtn.scrollIntoViewIfNeeded();
   await menuBtn.click();
@@ -596,27 +604,33 @@ export async function deleteSuspension(page: Page): Promise<boolean> {
   await page.waitForLoadState('networkidle', { timeout: 30_000 }).catch(() => {});
   await page.waitForTimeout(2000); // let Angular re-render the suspension section
 
+  // Re-expand the Suspensions accordion after page re-render to verify deletion
+  const suspHeadingAfter = page.locator('span:text("Suspensions")').first();
+  const menuBtnAfter = page.locator('button.ellipse-action-menu[aria-label="Expand menu"]').first();
+  if (await suspHeadingAfter.isVisible({ timeout: 5_000 }).catch(() => false)) {
+    const menuVisibleAfter = await menuBtnAfter.isVisible({ timeout: 2_000 }).catch(() => false);
+    if (!menuVisibleAfter) {
+      // Accordion may have collapsed — expand it to check actual content
+      await suspHeadingAfter.click();
+      await page.waitForTimeout(1000);
+    }
+  }
+
   // Verify suspension was deleted — check for "No Suspension record(s) available" message
-  // or that the suspension row's menu button is gone
   const noRecords = page.locator('text=No Suspension record').first();
   if (await noRecords.isVisible({ timeout: 5_000 }).catch(() => false)) {
     return true; // Confirmed: no suspension records remain
   }
 
-  // Alternative: the menu button for the suspension row should be gone
-  const menuStillVisible = await menuBtn.isVisible({ timeout: 3_000 }).catch(() => false);
-  if (!menuStillVisible) {
-    return true; // Menu button gone — suspension row removed
+  // If the menu button is still visible after expanding the accordion, the suspension still exists
+  const menuStillVisible = await menuBtnAfter.isVisible({ timeout: 3_000 }).catch(() => false);
+  if (menuStillVisible) {
+    console.error('[deleteSuspension] Suspension row still visible after delete');
+    return false;
   }
 
-  // The page might have reloaded; check if suspension section still shows dates
-  const suspensionDates = page.locator('text=/\\d{2}\\/\\d{2}\\/\\d{4}.*Suspended/i').first();
-  if (!(await suspensionDates.isVisible({ timeout: 3_000 }).catch(() => false))) {
-    return true; // No suspension date/status text visible — deleted successfully
-  }
-
-  console.error('[deleteSuspension] Suspension row still visible after delete');
-  return false;
+  // Menu button gone and no "no records" message: suspension removed (section may be empty without a placeholder)
+  return true;
 }
 
 // ═══════════════════════════════════════════════════════════════════════════════
