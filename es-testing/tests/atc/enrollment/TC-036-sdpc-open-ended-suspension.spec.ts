@@ -3,8 +3,7 @@
  * Similar to TC-010 but for SDPC program.
  * Prerequisite: SDPC must be Enrolled.
  */
-import { test, expect, Page, Browser } from '@playwright/test';
-import { chromium } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { loginAndSelectContext } from '../../helpers/login';
 import { resolveParticipantUuid } from './actions/enrollment.actions';
 import {
@@ -15,27 +14,30 @@ import {
 } from './actions/enrollment-lifecycle.steps';
 import { SCENARIOS } from '../../data/scenario-test-data';
 import { closeDb } from '../../helpers/db';
+import { captureMmisScreenshot } from '../../helpers/mmis-snapshot-capture';
+import { createStepTracker, StepTracker } from '../../helpers/test-summary';
 
 const DATA = SCENARIOS.TC_036;
 const SUSPENSION_START = DATA.bcInput.suspensionStartDate!;
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
-let browser: Browser;
 let page: Page;
 let participantUuid: string;
+let tracker: StepTracker;
 
 test.describe.serial('TC-036: SDPC Open-Ended Suspension (No End Date)', () => {
-  test.beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
-    page = await browser.newContext().then(c => c.newPage());
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
     await loginAndSelectContext(page);
     participantUuid = await resolveParticipantUuid(page);
+    tracker = createStepTracker('TC-036', participantUuid);
     console.log(`[TC-036] Participant UUID: ${participantUuid}`);
   });
-  test.setTimeout(300_000);
+
   test.afterAll(async () => {
+    await tracker.finalize(page);
     if (MOCK_MMIS) await closeDb();
-    await browser.close();
+    await page.close();
   });
 
   const getStepConfig = (): SuspensionStepConfig => ({
@@ -48,14 +50,47 @@ test.describe.serial('TC-036: SDPC Open-Ended Suspension (No End Date)', () => {
   });
 
   test('ATC-ES-141 - Precondition: SDPC is Enrolled — open detail', async () => {
-    await openEnrolledProgramDetail(page, getStepConfig());
+    test.setTimeout(60_000);
+    try {
+      await openEnrolledProgramDetail(page, getStepConfig());
+      tracker.record('ATC-ES-141 - Precondition: SDPC is Enrolled — open detail', 'passed');
+    } catch (err) {
+      tracker.record('ATC-ES-141 - Precondition: SDPC is Enrolled — open detail', 'failed', (err as Error).message);
+      throw err;
+    }
+  });
+
+  test('Capture MMIS snapshot (before)', async () => {
+    test.setTimeout(60_000);
+    try {
+      const screenshot = await captureMmisScreenshot(page, participantUuid);
+      if (screenshot) tracker.setBeforeScreenshot(screenshot);
+      tracker.record('Capture MMIS snapshot (before)', 'passed');
+    } catch (err) {
+      tracker.record('Capture MMIS snapshot (before)', 'failed', (err as Error).message);
+      throw err;
+    }
   });
 
   test('ATC-ES-142 - Add open-ended suspension (no end date)', async () => {
-    await addOpenEndedSuspension(page, getStepConfig());
+    test.setTimeout(60_000);
+    try {
+      await addOpenEndedSuspension(page, getStepConfig());
+      tracker.record('ATC-ES-142 - Add open-ended suspension (no end date)', 'passed');
+    } catch (err) {
+      tracker.record('ATC-ES-142 - Add open-ended suspension (no end date)', 'failed', (err as Error).message);
+      throw err;
+    }
   });
 
   test('ATC-ES-143 - Verify MMIS sync (2 transactions: S500+S510)', async () => {
-    await verifySuspensionMmisSync(page, getStepConfig());
+    test.setTimeout(90_000);
+    try {
+      await verifySuspensionMmisSync(page, getStepConfig());
+      tracker.record('ATC-ES-143 - Verify MMIS sync (2 transactions: S500+S510)', 'passed');
+    } catch (err) {
+      tracker.record('ATC-ES-143 - Verify MMIS sync (2 transactions: S500+S510)', 'failed', (err as Error).message);
+      throw err;
+    }
   });
 });

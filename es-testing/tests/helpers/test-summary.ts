@@ -38,6 +38,7 @@ export interface TestSummary {
     mmisBeforeCapture: string;
     mmisAfterCapture: string;
     enrollmentFinalState: string;
+    mmisTransactionList: string;
   };
 }
 
@@ -138,7 +139,11 @@ export function createStepTracker(testId: string, participantUuid: string): Step
         const enrollmentUrl = `${BASE}/#/persons/person/${participantUuid}/programenrollments`;
         await page.goto(enrollmentUrl, { waitUntil: 'domcontentloaded', timeout: 30_000 });
         await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
-        await page.locator('mat-row').first().waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+
+        // Wait for enrollment rows to render with actual status content
+        const statusPattern = /Enrolled|Referred|Draft|Disenrolled|Suspended|Assessing/;
+        await page.locator('mat-row').filter({ hasText: statusPattern }).first()
+          .waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
         await page.waitForTimeout(1000);
 
         enrollmentBuffer = await page.screenshot({ fullPage: true });
@@ -146,10 +151,46 @@ export function createStepTracker(testId: string, participantUuid: string): Step
         console.warn(`[test-summary] Failed to capture enrollment screenshot: ${(err as Error).message}`);
       }
 
+      // ─── MMIS Transaction List Screenshot ────────────────────────────
+      let mmisTransactionBuffer: Buffer | null = null;
+      try {
+        // Click the first (most recent) enrollment row to open detail
+        const firstRow = page.locator('mat-row').first();
+        if (await firstRow.isVisible({ timeout: 5_000 }).catch(() => false)) {
+          await firstRow.click();
+          await page.waitForLoadState('networkidle', { timeout: 20_000 }).catch(() => {});
+
+          // Wait for the MMIS Transaction List section to appear
+          const mmisSection = page.locator('text=MMIS Transaction List').first();
+          await mmisSection.waitFor({ state: 'visible', timeout: 30_000 }).catch(() => {});
+
+          // Collapse the Overview section so MMIS Transaction List is fully visible
+          const overviewToggle = page.locator('text=Overview').first();
+          if (await overviewToggle.isVisible({ timeout: 3_000 }).catch(() => false)) {
+            await overviewToggle.click();
+            await page.waitForTimeout(500);
+          }
+
+          // Wait for sync status content to render (Success/Warning/Pending badge)
+          await page.locator('text=Status Reason').first()
+            .waitFor({ state: 'visible', timeout: 15_000 }).catch(() => {});
+          await page.waitForTimeout(1000);
+
+          // Scroll MMIS Transaction List into view
+          await mmisSection.scrollIntoViewIfNeeded();
+          await page.waitForTimeout(500);
+
+          mmisTransactionBuffer = await page.screenshot({ fullPage: true });
+        }
+      } catch (err) {
+        console.warn(`[test-summary] Failed to capture MMIS transaction screenshot: ${(err as Error).message}`);
+      }
+
       // ─── Write Artifacts ─────────────────────────────────────────────
       const beforeFile = 'mmis-snapshot-before.png';
       const afterFile = 'mmis-snapshot-after.png';
       const enrollmentFile = 'enrollment-final-state.png';
+      const transactionFile = 'mmis-transaction-list.png';
 
       if (beforeScreenshot) {
         fs.writeFileSync(path.join(outputDir, beforeFile), beforeScreenshot);
@@ -159,6 +200,9 @@ export function createStepTracker(testId: string, participantUuid: string): Step
       }
       if (enrollmentBuffer) {
         fs.writeFileSync(path.join(outputDir, enrollmentFile), enrollmentBuffer);
+      }
+      if (mmisTransactionBuffer) {
+        fs.writeFileSync(path.join(outputDir, transactionFile), mmisTransactionBuffer);
       }
 
       // ─── Write Summary JSON ──────────────────────────────────────────
@@ -175,6 +219,7 @@ export function createStepTracker(testId: string, participantUuid: string): Step
           mmisBeforeCapture: beforeFile,
           mmisAfterCapture: afterFile,
           enrollmentFinalState: enrollmentFile,
+          mmisTransactionList: transactionFile,
         },
       };
 

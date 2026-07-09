@@ -15,9 +15,10 @@
  * Test Participant: MA ID 1430000013
  * Prerequisite: TC-001 must have completed successfully (active IRIS enrollment with SU sync).
  */
-import { test, expect, Page, Browser } from '@playwright/test';
-import { chromium } from '@playwright/test';
+import { test, expect, Page } from '@playwright/test';
 import { loginAndSelectContext } from '../../helpers/login';
+import { captureMmisScreenshot } from '../../helpers/mmis-snapshot-capture';
+import { createStepTracker, StepTracker } from '../../helpers/test-summary';
 import { navigateToEnrollments } from '../../helpers/participant-resolver';
 import {
   resolveParticipantUuid,
@@ -40,9 +41,9 @@ const NEW_END_DATE = DATA.bcInput.newEnrollmentEndDate!;
 /** When true, uses database stored procedure to mock MMIS Success response. */
 const MOCK_MMIS = process.env.MOCK_MMIS === 'true';
 
-let browser: Browser;
 let page: Page;
 let participantUuid: string;
+let tracker: StepTracker;
 
 // ═══════════════════════════════════════════════════════════════════════════════
 // TESTS — Serial mode: stops on first failure
@@ -50,65 +51,99 @@ let participantUuid: string;
 
 test.describe.serial('TC-006: End Date Earlier (Disenrollment)', () => {
 
-  test.beforeAll(async () => {
-    browser = await chromium.launch({ headless: true });
-    page = await browser.newContext().then(c => c.newPage());
+  test.beforeAll(async ({ browser }) => {
+    page = await browser.newPage();
     await loginAndSelectContext(page);
     participantUuid = await resolveParticipantUuid(page);
+    tracker = createStepTracker('TC-006', participantUuid);
     console.log(`[TC-006] Participant UUID: ${participantUuid}`);
   });
-  test.setTimeout(300_000);
+
   test.afterAll(async () => {
+    await tracker.finalize(page);
     if (MOCK_MMIS) await closeDb();
-    await browser.close();
+    await page.close();
   });
 
   test('ATC-ES-030 - Precondition: Participant is Enrolled', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
+    test.setTimeout(60_000);
+    try {
+      await navigateToEnrollments(page, participantUuid);
+      await page.waitForTimeout(2000);
 
-    const state = await getFullEnrollmentState(page);
-    console.log(`[TC-006] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
-    expect(state.irisState, 'Precondition failed: participant must be Enrolled.').toBe('Enrolled');
+      const state = await getFullEnrollmentState(page);
+      console.log(`[TC-006] State: IRIS=${state.irisState}, Suspension=${state.hasSuspension}`);
+      expect(state.irisState, 'Precondition failed: participant must be Enrolled.').toBe('Enrolled');
+      tracker.record('ATC-ES-030 - Precondition: Participant is Enrolled', 'passed');
+    } catch (err) {
+      tracker.record('ATC-ES-030 - Precondition: Participant is Enrolled', 'failed', (err as Error).message);
+      throw err;
+    }
+  });
+
+  test('Capture MMIS snapshot (before)', async () => {
+    test.setTimeout(60_000);
+    try {
+      const screenshot = await captureMmisScreenshot(page, participantUuid);
+      if (screenshot) tracker.setBeforeScreenshot(screenshot);
+      tracker.record('Capture MMIS snapshot (before)', 'passed');
+    } catch (err) {
+      tracker.record('Capture MMIS snapshot (before)', 'failed', (err as Error).message);
+      throw err;
+    }
   });
 
   test('ATC-ES-032 - Set Disenrolled with earlier end date via New Program Enrollment', async () => {
-    await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
+    test.setTimeout(60_000);
+    try {
+      await navigateToEnrollments(page, participantUuid);
+      await page.waitForTimeout(2000);
 
-    const saved = await addIrisEnrollment(page, {
-      program: 'IRIS',
-      status: 'Disenrolled',
-      statusReason: 'Not Applicable',
-      startDate: DATA.bcInput.enrollmentStartDate,
-      endDate: NEW_END_DATE,
-    });
-    expect(saved, 'Dialog did not close after save — validation errors').toBe(true);
+      const saved = await addIrisEnrollment(page, {
+        program: 'IRIS',
+        status: 'Disenrolled',
+        statusReason: 'Not Applicable',
+        startDate: DATA.bcInput.enrollmentStartDate,
+        endDate: NEW_END_DATE,
+      });
+      expect(saved, 'Dialog did not close after save — validation errors').toBe(true);
 
-    // Verify Disenrolled appears on page
-    await page.waitForTimeout(2000);
-    const pageText = await page.locator('body').textContent().catch(() => '') || '';
-    expect(pageText, 'Disenrolled status not found after save').toContain('Disenrolled');
-    console.log(`[TC-006] Disenrolled enrollment created, End Date = ${NEW_END_DATE}`);
+      // Verify Disenrolled appears on page
+      await page.waitForTimeout(2000);
+      const pageText = await page.locator('body').textContent().catch(() => '') || '';
+      expect(pageText, 'Disenrolled status not found after save').toContain('Disenrolled');
+      console.log(`[TC-006] Disenrolled enrollment created, End Date = ${NEW_END_DATE}`);
+      tracker.record('ATC-ES-032 - Set Disenrolled with earlier end date via New Program Enrollment', 'passed');
+    } catch (err) {
+      tracker.record('ATC-ES-032 - Set Disenrolled with earlier end date via New Program Enrollment', 'failed', (err as Error).message);
+      throw err;
+    }
   });
 
   test('ATC-ES-033 - Verify MMIS sync completes with SU response', async () => {
-    // Navigate to the Disenrolled enrollment detail
-    await navigateToEnrollments(page, participantUuid);
-    await page.waitForTimeout(2000);
-    const opened = await openEnrollmentByText(page, /Disenrolled/);
-    expect(opened, 'Could not open Disenrolled enrollment detail').toBe(true);
+    test.setTimeout(90_000);
+    try {
+      // Navigate to the Disenrolled enrollment detail
+      await navigateToEnrollments(page, participantUuid);
+      await page.waitForTimeout(2000);
+      const opened = await openEnrollmentByText(page, /Disenrolled/);
+      expect(opened, 'Could not open Disenrolled enrollment detail').toBe(true);
 
-    const status = await verifyMmisSync(page, {
-      participantUuid,
-      mockMmis: MOCK_MMIS,
-      mockFn: mockMmisSuccess,
-      extractKeyFn: extractProgramEnrollmentKeyFromUrl,
-    });
+      const status = await verifyMmisSync(page, {
+        participantUuid,
+        mockMmis: MOCK_MMIS,
+        mockFn: mockMmisSuccess,
+        extractKeyFn: extractProgramEnrollmentKeyFromUrl,
+      });
 
-    expect(status.responseStatus, 'Expected SU or SE response').toMatch(/^(SU|SE)$/);
-    expect(status.hasConflict).toBe(false);
-    console.log(`[TC-006] ✓ MMIS closure completed (${status.responseStatus})`);
+      expect(status.responseStatus, 'Expected SU or SE response').toMatch(/^(SU|SE)$/);
+      expect(status.hasConflict).toBe(false);
+      console.log(`[TC-006] ✓ MMIS closure completed (${status.responseStatus})`);
+      tracker.record('ATC-ES-033 - Verify MMIS sync completes with SU response', 'passed');
+    } catch (err) {
+      tracker.record('ATC-ES-033 - Verify MMIS sync completes with SU response', 'failed', (err as Error).message);
+      throw err;
+    }
   });
 
 });
