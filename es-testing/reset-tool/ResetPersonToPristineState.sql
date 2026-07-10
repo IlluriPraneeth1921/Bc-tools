@@ -122,6 +122,46 @@ BEGIN
         BEGIN TRANSACTION;
 
         -- ==========================================================
+        -- SEQUENCE RESYNC: Advance CaseActivityInstanceIdentifierSequence
+        -- past the current MAX(Identifier) in the table.
+        -- This prevents duplicate key violations on the AK_CaseActivityInstance_Identifier index.
+        -- ==========================================================
+        DECLARE @MaxIdentifier BIGINT;
+        DECLARE @CurrentSeqValue BIGINT;
+        SELECT @MaxIdentifier = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+        SELECT @CurrentSeqValue = CAST(current_value AS BIGINT)
+        FROM sys.sequences
+        WHERE name = 'CaseActivityInstanceIdentifierSequence'
+          AND schema_id = SCHEMA_ID('CaseActivityModule');
+
+        IF @CurrentSeqValue IS NOT NULL AND @CurrentSeqValue <= @MaxIdentifier
+        BEGIN
+            -- Try ALTER SEQUENCE first (fast path, requires ALTER permission)
+            IF HAS_PERMS_BY_NAME('CaseActivityModule.CaseActivityInstanceIdentifierSequence', 'OBJECT', 'ALTER') = 1
+            BEGIN
+                DECLARE @NewSeqStart BIGINT = @MaxIdentifier + 1;
+                DECLARE @AlterSeqSql NVARCHAR(200) = N'ALTER SEQUENCE CaseActivityModule.CaseActivityInstanceIdentifierSequence RESTART WITH ' + CAST(@NewSeqStart AS NVARCHAR(20));
+                EXEC sp_executesql @AlterSeqSql;
+                PRINT '  Sequence resynced via ALTER: was ' + CAST(@CurrentSeqValue AS NVARCHAR(20)) + ', now starts at ' + CAST(@NewSeqStart AS NVARCHAR(20));
+            END
+            ELSE
+            BEGIN
+                -- Fallback: consume values from the sequence until we pass MaxIdentifier
+                DECLARE @BurnValue BIGINT = @CurrentSeqValue;
+                WHILE @BurnValue <= @MaxIdentifier
+                    SELECT @BurnValue = NEXT VALUE FOR CaseActivityModule.CaseActivityInstanceIdentifierSequence;
+                PRINT '  Sequence resynced via burn: advanced from ' + CAST(@CurrentSeqValue AS NVARCHAR(20)) + ' to ' + CAST(@BurnValue AS NVARCHAR(20));
+            END
+        END
+        ELSE IF @CurrentSeqValue IS NULL
+        BEGIN
+            RAISERROR('Cannot read CaseActivityInstanceIdentifierSequence. Ensure the sequence exists in the CaseActivityModule schema and you have VIEW DEFINITION permission.', 16, 1);
+            RETURN -1;
+        END
+        ELSE
+            PRINT '  Sequence OK: current value ' + CAST(@CurrentSeqValue AS NVARCHAR(20)) + ' > max table identifier ' + CAST(@MaxIdentifier AS NVARCHAR(20));
+
+        -- ==========================================================
         -- PART A: DELETE ALL PROGRAM ENROLLMENT DATA
         -- ==========================================================
         PRINT '--- Part A: Enrollment Cleanup ---';
