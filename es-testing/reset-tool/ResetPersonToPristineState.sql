@@ -122,6 +122,30 @@ BEGIN
         BEGIN TRANSACTION;
 
         -- ==========================================================
+        -- SEQUENCE RESYNC: Advance CaseActivityInstanceIdentifierSequence
+        -- past the current MAX(Identifier) in the table.
+        -- This fixes desync caused by prior direct inserts that bypassed
+        -- the sequence (used MAX+N instead of NEXT VALUE FOR).
+        -- ==========================================================
+        DECLARE @MaxIdentifier BIGINT;
+        DECLARE @CurrentSeqValue BIGINT;
+        SELECT @MaxIdentifier = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+        SELECT @CurrentSeqValue = CAST(current_value AS BIGINT)
+        FROM sys.sequences
+        WHERE name = 'CaseActivityInstanceIdentifierSequence'
+          AND schema_id = SCHEMA_ID('CaseActivityModule');
+
+        IF @CurrentSeqValue <= @MaxIdentifier
+        BEGIN
+            DECLARE @NewSeqStart BIGINT = @MaxIdentifier + 1;
+            DECLARE @AlterSeqSql NVARCHAR(200) = N'ALTER SEQUENCE CaseActivityModule.CaseActivityInstanceIdentifierSequence RESTART WITH ' + CAST(@NewSeqStart AS NVARCHAR(20));
+            EXEC sp_executesql @AlterSeqSql;
+            PRINT '  Sequence resynced: was ' + CAST(@CurrentSeqValue AS NVARCHAR(20)) + ', now starts at ' + CAST(@NewSeqStart AS NVARCHAR(20));
+        END
+        ELSE
+            PRINT '  Sequence OK: current value ' + CAST(@CurrentSeqValue AS NVARCHAR(20)) + ' > max table identifier ' + CAST(@MaxIdentifier AS NVARCHAR(20));
+
+        -- ==========================================================
         -- PART A: DELETE ALL PROGRAM ENROLLMENT DATA
         -- ==========================================================
         PRINT '--- Part A: Enrollment Cleanup ---';
@@ -591,9 +615,7 @@ BEGIN
         PRINT '  FieldAnswers copied';
 
         -- Register forms in CaseActivityInstance
-        DECLARE @NextFormCaiId BIGINT;
-        SELECT @NextFormCaiId = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
-
+        -- Use NEXT VALUE FOR to advance the sequence and avoid duplicate Identifier conflicts
         INSERT INTO CaseActivityModule.CaseActivityInstance (
             CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
             RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
@@ -606,7 +628,7 @@ BEGIN
         )
         SELECT
             NEWID(), 1, bc.NewCCFIKey, @CaseKey,
-            cai.RegistrationStatusEnum, cai.IsActive, @NextFormCaiId + ROW_NUMBER() OVER (ORDER BY cai.EntityCreatedTimestamp), cai.ProgramKeyReference,
+            cai.RegistrationStatusEnum, cai.IsActive, NEXT VALUE FOR CaseActivityModule.CaseActivityInstanceIdentifierSequence, cai.ProgramKeyReference,
             cai.ActivityTypeDisplayName, cai.ActivityTypeIdentifier, cai.ActivityTypeCodeSystemIdentifier,
             cai.ClrTypeAssemblyQualifiedName, cai.ClrTypeDisplayName, cai.ClrTypeFullName,
             cai.FormTypeDisplayName, cai.FormTypeIdentifier, cai.FormTypeCodeSystemIdentifier,
@@ -792,8 +814,7 @@ BEGIN
         PRINT '  WorkflowInstances for locations created';
 
         -- Register new location assignments in CaseActivityInstance
-        DECLARE @NextLocCaiId BIGINT;
-        SELECT @NextLocCaiId = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+        -- Use NEXT VALUE FOR to advance the sequence and avoid duplicate Identifier conflicts
         INSERT INTO CaseActivityModule.CaseActivityInstance (
             CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
             RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
@@ -806,7 +827,7 @@ BEGIN
         )
         SELECT
             NEWID(), 1, pla.PersonLocationAssignmentKey, @CaseKey,
-            'Registered', NULL, @NextLocCaiId + ROW_NUMBER() OVER (ORDER BY pla.EffectiveDateRangeStartDate), NULL,
+            'Registered', NULL, NEXT VALUE FOR CaseActivityModule.CaseActivityInstanceIdentifierSequence, NULL,
             'Person Location Assignment', 11500002, 1,
             'Wpc.Core.Domain.PersonModule.Assignment.PersonLocationAssignmentAggregate.PersonLocationAssignment, Wpc.Core.Domain, Version=4.43.0.0, Culture=neutral, PublicKeyToken=null',
             'Person Location Assignment',
@@ -880,8 +901,7 @@ BEGIN
         PRINT '  WorkflowInstances for staff created';
 
         -- Register new staff assignments in CaseActivityInstance
-        DECLARE @NextStaffCaiId BIGINT;
-        SELECT @NextStaffCaiId = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+        -- Use NEXT VALUE FOR to advance the sequence and avoid duplicate Identifier conflicts
         INSERT INTO CaseActivityModule.CaseActivityInstance (
             CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
             RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
@@ -894,7 +914,7 @@ BEGIN
         )
         SELECT
             NEWID(), 1, psma.PersonStaffMemberAssignmentKey, @CaseKey,
-            'Registered', NULL, @NextStaffCaiId + ROW_NUMBER() OVER (ORDER BY psma.EffectiveDateRangeStartDate), NULL,
+            'Registered', NULL, NEXT VALUE FOR CaseActivityModule.CaseActivityInstanceIdentifierSequence, NULL,
             'Person Staff Member Assignment', 11500003, 1,
             'Wpc.Core.Domain.PersonModule.Assignment.PersonStaffMemberAssignmentAggregate.PersonStaffMemberAssignment, Wpc.Core.Domain, Version=4.43.0.0, Culture=neutral, PublicKeyToken=null',
             'Person Staff Member Assignment',
@@ -1731,7 +1751,20 @@ BEGIN
         WHERE PlannedServiceKey = (SELECT PlannedServiceKey FROM PersonCenteredPlanModule.PlannedService WHERE PersonCenteredPlanKey = @BlueprintPcpKey);
         PRINT '  PlannedServiceSupportsProvided: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
-        -- Risk
+        -- Risk (pre-generate keys so OriginalRiskKey = self)
+        DECLARE @RiskStaging TABLE (NewKey UNIQUEIDENTIFIER, Description NVARCHAR(MAX),
+            NameDisplayName NVARCHAR(MAX), NameIdentifier BIGINT, NameCodeSystemIdentifier BIGINT,
+            ProvenanceSourceIdentifier NVARCHAR(1000), ProvenanceTypeDisplayName NVARCHAR(MAX),
+            ProvenanceTypeIdentifier BIGINT, ProvenanceTypeCodeSystemIdentifier BIGINT,
+            EntityCreatedUserContextKey UNIQUEIDENTIFIER, EntityUpdatedUserContextKey UNIQUEIDENTIFIER);
+        INSERT INTO @RiskStaging (NewKey, Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey)
+        SELECT NEWID(), Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.Risk WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
         INSERT INTO PersonCenteredPlanModule.Risk (
             RiskKey, Version, PersonCenteredPlanKey, Description,
             OriginalRiskKey, PreviousRiskKey,
@@ -1741,15 +1774,28 @@ BEGIN
             EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
         )
         SELECT
-            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NewKey, 1, @NewPcpKey, Description, NewKey, NULL,
             NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
-        FROM PersonCenteredPlanModule.Risk WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        FROM @RiskStaging;
         PRINT '  Risk: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
-        -- Strength
+        -- Strength (pre-generate keys so OriginalStrengthKey = self)
+        DECLARE @StrengthStaging TABLE (NewKey UNIQUEIDENTIFIER, Description NVARCHAR(MAX),
+            NameDisplayName NVARCHAR(MAX), NameIdentifier BIGINT, NameCodeSystemIdentifier BIGINT,
+            ProvenanceSourceIdentifier NVARCHAR(1000), ProvenanceTypeDisplayName NVARCHAR(MAX),
+            ProvenanceTypeIdentifier BIGINT, ProvenanceTypeCodeSystemIdentifier BIGINT,
+            EntityCreatedUserContextKey UNIQUEIDENTIFIER, EntityUpdatedUserContextKey UNIQUEIDENTIFIER);
+        INSERT INTO @StrengthStaging (NewKey, Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey)
+        SELECT NEWID(), Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.Strength WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
         INSERT INTO PersonCenteredPlanModule.Strength (
             StrengthKey, Version, PersonCenteredPlanKey, Description,
             OriginalStrengthKey, PreviousStrengthKey,
@@ -1759,15 +1805,28 @@ BEGIN
             EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
         )
         SELECT
-            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NewKey, 1, @NewPcpKey, Description, NewKey, NULL,
             NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
-        FROM PersonCenteredPlanModule.Strength WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        FROM @StrengthStaging;
         PRINT '  Strength: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
-        -- ImportantFactor
+        -- ImportantFactor (pre-generate keys so OriginalImportantFactorKey = self)
+        DECLARE @ImportantFactorStaging TABLE (NewKey UNIQUEIDENTIFIER, Description NVARCHAR(MAX),
+            NameDisplayName NVARCHAR(MAX), NameIdentifier BIGINT, NameCodeSystemIdentifier BIGINT,
+            ProvenanceSourceIdentifier NVARCHAR(1000), ProvenanceTypeDisplayName NVARCHAR(MAX),
+            ProvenanceTypeIdentifier BIGINT, ProvenanceTypeCodeSystemIdentifier BIGINT,
+            EntityCreatedUserContextKey UNIQUEIDENTIFIER, EntityUpdatedUserContextKey UNIQUEIDENTIFIER);
+        INSERT INTO @ImportantFactorStaging (NewKey, Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey)
+        SELECT NEWID(), Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.ImportantFactor WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
         INSERT INTO PersonCenteredPlanModule.ImportantFactor (
             ImportantFactorKey, Version, PersonCenteredPlanKey, Description,
             OriginalImportantFactorKey, PreviousImportantFactorKey,
@@ -1777,15 +1836,31 @@ BEGIN
             EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
         )
         SELECT
-            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NewKey, 1, @NewPcpKey, Description, NewKey, NULL,
             NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
-        FROM PersonCenteredPlanModule.ImportantFactor WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        FROM @ImportantFactorStaging;
         PRINT '  ImportantFactor: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
-        -- Barrier
+        -- Barrier (pre-generate keys so OriginalBarrierKey = self)
+        DECLARE @BarrierStaging TABLE (NewKey UNIQUEIDENTIFIER, Description NVARCHAR(MAX),
+            NameDisplayName NVARCHAR(MAX), NameIdentifier BIGINT, NameCodeSystemIdentifier BIGINT,
+            ProvenanceSourceIdentifier NVARCHAR(1000), ProvenanceTypeDisplayName NVARCHAR(MAX),
+            ProvenanceTypeIdentifier BIGINT, ProvenanceTypeCodeSystemIdentifier BIGINT,
+            StatusDisplayName NVARCHAR(MAX), StatusIdentifier BIGINT, StatusCodeSystemIdentifier BIGINT,
+            EntityCreatedUserContextKey UNIQUEIDENTIFIER, EntityUpdatedUserContextKey UNIQUEIDENTIFIER);
+        INSERT INTO @BarrierStaging (NewKey, Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            StatusDisplayName, StatusIdentifier, StatusCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey)
+        SELECT NEWID(), Description, NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
+            ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
+            StatusDisplayName, StatusIdentifier, StatusCodeSystemIdentifier,
+            EntityCreatedUserContextKey, EntityUpdatedUserContextKey
+        FROM PersonCenteredPlanModule.Barrier WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+
         INSERT INTO PersonCenteredPlanModule.Barrier (
             BarrierKey, Version, PersonCenteredPlanKey, Description,
             OriginalBarrierKey, PreviousBarrierKey,
@@ -1796,13 +1871,13 @@ BEGIN
             EntityUpdatedAccountIdentifier, EntityUpdatedTimestamp, EntityUpdatedUserContextKey
         )
         SELECT
-            NEWID(), 1, @NewPcpKey, Description, NULL, NULL,
+            NewKey, 1, @NewPcpKey, Description, NewKey, NULL,
             NameDisplayName, NameIdentifier, NameCodeSystemIdentifier,
             ProvenanceSourceIdentifier, ProvenanceTypeDisplayName, ProvenanceTypeIdentifier, ProvenanceTypeCodeSystemIdentifier,
             StatusDisplayName, StatusIdentifier, StatusCodeSystemIdentifier,
             'feiadmin', @Now, EntityCreatedUserContextKey,
             'feiadmin', @Now, EntityUpdatedUserContextKey
-        FROM PersonCenteredPlanModule.Barrier WHERE PersonCenteredPlanKey = @BlueprintPcpKey;
+        FROM @BarrierStaging;
         PRINT '  Barrier: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- MyLifeTodayDescription + Routines
@@ -2045,11 +2120,9 @@ BEGIN
         PRINT '  ISP WorkflowInstance: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- CaseActivityInstance registrations (UI activity registry)
-        DECLARE @NextCaiId BIGINT;
-        SELECT @NextCaiId = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
+        -- Use NEXT VALUE FOR to advance the sequence and avoid duplicate Identifier conflicts
 
         -- Register the new PCP
-        SET @NextCaiId = @NextCaiId + 1;
         INSERT INTO CaseActivityModule.CaseActivityInstance (
             CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
             RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
@@ -2062,7 +2135,7 @@ BEGIN
         )
         SELECT
             NEWID(), 1, @NewPcpKey, @CaseKey,
-            RegistrationStatusEnum, IsActive, @NextCaiId, ProgramKeyReference,
+            RegistrationStatusEnum, IsActive, NEXT VALUE FOR CaseActivityModule.CaseActivityInstanceIdentifierSequence, ProgramKeyReference,
             ActivityTypeDisplayName, ActivityTypeIdentifier, ActivityTypeCodeSystemIdentifier,
             ClrTypeAssemblyQualifiedName, ClrTypeDisplayName, ClrTypeFullName,
             FormTypeDisplayName, FormTypeIdentifier, FormTypeCodeSystemIdentifier,
@@ -2073,7 +2146,6 @@ BEGIN
         WHERE CaseActivityKeyReference = @BlueprintPcpKey AND CaseKey = @BlueprintCaseKey;
 
         -- Register the new BudgetLedger
-        SET @NextCaiId = @NextCaiId + 1;
         INSERT INTO CaseActivityModule.CaseActivityInstance (
             CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
             RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
@@ -2086,7 +2158,7 @@ BEGIN
         )
         SELECT
             NEWID(), 1, @NewBudgetLedgerKey, @CaseKey,
-            RegistrationStatusEnum, IsActive, @NextCaiId, ProgramKeyReference,
+            RegistrationStatusEnum, IsActive, NEXT VALUE FOR CaseActivityModule.CaseActivityInstanceIdentifierSequence, ProgramKeyReference,
             ActivityTypeDisplayName, ActivityTypeIdentifier, ActivityTypeCodeSystemIdentifier,
             ClrTypeAssemblyQualifiedName, ClrTypeDisplayName, ClrTypeFullName,
             FormTypeDisplayName, FormTypeIdentifier, FormTypeCodeSystemIdentifier,
@@ -2097,7 +2169,6 @@ BEGIN
         WHERE CaseActivityKeyReference = @BlueprintBudgetLedgerKey AND CaseKey = @BlueprintCaseKey;
 
         -- Register the new ServiceAuthorization
-        SET @NextCaiId = @NextCaiId + 1;
         INSERT INTO CaseActivityModule.CaseActivityInstance (
             CaseActivityInstanceKey, Version, CaseActivityKeyReference, CaseKey,
             RegistrationStatusEnum, IsActive, Identifier, ProgramKeyReference,
@@ -2110,7 +2181,7 @@ BEGIN
         )
         SELECT
             NEWID(), 1, @NewSAKey, @CaseKey,
-            RegistrationStatusEnum, IsActive, @NextCaiId, ProgramKeyReference,
+            RegistrationStatusEnum, IsActive, NEXT VALUE FOR CaseActivityModule.CaseActivityInstanceIdentifierSequence, ProgramKeyReference,
             ActivityTypeDisplayName, ActivityTypeIdentifier, ActivityTypeCodeSystemIdentifier,
             ClrTypeAssemblyQualifiedName, ClrTypeDisplayName, ClrTypeFullName,
             FormTypeDisplayName, FormTypeIdentifier, FormTypeCodeSystemIdentifier,
