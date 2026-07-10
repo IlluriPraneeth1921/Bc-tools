@@ -174,10 +174,188 @@ These files have structural problems that should cause the pipeline to reject th
 
 ---
 
+---
+---
+
+# ICD-D06 Negative Testing — Record Type 02 (Provider Address)
+
+## Purpose
+
+Verify that the pipeline correctly **rejects** providers with invalid Record Type 02 (Address) data. Also verify conditional field rules are enforced (fields only valid for specific address types) and BR-D06-019 ZIP code formatting is validated.
+
+## Test Data Prefix
+
+All RT02 negative test providers use prefix: `990000000`
+
+- Control providers: `990000000C1xxx`
+- Negative test providers: `990000000N1xxx`
+
+## RT02 Field Reference
+
+| Field | Length | Type | Required | Code Table | Conditional |
+|---|---|---|---|---|---|
+| record_type | 2 | string | yes | — | Fixed "02" |
+| medicaid_provider_number | 15 | identifier | yes | — | |
+| address_type_code | 1 | code | yes | S, M, P, I | |
+| name_type_code | 1 | code | — | B, P | |
+| name_address_specific | 50 | string | — | — | |
+| street_address_1 | 30 | string | yes | — | |
+| street_address_2 | 30 | string | — | — | |
+| city | 30 | string | yes | — | |
+| state | 2 | string | yes | — | |
+| zip_code | 5 | string | yes | — | Must be numeric 5-digit (BR-D06-019) |
+| zip_code_extension | 4 | string | — | — | |
+| practice_location_county_code | 10 | string | yes | — | Only for Address Type S |
+| email_address | 256 | string | — | — | Only for Address Type M |
+| contact_person | 50 | string | — | — | Only for Address Type S and P |
+| phone_number_contact_person | 10 | string | — | — | Only for Address Type S and P |
+| phone_number_extension_contact_person | 4 | string | — | — | Only for Address Type S and P |
+| phone_number_member_use | 10 | string | — | — | Only for Address Type S |
+
+## Occurrence Rules
+
+- Minimum: 1 address per provider
+- Maximum: 10 addresses per provider
+- Address Type S is optional when other address types are present
+
+---
+
+## Test Files (8 total)
+
+### Per-Provider Rejection (Files 10–15)
+
+| # | Filename | Topic | Invalid Providers | Control |
+|---|---|---|---|---|
+| 10 | `WI_PROV_FILE_EXTRACT_T_NEG10_RT02_MISSING_REQUIRED_FIELDS.psv` | Required RT02 fields empty | 7 | 1 |
+| 11 | `WI_PROV_FILE_EXTRACT_T_NEG11_RT02_INVALID_CODES.psv` | Invalid code table values | 3 | 1 |
+| 12 | `WI_PROV_FILE_EXTRACT_T_NEG12_RT02_FIELD_LENGTH_OVERFLOW.psv` | Fields exceeding max length | 8 | 1 |
+| 13 | `WI_PROV_FILE_EXTRACT_T_NEG13_RT02_CONDITIONAL_FIELD_VIOLATIONS.psv` | Fields populated for wrong address type | 7 | 1 |
+| 14 | `WI_PROV_FILE_EXTRACT_T_NEG14_RT02_ZIP_CODE_VIOLATIONS.psv` | BR-D06-019 malformed ZIP codes | 5 | 1 |
+| 15 | `WI_PROV_FILE_EXTRACT_T_NEG15_RT02_OCCURRENCE_VIOLATIONS.psv` | Too few / too many RT02 records + boundary | 3 | 1 |
+
+### Entire File Rejection (Files 16–17)
+
+| # | Filename | Topic | Providers |
+|---|---|---|---|
+| 16 | `WI_PROV_FILE_EXTRACT_T_NEG16_RT02_STRUCT_TOO_FEW_FIELDS.psv` | RT02 line truncated (too few pipes) | 1 |
+| 17 | `WI_PROV_FILE_EXTRACT_T_NEG17_RT02_STRUCT_TOO_MANY_FIELDS.psv` | RT02 line has extra fields | 1 |
+
+---
+
+## Detailed Scenarios
+
+### NEG10: Missing Required Fields
+
+| Provider ID | Missing Field | Spec Requirement |
+|---|---|---|
+| 990000000N1001 | `medicaid_provider_number` (on RT02) | required=true, type=identifier |
+| 990000000N1002 | `address_type_code` | required=true, code_table=address_type_codes |
+| 990000000N1003 | `street_address_1` | required=true, length=30 |
+| 990000000N1004 | `city` | required=true, length=30 |
+| 990000000N1005 | `state` | required=true, length=2 |
+| 990000000N1006 | `zip_code` | required=true, length=5 |
+| 990000000N1007 | `practice_location_county_code` | required=true for Address Type S |
+| 990000000C1001 | *(control — all fields valid)* | Should load successfully |
+
+### NEG11: Invalid Code Values
+
+| Provider ID | Field | Invalid Value | Valid Values |
+|---|---|---|---|
+| 990000000N1011 | `address_type_code` | `X` | S, M, P, I |
+| 990000000N1012 | `address_type_code` | `1` (numeric) | S, M, P, I |
+| 990000000N1013 | `name_type_code` | `Z` | B, P |
+| 990000000C1002 | *(control)* | | |
+
+### NEG12: Field Length Overflow
+
+| Provider ID | Field | Max Length | Test Length |
+|---|---|---|---|
+| 990000000N1021 | `address_type_code` | 1 | 2 ("SM") |
+| 990000000N1022 | `street_address_1` | 30 | 40 chars |
+| 990000000N1023 | `city` | 30 | 40 chars |
+| 990000000N1024 | `state` | 2 | 5 ("WISCO") |
+| 990000000N1025 | `zip_code` | 5 | 10 ("5370312345") |
+| 990000000N1026 | `name_address_specific` | 50 | 60 chars |
+| 990000000N1027 | `email_address` | 256 | ~270 chars |
+| 990000000N1028 | `phone_number_contact_person` | 10 | 15 chars |
+| 990000000C1003 | *(control)* | | |
+
+### NEG13: Conditional Field Violations
+
+Fields populated for the WRONG address type — pipeline should reject.
+
+| Provider ID | Scenario | Why Invalid |
+|---|---|---|
+| 990000000N1031 | `practice_location_county_code` on Type M | County code only valid for Type S |
+| 990000000N1032 | `practice_location_county_code` on Type P | County code only valid for Type S |
+| 990000000N1033 | `email_address` on Type S | Email only valid for Type M |
+| 990000000N1034 | `email_address` on Type P | Email only valid for Type M |
+| 990000000N1035 | `contact_person` on Type M | Contact only valid for Type S and P |
+| 990000000N1036 | `contact_person` on Type I | Contact only valid for Type S and P |
+| 990000000N1037 | `phone_number_member_use` on Type M | Member phone only valid for Type S |
+| 990000000C1004 | *(control)* | |
+
+### NEG14: ZIP Code Violations (BR-D06-019)
+
+| Provider ID | `zip_code` Value | Why Invalid |
+|---|---|---|
+| 990000000N1041 | `ABCDE` | Non-numeric (must be numeric 5-digit) |
+| 990000000N1042 | `5370` | Too short (4 digits instead of 5) |
+| 990000000N1043 | `53703-` | Contains hyphen (raw zip must be digits only) |
+| 990000000N1044 | `0000` | Too short (4 chars) + all zeros |
+| 990000000N1045 | ` 5370` | Leading space in numeric field |
+| 990000000C1005 | *(control)* | |
+
+### NEG15: Occurrence Violations
+
+| Provider ID | Scenario | Expected |
+|---|---|---|
+| 990000000N1051 | 0 RT02 records (no address at all) | Rejected — min 1 required |
+| 990000000N1052 | 11 RT02 records | Rejected — max 10 exceeded |
+| 990000000N1053 | 1 RT02 record (Type M only, no Type S) | Boundary test — should load (Type S optional) |
+| 990000000C1006 | *(control — valid with 1 Type S address)* | Should load successfully |
+
+### NEG16: Structural — Too Few Fields
+
+| Provider ID | Scenario |
+|---|---|
+| 990000000N1061 | RT02 line has only 8 pipe-delimited fields instead of 17 |
+
+### NEG17: Structural — Too Many Fields
+
+| Provider ID | Scenario |
+|---|---|
+| 990000000N1062 | RT02 line has 20 pipe-delimited fields (3 extra) |
+
+---
+
+## Verification SQL (RT02-specific)
+
+```sql
+-- Confirm rejected providers have no address records in Stage 2
+SELECT * FROM [CustomerInterfaceModule].[MedicaidProviderAddress]
+WHERE MedicaidProviderNumber LIKE '990000000N1%'
+
+-- Confirm rejected providers have no location addresses in Stage 4
+SELECT * FROM [OrganizationModule].[LocationAddresses]
+WHERE LocationKey IN (
+  SELECT LocationKey FROM [OrganizationModule].[LocationIdentifiers]
+  WHERE IdentifierValue LIKE '990000000N1%'
+)
+
+-- Confirm control providers DID load addresses
+SELECT * FROM [OrganizationModule].[LocationAddresses]
+WHERE LocationKey IN (
+  SELECT LocationKey FROM [OrganizationModule].[LocationIdentifiers]
+  WHERE IdentifierValue LIKE '990000000C1%'
+)
+```
+
+---
+
 ## Future Expansion
 
 This document will be extended to cover negative testing for:
-- Record Type 02 (Address)
 - Record Type 03 (TIN)
 - Record Type 04 (Contract)
 - Record Type 05 (Type & Specialty)
