@@ -122,30 +122,6 @@ BEGIN
         BEGIN TRANSACTION;
 
         -- ==========================================================
-        -- SEQUENCE RESYNC: Advance CaseActivityInstanceIdentifierSequence
-        -- past the current MAX(Identifier) in the table.
-        -- This fixes desync caused by prior direct inserts that bypassed
-        -- the sequence (used MAX+N instead of NEXT VALUE FOR).
-        -- ==========================================================
-        DECLARE @MaxIdentifier BIGINT;
-        DECLARE @CurrentSeqValue BIGINT;
-        SELECT @MaxIdentifier = ISNULL(MAX(Identifier), 0) FROM CaseActivityModule.CaseActivityInstance;
-        SELECT @CurrentSeqValue = CAST(current_value AS BIGINT)
-        FROM sys.sequences
-        WHERE name = 'CaseActivityInstanceIdentifierSequence'
-          AND schema_id = SCHEMA_ID('CaseActivityModule');
-
-        IF @CurrentSeqValue <= @MaxIdentifier
-        BEGIN
-            DECLARE @NewSeqStart BIGINT = @MaxIdentifier + 1;
-            DECLARE @AlterSeqSql NVARCHAR(200) = N'ALTER SEQUENCE CaseActivityModule.CaseActivityInstanceIdentifierSequence RESTART WITH ' + CAST(@NewSeqStart AS NVARCHAR(20));
-            EXEC sp_executesql @AlterSeqSql;
-            PRINT '  Sequence resynced: was ' + CAST(@CurrentSeqValue AS NVARCHAR(20)) + ', now starts at ' + CAST(@NewSeqStart AS NVARCHAR(20));
-        END
-        ELSE
-            PRINT '  Sequence OK: current value ' + CAST(@CurrentSeqValue AS NVARCHAR(20)) + ' > max table identifier ' + CAST(@MaxIdentifier AS NVARCHAR(20));
-
-        -- ==========================================================
         -- PART A: DELETE ALL PROGRAM ENROLLMENT DATA
         -- ==========================================================
         PRINT '--- Part A: Enrollment Cleanup ---';
