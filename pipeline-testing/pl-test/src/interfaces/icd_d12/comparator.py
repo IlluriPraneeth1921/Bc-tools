@@ -466,7 +466,11 @@ class IcdD12Comparator(BaseComparator):
     # =========================================================================
 
     def _query_stage4_table(self, table_name: str) -> List[Dict]:
-        """Query a Stage 4 table in the Carity DB. Handles dot-notation (Schema.Table)."""
+        """Query a Stage 4 table in the Carity DB. Handles dot-notation (Schema.Table).
+        
+        All queries enrich results with MedicaidId (as _MedicaidId) by joining
+        through the CaseCustomFormInstance → Case → PersonLookup chain.
+        """
         try:
             if "." in table_name:
                 schema, table = table_name.split(".", 1)
@@ -474,31 +478,52 @@ class IcdD12Comparator(BaseComparator):
                 schema, table = "CustomFormModule", table_name
 
             # For CustomFormInstance, filter by the LTC form definition key
+            # Include MedicaidId via CaseCustomFormInstance → Case → PersonLookup
             if table == "CustomFormInstance":
                 return db.execute_query(
                     DatabaseManager.CARITY,
-                    f"""SELECT * FROM [{schema}].[{table}]
-                        WHERE CustomFormDefinitionKey = ?""",
+                    f"""SELECT cfi.*, pl.ActiveMedicaidNumber AS MedicaidId
+                        FROM [{schema}].[{table}] cfi
+                        INNER JOIN [{schema}].[CaseCustomFormInstance] ccfi
+                            ON cfi.CustomFormInstanceKey = ccfi.CustomFormInstanceKey
+                        INNER JOIN [CaseModule].[Case] c
+                            ON ccfi.CaseKey = c.CaseKey
+                        INNER JOIN [PersonModule].[PersonLookup] pl
+                            ON c.PersonKey = pl.PersonKey
+                        WHERE cfi.CustomFormDefinitionKey = ?""",
                     ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
                 )
             # For CaseCustomFormInstance, join through CustomFormInstance to filter
             elif table == "CaseCustomFormInstance":
                 return db.execute_query(
                     DatabaseManager.CARITY,
-                    f"""SELECT ccfi.* FROM [{schema}].[{table}] ccfi
+                    f"""SELECT ccfi.*, pl.ActiveMedicaidNumber AS MedicaidId
+                        FROM [{schema}].[{table}] ccfi
                         INNER JOIN [{schema}].[CustomFormInstance] cfi
                             ON ccfi.CustomFormInstanceKey = cfi.CustomFormInstanceKey
+                        INNER JOIN [CaseModule].[Case] c
+                            ON ccfi.CaseKey = c.CaseKey
+                        INNER JOIN [PersonModule].[PersonLookup] pl
+                            ON c.PersonKey = pl.PersonKey
                         WHERE cfi.CustomFormDefinitionKey = ?""",
                     ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
                 )
             # For FieldAnswerBase and answer tables, join through CustomFormInstance
+            # Include MedicaidId via the same chain
             elif table in ("FieldAnswerBase", "SimpleSingleSelectFieldAnswer", "DateFieldAnswer"):
                 if table == "FieldAnswerBase":
                     return db.execute_query(
                         DatabaseManager.CARITY,
-                        f"""SELECT fab.* FROM [{schema}].[{table}] fab
+                        f"""SELECT fab.*, pl.ActiveMedicaidNumber AS MedicaidId
+                            FROM [{schema}].[{table}] fab
                             INNER JOIN [{schema}].[CustomFormInstance] cfi
                                 ON fab.CustomFormInstanceKey = cfi.CustomFormInstanceKey
+                            INNER JOIN [{schema}].[CaseCustomFormInstance] ccfi
+                                ON cfi.CustomFormInstanceKey = ccfi.CustomFormInstanceKey
+                            INNER JOIN [CaseModule].[Case] c
+                                ON ccfi.CaseKey = c.CaseKey
+                            INNER JOIN [PersonModule].[PersonLookup] pl
+                                ON c.PersonKey = pl.PersonKey
                             WHERE cfi.CustomFormDefinitionKey = ?""",
                         ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
                     )
@@ -506,19 +531,30 @@ class IcdD12Comparator(BaseComparator):
                     # SimpleSingleSelectFieldAnswer / DateFieldAnswer join via FieldAnswerBase
                     return db.execute_query(
                         DatabaseManager.CARITY,
-                        f"""SELECT ans.* FROM [{schema}].[{table}] ans
+                        f"""SELECT ans.*, pl.ActiveMedicaidNumber AS MedicaidId
+                            FROM [{schema}].[{table}] ans
                             INNER JOIN [{schema}].[FieldAnswerBase] fab
                                 ON ans.FieldAnswerBaseKey = fab.FieldAnswerBaseKey
                             INNER JOIN [{schema}].[CustomFormInstance] cfi
                                 ON fab.CustomFormInstanceKey = cfi.CustomFormInstanceKey
+                            INNER JOIN [{schema}].[CaseCustomFormInstance] ccfi
+                                ON cfi.CustomFormInstanceKey = ccfi.CustomFormInstanceKey
+                            INNER JOIN [CaseModule].[Case] c
+                                ON ccfi.CaseKey = c.CaseKey
+                            INNER JOIN [PersonModule].[PersonLookup] pl
+                                ON c.PersonKey = pl.PersonKey
                             WHERE cfi.CustomFormDefinitionKey = ?""",
                         ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
                     )
-            # For PersonModule tables (PersonEmployment), filter by entity prefix
+            # For PersonModule tables (PersonEmployment), include MedicaidId
             elif schema == "PersonModule":
                 return db.execute_query(
                     DatabaseManager.CARITY,
-                    f"SELECT TOP 1000 * FROM [{schema}].[{table}]",
+                    f"""SELECT t.*, pl.ActiveMedicaidNumber AS MedicaidId
+                        FROM [{schema}].[{table}] t
+                        INNER JOIN [PersonModule].[PersonLookup] pl
+                            ON t.PersonKey = pl.PersonKey
+                        WHERE pl.ActiveMedicaidNumber IS NOT NULL""",
                 )
             else:
                 return db.execute_query(
