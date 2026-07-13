@@ -34,21 +34,37 @@ class IcdD12Comparator(BaseComparator):
     def compare_stage1(self, expected_rows: List[Dict[str, Any]]) -> ComparatorResult:
         """Compare expected raw rows against actual LongTermCareFunctionalScreenFormRaw table.
 
-        This table only has two columns: InterfaceBatchKey and RawText.
-        We filter by searching RawText for lines starting with the entity_id_prefix.
+        This table has InterfaceBatchKey and RawText columns.
+        We collect all entity IDs from expected rows and query for RawText starting
+        with any of those IDs (since test data may not share a single prefix).
         """
         result = ComparatorResult()
 
+        # Collect distinct entity IDs from expected DTL rows
+        entity_ids = set()
+        for exp in expected_rows:
+            if exp.get("RecordType") == "DTL":
+                raw = exp.get("RawText", "")
+                eid = raw[:10].strip() if raw else ""
+                if eid:
+                    entity_ids.add(eid)
+
+        if not entity_ids:
+            return result
+
         try:
+            # Build query with OR conditions for each entity ID
+            placeholders = " OR ".join(["RawText LIKE ?" for _ in entity_ids])
+            params = tuple(f"{eid}%" for eid in entity_ids)
             actual_rows = db.execute_query(
                 DatabaseManager.INTERFACE,
-                """
+                f"""
                 SELECT RawText
                 FROM [CustomerInterfaceModule].[LongTermCareFunctionalScreenFormRaw]
-                WHERE RawText LIKE ?
+                WHERE {placeholders}
                 ORDER BY RawText
                 """,
-                (f"{self.entity_id_prefix}%",),
+                params,
             )
         except Exception:
             actual_rows = []
@@ -135,14 +151,26 @@ class IcdD12Comparator(BaseComparator):
         Compare expected parsed fields against actual LongTermCareFunctionalScreenForm table.
 
         D12 has one row per member in LongTermCareFunctionalScreenForm with all
-        parsed fields as typed columns.
+        parsed fields as typed columns. Uses entity IDs from expected rows to query
+        rather than relying on a single prefix match.
         """
         result = ComparatorResult()
 
+        # Collect distinct entity IDs from expected rows
+        entity_ids = set()
+        for exp in expected_rows:
+            eid = exp.get("entity_id", "").strip()
+            if eid:
+                entity_ids.add(eid)
+
+        if not entity_ids:
+            return result
+
         try:
+            placeholders = ",".join(["?" for _ in entity_ids])
             actual_rows = db.execute_query(
                 DatabaseManager.INTERFACE,
-                """
+                f"""
                 SELECT
                     MemberId, FirstName, LastName, MiddleName,
                     ApplicantPrefersToLiveCode, GuardianPreferenceForLivingCode,
@@ -180,9 +208,9 @@ class IcdD12Comparator(BaseComparator):
                     SubstanceAbusePastFlag,
                     CONVERT(varchar(8), EligibilityCalculatedDate, 112) AS EligibilityCalculatedDate
                 FROM [CustomerInterfaceModule].[LongTermCareFunctionalScreenForm]
-                WHERE MemberId LIKE ?
+                WHERE MemberId IN ({placeholders})
                 """,
-                (f"{self.entity_id_prefix}%",),
+                tuple(entity_ids),
             )
         except Exception as e:
             import logging

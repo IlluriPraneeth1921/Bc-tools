@@ -142,7 +142,7 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
 
             # Generate one expected row per field, using PascalCase DB column names
             for field_name, _ in DETAIL_FIELDS:
-                value = getattr(member, field_name, "")
+                value = getattr(member, field_name, "").strip()
                 db_column = SNAKE_TO_PASCAL.get(field_name, field_name)
                 expected_rows.append({
                     "line_number": source_line.line_number,
