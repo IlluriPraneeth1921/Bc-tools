@@ -30,6 +30,9 @@ class Settings(BaseSettings):
     # Interface type for ICD-D06
     DEFAULT_INTERFACE_TYPE: str = "icd_d06"
 
+    # ICD-D12: CustomFormDefinitionKey for FSIA forms in Carity DB
+    D12_CUSTOM_FORM_DEFINITION_KEY: str = "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"

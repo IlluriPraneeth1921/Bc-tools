@@ -18,9 +18,20 @@ from src.interfaces.icd_d12.vocab_config import VOCAB_LOOKUP_KEYS
 class IcdD12Plugin(InterfacePlugin):
     """ICD-D12: FSIA (Functional Screen / Initial Assessment) File interface plugin."""
 
-    # The CustomFormDefinition that FSIA data maps to in CustomFormModule
-    CUSTOM_FORM_DEFINITION_KEY = "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+    # Default — overridden at runtime from settings (D12_CUSTOM_FORM_DEFINITION_KEY env var)
+    CUSTOM_FORM_DEFINITION_KEY_DEFAULT = "964B0DFB-ED99-4F5A-8449-B43C013B9062"
     CUSTOM_FORM_DEFINITION_VERSION = 55
+
+    @property
+    def custom_form_definition_key(self) -> str:
+        """Read from settings (env/config) so it can be changed without redeployment."""
+        from src.core.config import settings
+        return settings.D12_CUSTOM_FORM_DEFINITION_KEY
+
+    # Keep class-level constant for backward compatibility (tests, etc.)
+    @property
+    def CUSTOM_FORM_DEFINITION_KEY(self) -> str:
+        return self.custom_form_definition_key
 
     @property
     def interface_type(self) -> str:
@@ -64,11 +75,11 @@ class IcdD12Plugin(InterfacePlugin):
         self, parsed_file: BaseParsedFile, vocab_client: Optional[Any] = None
     ) -> BaseExpectedStateGenerator:
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
-        return IcdD12ExpectedStateGenerator(parsed_file, vocab_client)
+        return IcdD12ExpectedStateGenerator(parsed_file, vocab_client, custom_form_definition_key=self.CUSTOM_FORM_DEFINITION_KEY)
 
     def create_comparator(self, entity_id_prefix: str) -> BaseComparator:
         from src.interfaces.icd_d12.comparator import IcdD12Comparator
-        return IcdD12Comparator(entity_id_prefix)
+        return IcdD12Comparator(entity_id_prefix, custom_form_definition_key=self.CUSTOM_FORM_DEFINITION_KEY)
 
     @property
     def pipeline_cleanup_config(self):

@@ -148,6 +148,7 @@ if st.button("Run Comparison", type="primary"):
             "filepath": selected_file,
             "interface_type": interface_type,
             "mcd_id_prefix": mcd_id_prefix,
+            "custom_form_definition_key": st.session_state.get("d12_form_definition_key", ""),
             "stage": stage_num,
         })
 

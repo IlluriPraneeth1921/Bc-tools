@@ -36,6 +36,7 @@ class CompareRequest(BaseModel):
     filepath: str
     interface_type: str = "icd_d06"
     mcd_id_prefix: str = "000000000"
+    custom_form_definition_key: Optional[str] = None
     stages: Optional[List[int]] = None
 
 
@@ -312,6 +313,13 @@ async def run_comparison(request: CompareRequest):
     expected_gen = plugin.create_expected_state_generator(parsed, vocab)
     comparator = plugin.create_comparator(entity_id_prefix=request.mcd_id_prefix)
 
+    # Override the custom form definition key if provided at runtime (D12)
+    if request.custom_form_definition_key:
+        if hasattr(expected_gen, 'custom_form_definition_key'):
+            expected_gen.custom_form_definition_key = request.custom_form_definition_key
+        if hasattr(comparator, 'custom_form_definition_key'):
+            comparator.custom_form_definition_key = request.custom_form_definition_key
+
     stage_results: List[StageSummary] = []
     all_mismatches: List[MismatchRecord] = []
     completed = 0
@@ -458,6 +466,7 @@ class StageRunRequest(BaseModel):
     filepath: str
     interface_type: str = "icd_d06"
     mcd_id_prefix: str = "000000000"
+    custom_form_definition_key: Optional[str] = None
     stage: int
 
 
@@ -507,6 +516,13 @@ async def run_single_stage(request: StageRunRequest):
     vocab = VocabClient(lookup_keys=plugin.vocab_lookup_keys)
     expected_gen = plugin.create_expected_state_generator(parsed, vocab)
     comparator = plugin.create_comparator(entity_id_prefix=request.mcd_id_prefix)
+
+    # Override the custom form definition key if provided at runtime (D12)
+    if request.custom_form_definition_key:
+        if hasattr(expected_gen, 'custom_form_definition_key'):
+            expected_gen.custom_form_definition_key = request.custom_form_definition_key
+        if hasattr(comparator, 'custom_form_definition_key'):
+            comparator.custom_form_definition_key = request.custom_form_definition_key
 
     test_run_id = request.test_run_id
     stage = request.stage

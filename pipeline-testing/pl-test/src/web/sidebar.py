@@ -102,4 +102,21 @@ def render_sidebar():
     inject_local_storage_sync()
 
     st.sidebar.caption(f"Active prefix: `{st.session_state['entity_id_prefix']}`")
+
+    # --- Advanced Settings (collapsible) ---
+    with st.sidebar.expander("Advanced Settings"):
+        # ICD-D12 CustomFormDefinitionKey — changeable at runtime
+        from src.core.config import settings
+        default_form_key = settings.D12_CUSTOM_FORM_DEFINITION_KEY
+        if "d12_form_definition_key" not in st.session_state:
+            st.session_state["d12_form_definition_key"] = default_form_key
+
+        form_key = st.text_input(
+            "D12 Form Definition Key",
+            value=st.session_state.get("d12_form_definition_key", default_form_key),
+            help="CustomFormDefinitionKey for ICD-D12 FSIA forms in Carity DB. Change without redeployment.",
+        )
+        if form_key != st.session_state.get("d12_form_definition_key"):
+            st.session_state["d12_form_definition_key"] = form_key
+
     st.sidebar.divider()

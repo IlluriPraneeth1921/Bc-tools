@@ -102,11 +102,16 @@ PASCAL_TO_SNAKE: Dict[str, str] = {v: k for k, v in SNAKE_TO_PASCAL.items()}
 class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
     """Generates expected state for all 4 stages of the ICD-D12 FSIA pipeline."""
 
-    def __init__(self, parsed_file: BaseParsedFile, vocab_client=None):
+    def __init__(self, parsed_file: BaseParsedFile, vocab_client=None, custom_form_definition_key: str = None):
         if not isinstance(parsed_file, ParsedFile):
             raise TypeError("IcdD12ExpectedStateGenerator requires an ICD-D12 ParsedFile")
         self.parsed_file: ParsedFile = parsed_file
         self.vocab_client = vocab_client
+        if custom_form_definition_key:
+            self.custom_form_definition_key = custom_form_definition_key
+        else:
+            from src.core.config import settings
+            self.custom_form_definition_key = settings.D12_CUSTOM_FORM_DEFINITION_KEY
 
     def generate_stage1(self) -> List[Dict[str, Any]]:
         """
@@ -182,8 +187,6 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
 
         Business rules determine Yes/No mappings for composite fields.
         """
-        from src.interfaces.icd_d12.plugin import IcdD12Plugin
-
         expected_rows = []
 
         for medicaid_id, member in self.parsed_file.members.items():
@@ -191,7 +194,7 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
             expected_rows.append(self._row(
                 medicaid_id, "CustomFormModule.CustomFormInstance",
                 "CustomFormDefinitionKey", f"FormInstance|{medicaid_id}",
-                IcdD12Plugin.CUSTOM_FORM_DEFINITION_KEY,
+                self.custom_form_definition_key,
             ))
 
             # --- Personal care needs (BR: composite of ADL fields) ---

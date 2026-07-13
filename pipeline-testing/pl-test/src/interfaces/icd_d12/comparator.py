@@ -24,8 +24,16 @@ class IcdD12Comparator(BaseComparator):
     for the ICD-D12 FSIA File.
     """
 
-    def __init__(self, entity_id_prefix: str = None):
+    # Default from settings — can be overridden at construction time
+    DEFAULT_FORM_DEFINITION_KEY = "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+
+    def __init__(self, entity_id_prefix: str = None, custom_form_definition_key: str = None):
         self.entity_id_prefix = entity_id_prefix or "9999999"
+        if custom_form_definition_key:
+            self.custom_form_definition_key = custom_form_definition_key
+        else:
+            from src.core.config import settings
+            self.custom_form_definition_key = settings.D12_CUSTOM_FORM_DEFINITION_KEY
 
     # =========================================================================
     # Stage 1: Compare against FsiaRaw (raw lines)
@@ -491,7 +499,7 @@ class IcdD12Comparator(BaseComparator):
                         INNER JOIN [PersonModule].[PersonLookup] pl
                             ON c.PersonKey = pl.PersonKey
                         WHERE cfi.CustomFormDefinitionKey = ?""",
-                    ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
+                    (self.custom_form_definition_key,),
                 )
             # For CaseCustomFormInstance, join through CustomFormInstance to filter
             elif table == "CaseCustomFormInstance":
@@ -506,7 +514,7 @@ class IcdD12Comparator(BaseComparator):
                         INNER JOIN [PersonModule].[PersonLookup] pl
                             ON c.PersonKey = pl.PersonKey
                         WHERE cfi.CustomFormDefinitionKey = ?""",
-                    ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
+                    (self.custom_form_definition_key,),
                 )
             # For FieldAnswerBase and answer tables, join through CustomFormInstance
             # Include MedicaidId via the same chain
@@ -525,7 +533,7 @@ class IcdD12Comparator(BaseComparator):
                             INNER JOIN [PersonModule].[PersonLookup] pl
                                 ON c.PersonKey = pl.PersonKey
                             WHERE cfi.CustomFormDefinitionKey = ?""",
-                        ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
+                        (self.custom_form_definition_key,),
                     )
                 else:
                     # SimpleSingleSelectFieldAnswer / DateFieldAnswer join via FieldAnswerBase
@@ -544,7 +552,7 @@ class IcdD12Comparator(BaseComparator):
                             INNER JOIN [PersonModule].[PersonLookup] pl
                                 ON c.PersonKey = pl.PersonKey
                             WHERE cfi.CustomFormDefinitionKey = ?""",
-                        ("964B0DFB-ED99-4F5A-8449-B43C013B9062",),
+                        (self.custom_form_definition_key,),
                     )
             # For PersonModule tables (PersonEmployment), include MedicaidId
             elif schema == "PersonModule":
