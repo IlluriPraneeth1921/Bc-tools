@@ -194,6 +194,9 @@ BEGIN
                 WHERE AggregateKeyReference IN (SELECT K FROM @AllPcps));
             DELETE FROM CompletionModule.CompletionContext WHERE AggregateKeyReference IN (SELECT K FROM @AllPcps);
 
+            -- Delete WorkflowInstanceHistoryEvent before WorkflowInstances (FK dependency)
+            DELETE FROM WorkflowModule.WorkflowInstanceHistoryEvent WHERE WorkflowInstanceKey IN (
+                SELECT WorkflowInstanceKey FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (SELECT K FROM @AllPcps));
             -- Delete WorkflowInstances for PCPs
             DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (SELECT K FROM @AllPcps);
 
@@ -492,6 +495,9 @@ BEGIN
             WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI));
         DELETE FROM CustomFormModule.CustomFormInstanceSignatureField
         WHERE CustomFormInstanceKey IN (SELECT K FROM @TargetCFI);
+        -- Delete WorkflowInstanceHistoryEvent before WorkflowInstances (FK dependency)
+        DELETE FROM WorkflowModule.WorkflowInstanceHistoryEvent WHERE WorkflowInstanceKey IN (
+            SELECT WorkflowInstanceKey FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (SELECT K FROM @TargetCFI));
         -- Delete WorkflowInstances for forms
         DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (SELECT K FROM @TargetCFI);
         -- Break self-ref on CaseCustomFormInstance and CustomFormInstance
@@ -739,6 +745,10 @@ BEGIN
         -- PART C: RESET LOCATION ASSIGNMENTS (delete all + rebuild)
         -- ==========================================================
         PRINT '--- Part C: LocationAssignment Reset ---';
+        -- Delete WorkflowInstanceHistoryEvent before WorkflowInstances (FK dependency)
+        DELETE FROM WorkflowModule.WorkflowInstanceHistoryEvent WHERE WorkflowInstanceKey IN (
+            SELECT WorkflowInstanceKey FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey));
         -- Delete WorkflowInstances for existing assignments
         DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
             SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey);
@@ -769,6 +779,9 @@ BEGIN
         PRINT '  Rebuilt: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- Create WorkflowInstance for each location assignment (required for UI visibility)
+        DELETE FROM WorkflowModule.WorkflowInstanceHistoryEvent WHERE WorkflowInstanceKey IN (
+            SELECT WorkflowInstanceKey FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey));
         DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
             SELECT PersonLocationAssignmentKey FROM PersonModule.PersonLocationAssignment WHERE CaseKey = @CaseKey);
         INSERT INTO WorkflowModule.WorkflowInstance (
@@ -823,6 +836,10 @@ BEGIN
         -- PART D: RESET STAFF MEMBER ASSIGNMENTS (delete all + rebuild)
         -- ==========================================================
         PRINT '--- Part D: StaffMemberAssignment Reset ---';
+        -- Delete WorkflowInstanceHistoryEvent before WorkflowInstances (FK dependency)
+        DELETE FROM WorkflowModule.WorkflowInstanceHistoryEvent WHERE WorkflowInstanceKey IN (
+            SELECT WorkflowInstanceKey FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey));
         -- Delete WorkflowInstances for existing staff assignments
         DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
             SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey);
@@ -857,6 +874,9 @@ BEGIN
         PRINT '  Rebuilt: ' + CAST(@@ROWCOUNT AS NVARCHAR(10));
 
         -- Create WorkflowInstance for each staff assignment
+        DELETE FROM WorkflowModule.WorkflowInstanceHistoryEvent WHERE WorkflowInstanceKey IN (
+            SELECT WorkflowInstanceKey FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
+            SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey));
         DELETE FROM WorkflowModule.WorkflowInstance WHERE AggregateKeyReference IN (
             SELECT PersonStaffMemberAssignmentKey FROM PersonModule.PersonStaffMemberAssignment WHERE CaseKey = @CaseKey);
         INSERT INTO WorkflowModule.WorkflowInstance (
