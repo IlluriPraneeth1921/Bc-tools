@@ -98,6 +98,138 @@ SNAKE_TO_PASCAL: Dict[str, str] = {
 # Reverse mapping for convenience
 PASCAL_TO_SNAKE: Dict[str, str] = {v: k for k, v in SNAKE_TO_PASCAL.items()}
 
+# =============================================================================
+# CustomFormElementDefinitionBaseKey Mapping
+# =============================================================================
+# Maps semantic row_key prefixes to their CustomFormElementDefinitionBaseKey
+# in the LTC Needs Assessment form (Version 55).
+# These keys identify which form question a SimpleSingleSelectFieldAnswer,
+# SimpleMultiSelectFieldAnswerAnswers, or TextFieldAnswer belongs to.
+# =============================================================================
+
+FIELD_DEFINITION_KEYS: Dict[str, str] = {
+    # ADL / Personal Care section — composite Yes/No
+    "PersonalCare": "2EE5C671-6F5F-485B-8D93-B43C013B9109",
+    # IADL / Supportive Home Care section — composite Yes/No
+    "SupportiveHomeCare": "4C671ACA-D3E2-496C-9D9F-B43C013B9119",
+    # Medication Administration — composite Yes/No
+    "MedAdmin": "DD310347-9EDF-4A73-B36F-B43C013B9135",
+    # Money Management — composite Yes/No
+    "MoneyMgt": "D8F8A59A-CD1D-483D-8053-B43C013B912D",
+    # Transportation — composite Yes/No
+    "Transportation": "5DC5212D-A09F-43FB-B2AD-B43C013B9122",
+    # DME (Durable Medical Equipment) — composite Yes/No
+    "DME": "F21C4837-D4EA-43CD-B764-B43C013B91DB",
+    # Overnight Care Supervision — composite Yes/No
+    "OvernightCare": "962C09A3-8E1A-45F7-850C-B43C013B9145",
+    # Applicant Living Preference
+    "PrefLive": "CC779440-C489-47E6-AA64-B43C013B90FE",
+    # Guardian Living Preference
+    "GardPrefLive": "92026B8E-4E43-4A12-9A9F-B43C013B9102",
+    # Employment Yes/No
+    "Employment": "FEEBBEF5-B531-49ED-8794-B43C013B9153",
+    # Health Related Services — composite Yes/No
+    "HealthRelatedServices": "7C3A1ECD-9BD8-4082-81D6-B43C013B915E",
+    # Behavioral/Mental Health section
+    "Wandering": "04813AE6-1398-4608-8A86-B43C013B91A0",
+    "SelfInjuriousBehavior": "04813AE6-1398-4608-8A86-B43C013B91A0",
+    "OffensiveBehavior": "04813AE6-1398-4608-8A86-B43C013B91A0",
+    "MentalHealthNeed": "20AC06CC-EC69-468E-9C23-B43C013B9175",
+    "SubstanceAbuse": "C6A9526D-600A-4FC8-9262-B43C013B9188",
+    # Multi-select: Health Services checklist
+    "HealthService": "5BD03816-5B74-40A5-B4DE-B43C013B9164",
+    # Multi-select: ADL Equipment checklists (DME section)
+    "BathingEquipment": "78F824CB-B4EB-461E-8560-B43C013B91D6",
+    "MobilityEquipment": "78F824CB-B4EB-461E-8560-B43C013B91D6",
+    "ToiletingEquipment": "78F824CB-B4EB-461E-8560-B43C013B91D6",
+    "TransferringEquipment": "78F824CB-B4EB-461E-8560-B43C013B91D6",
+    # Multi-select: Living Preference checkboxes
+    "PrefLiveCheckbox": "6C8165C0-48B8-4F63-954C-B43C013B90FA",
+    "GardPrefLiveCheckbox": "92026B8E-4E43-4A12-9A9F-B43C013B9102",
+    # Text: Other Service Text
+    "OtherServiceText": "F53840F3-ECE0-4399-AE91-B43C013B9166",
+    # Date: Eligibility Date
+    "ElgCalcDt": "8F6D256E-1AFD-431E-8598-B43C013B90F4",
+    # CaseCustomFormInstance (no specific element key)
+    "CaseFormInstance": None,
+
+    # =========================================================================
+    # Individual Field-Level Answers (per-field SimpleSingleSelectFieldAnswer)
+    # =========================================================================
+    # The pipeline creates a SimpleSingleSelectFieldAnswer for each individual
+    # source field with the code resolved to its vocab display name.
+    # These keys are resolved dynamically from the form definition at runtime.
+    # When set to None, the comparator matches by entity_id + display name only.
+    # =========================================================================
+    # ADL individual help level answers
+    "BathHelp": None,
+    "DresHelp": None,
+    "EatHelp": None,
+    "MblHelp": None,
+    "TltHelp": None,
+    "XferHelp": None,
+    # IADL individual answers
+    "MealPrepHelp": None,
+    "MedMgtHelp": None,
+    "MonyMgtHelp": None,
+    "LdryChorHelp": None,
+    "PhnUseAbty": None,
+    "PhnAcs": None,
+    "TrnspDrv": None,
+    # Overnight Care frequency
+    "OvernightCareFreq": None,
+    # Employment Status code
+    "EmplStat": None,
+    # Employment Assistance
+    "EmplAsst": None,
+    # Health service individual frequency answers
+    "BhvItrvn": None,
+    "ExrcRngMotn": None,
+    "MedFldFlush": None,
+    "MedAdmFreq": None,
+    "PainMedMgt": None,
+    "Osty": None,
+    "ChrBedPosn": None,
+    "OxyRspirTrtm": None,
+    "InHomeDlys": None,
+    "TotPrntNtrt": None,
+    "Xfsn": None,
+    "Trchos": None,
+    "TubeFeed": None,
+    "UlcrStg2": None,
+    "UlcrStg34": None,
+    "UrinCath": None,
+    "OthrWndCare": None,
+    "VentItrvn": None,
+    "NursAses": None,
+    "OthrSrvc": None,
+    "SklThrp": None,
+    # Communication and Cognition
+    "Comm": None,
+    "DlyDcsnMake": None,
+    "PhyRsistCare": None,
+    # Behavior frequency answers
+    "WndrFreq": None,
+    "SelfInjrBhvFreq": None,
+    "OfnsBhvFreq": None,
+    "MntlHlthNeedFreq": None,
+    # Substance abuse flags
+    "SbtncAbusFlg": None,
+    "SbtncAbusCurFlg": None,
+    "SbtncAbusPastFlg": None,
+    # Memory flags
+    "MemIparFlg": None,
+    "ShrtTermMemLossFlg": None,
+    "UablToRmbrFlg": None,
+    "LongTermMemLossFlg": None,
+    # Employment flags
+    "WkshpEmplFlg": None,
+    "IndvIntWorkCmny": None,
+    "CmnyEmplFlg": None,
+    "VocEmplFlg": None,
+    "HomeEmplFlg": None,
+}
+
 
 class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
     """Generates expected state for all 4 stages of the ICD-D12 FSIA pipeline."""
@@ -112,6 +244,8 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         else:
             from src.core.config import settings
             self.custom_form_definition_key = settings.D12_CUSTOM_FORM_DEFINITION_KEY
+        # Initialize static vocab fallback maps
+        self._init_vocab_fallbacks()
 
     def generate_stage1(self) -> List[Dict[str, Any]]:
         """
@@ -197,6 +331,13 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 self.custom_form_definition_key,
             ))
 
+            # --- CaseCustomFormInstance record (links form to case) ---
+            expected_rows.append(self._row(
+                medicaid_id, "CustomFormModule.CaseCustomFormInstance",
+                "FormTypeDisplayName", f"CaseFormInstance|{medicaid_id}",
+                "LTC Needs Assessment",
+            ))
+
             # --- Personal care needs (BR: composite of ADL fields) ---
             personal_care_needed = self._determine_personal_care_needed(member)
             expected_rows.append(self._row(
@@ -256,33 +397,43 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
             ))
 
             # --- Living preference (Applicant) ---
+            # Stored as SimpleMultiSelectFieldAnswerAnswers (checkbox-style)
             if member.appl_pref_live_cd.strip():
                 display = self._resolve_vocab("pref_live", member.appl_pref_live_cd)
                 expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"PrefLive|{medicaid_id}",
+                    medicaid_id, "CustomFormModule.SimpleMultiSelectFieldAnswerAnswers",
+                    "DisplayName", f"PrefLive|{member.appl_pref_live_cd.strip()}|{medicaid_id}",
                     display, vocab_used="pref_live",
                 ))
 
             # --- Living preference (Guardian) ---
+            # Stored as SimpleMultiSelectFieldAnswerAnswers (checkbox-style)
             if member.gard_pref_live_cd.strip() and member.gard_pref_live_cd.strip() != "000":
                 gard_display = self._resolve_vocab("gard_pref_live", member.gard_pref_live_cd)
                 expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"GardPrefLive|{medicaid_id}",
+                    medicaid_id, "CustomFormModule.SimpleMultiSelectFieldAnswerAnswers",
+                    "DisplayName", f"GardPrefLive|{member.gard_pref_live_cd.strip()}|{medicaid_id}",
                     gard_display, vocab_used="gard_pref_live",
                 ))
 
-            # --- Eligibility date ---
-            # NOTE: Per v2.0, ELG_CALC_DT is NOT stored as a form field.
-            # The field is still present in the file layout and parsed in Stage 2,
-            # but no DateFieldAnswer record is created in Stage 4.
+            # --- Eligibility date (Screening Completion Date) ---
+            # Stored as DateFieldAnswer despite v2.0 notes suggesting otherwise.
+            # The pipeline DOES create this record with DateTime = ELG_CALC_DT.
+            elg_dt = member.elg_calc_dt.strip()
+            if elg_dt and len(elg_dt) == 8:
+                # Format as ISO date for comparison (YYYYMMDD → YYYY-MM-DD)
+                iso_date = f"{elg_dt[0:4]}-{elg_dt[4:6]}-{elg_dt[6:8]}"
+                expected_rows.append(self._row(
+                    medicaid_id, "CustomFormModule.DateFieldAnswer",
+                    "DateTime", f"ElgCalcDt|{medicaid_id}",
+                    iso_date,
+                ))
 
             # --- Employment Yes/No (SimpleSingleSelectFieldAnswer) ---
             # 003 (Full-time) or 004 (Part-time) → "Yes"; 001 (Retired) or 002 (Not working) → "No"
             empl_cd = member.empl_stat_cd.strip()
             if empl_cd and empl_cd != "000":
-                empl_yes_no = "Yes" if empl_cd in ("003", "004") else "No"
+                empl_yes_no = self.OPTION_YES if empl_cd in ("003", "004") else self.OPTION_NO
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"Employment|{medicaid_id}",
@@ -366,13 +517,13 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"Wandering|{medicaid_id}",
-                    "Yes", business_rule="BR-D12-BHV",
+                    self.OPTION_YES, business_rule="BR-D12-BHV",
                 ))
             elif wndr_val == "000":
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"Wandering|{medicaid_id}",
-                    "No", business_rule="BR-D12-BHV",
+                    self.OPTION_NO, business_rule="BR-D12-BHV",
                 ))
 
             # SELF_INJR_BHV_CD: 001→Yes (self-injurious behavior), 000→No
@@ -381,13 +532,13 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"SelfInjuriousBehavior|{medicaid_id}",
-                    "Yes", business_rule="BR-D12-BHV",
+                    self.OPTION_YES, business_rule="BR-D12-BHV",
                 ))
             elif self_injr_val == "000":
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"SelfInjuriousBehavior|{medicaid_id}",
-                    "No", business_rule="BR-D12-BHV",
+                    self.OPTION_NO, business_rule="BR-D12-BHV",
                 ))
 
             # OFNS_BHV_TO_OTHR_CD: 001→Yes (offensive behavior), 000→No
@@ -396,13 +547,13 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"OffensiveBehavior|{medicaid_id}",
-                    "Yes", business_rule="BR-D12-BHV",
+                    self.OPTION_YES, business_rule="BR-D12-BHV",
                 ))
             elif ofns_val == "000":
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"OffensiveBehavior|{medicaid_id}",
-                    "No", business_rule="BR-D12-BHV",
+                    self.OPTION_NO, business_rule="BR-D12-BHV",
                 ))
 
             # MNTL_HLTH_NEED_CD: 001→Yes (mental health need), 000→No
@@ -411,13 +562,13 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"MentalHealthNeed|{medicaid_id}",
-                    "Yes", business_rule="BR-D12-BHV",
+                    self.OPTION_YES, business_rule="BR-D12-BHV",
                 ))
             elif mntl_val == "000":
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"MentalHealthNeed|{medicaid_id}",
-                    "No", business_rule="BR-D12-BHV",
+                    self.OPTION_NO, business_rule="BR-D12-BHV",
                 ))
 
             # SBTNC_ABUS_CUR_FLG: Y→Yes (current substance abuse), N→No
@@ -426,13 +577,51 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"SubstanceAbuse|{medicaid_id}",
-                    "Yes", business_rule="BR-D12-BHV",
+                    self.OPTION_YES, business_rule="BR-D12-BHV",
                 ))
             elif sbtnc_cur_val == "N":
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"SubstanceAbuse|{medicaid_id}",
-                    "No", business_rule="BR-D12-BHV",
+                    self.OPTION_NO, business_rule="BR-D12-BHV",
+                ))
+
+            # =================================================================
+            # Individual Field-Level Notes (TextFieldAnswer)
+            # =================================================================
+            # The pipeline creates a TextFieldAnswer for each "Notes" section
+            # on the form. FSIA doesn't populate these — they remain NULL.
+            # We verify they exist but are empty.
+            # =================================================================
+            notes_fields = [
+                "PersonalCareServicesNotes",
+                "SupportiveHomeCareNotes",
+                "MedicationAdministrationManagementNotes",
+                "MoneyManagementServicesNotes",
+                "TransportationServicesNotes",
+                "HealthRelatedServicesNotes",
+                "NeedforOvernightCareNotes",
+                "NeedforEmploymentServicesNotes",
+                "MedicalEquipmentSuppliesNotes",
+                "BehaviorsupportNotes",
+                "MentalHealthServicesNotes",
+                "SubstanceAbuseneedsNotes",
+                "EgressRelatedNeedsNotes",
+                "EnvironmentalHazardsNotes",
+                "FallRiskPreventionNote",
+                "MedicalproviderNeedsNotes",
+                "RespiteServicesNotes",
+                "DayProgramServicesNotes",
+                "PERSNotes",
+                "SchoolServicesNotes",
+                "LivingSituationNotes",
+                "OtherSpecify",
+            ]
+            for notes_field in notes_fields:
+                expected_rows.append(self._row(
+                    medicaid_id, "CustomFormModule.TextFieldAnswer",
+                    "Note", f"{notes_field}|{medicaid_id}",
+                    "",  # FSIA doesn't populate notes — expect NULL/empty
                 ))
 
             # --- ADL Adaptive Equipment multi-select checkboxes ---
@@ -498,6 +687,15 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         return expected_rows
 
     # =========================================================================
+    # Display Name Constants for SimpleSingleSelectFieldAnswer
+    # =========================================================================
+    # The pipeline stores full display names (not just "Yes"/"No") in the
+    # OptionDisplayName column. These must match exactly for comparison.
+    # =========================================================================
+    OPTION_YES = "Yes, there is an identified need"
+    OPTION_NO = "No, there is not an identified need"
+
+    # =========================================================================
     # Business Rule Evaluations
     # =========================================================================
 
@@ -513,8 +711,8 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         ]
         for val in adl_fields:
             if val.strip() in ("001", "002"):
-                return "Yes"
-        return "No"
+                return self.OPTION_YES
+        return self.OPTION_NO
 
     def _determine_supportive_home_care(self, member: DetailRecord) -> str:
         """
@@ -526,50 +724,50 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         PHY_RSIST_CARE (001)
         """
         if member.meal_prep_help_lvl_cd.strip() in ("001", "002", "003"):
-            return "Yes"
+            return self.OPTION_YES
         if member.ldry_chor_help_lvl_cd.strip() in ("001", "002"):
-            return "Yes"
+            return self.OPTION_YES
         if member.phn_use_abty_cd.strip() == "002":
-            return "Yes"
+            return self.OPTION_YES
         if member.phn_acs_cd.strip() == "002":
-            return "Yes"
+            return self.OPTION_YES
         if member.comm_cd.strip() in ("001", "002", "003"):
-            return "Yes"
+            return self.OPTION_YES
         if member.mem_ipar_flg.strip() == "Y":
-            return "Yes"
+            return self.OPTION_YES
         if member.shrt_term_mem_loss_flg.strip() == "Y":
-            return "Yes"
+            return self.OPTION_YES
         if member.uabl_to_rmbr_flg.strip() == "Y":
-            return "Yes"
+            return self.OPTION_YES
         if member.long_term_mem_loss_flg.strip() == "Y":
-            return "Yes"
+            return self.OPTION_YES
         if member.dly_dcsn_make_cd.strip() in ("001", "002", "003"):
-            return "Yes"
+            return self.OPTION_YES
         if member.phy_rsist_care_cd.strip() == "001":
-            return "Yes"
-        return "No"
+            return self.OPTION_YES
+        return self.OPTION_NO
 
     def _determine_med_admin_needed(self, member: DetailRecord) -> str:
         """Set "Yes" if MED_MGT_HELP_LVL_CD is 003, 005, or 006."""
         if member.med_mgt_help_lvl_cd.strip() in ("003", "005", "006"):
-            return "Yes"
-        return "No"
+            return self.OPTION_YES
+        return self.OPTION_NO
 
     def _determine_money_mgt_needed(self, member: DetailRecord) -> str:
         """Set "Yes" if MONY_MGT_HELP_LVL_CD is 001 or 002."""
         if member.mony_mgt_help_lvl_cd.strip() in ("001", "002"):
-            return "Yes"
-        return "No"
+            return self.OPTION_YES
+        return self.OPTION_NO
 
     def _determine_transport_needed(self, member: DetailRecord) -> str:
         """Set "Yes" if TRNSP_DRV_CD is 003, 004, 005, or 006."""
         if member.trnsp_drv_cd.strip() in ("003", "004", "005", "006"):
-            return "Yes"
-        return "No"
+            return self.OPTION_YES
+        return self.OPTION_NO
 
     def _determine_dme_needed(self, member: DetailRecord) -> str:
         """
-        Set "Yes" if any adaptive equipment code field has a non-blank value.
+        Set "Yes" if any adaptive equipment code field has a non-blank, non-000 value.
         Fields: BATH_ADPV_EQP_CD, MBL_ADPV_EQP_CD, TLT_ADPV_EQP_CD, XFER_ADPV_EQP_CD
         """
         equip_fields = [
@@ -577,9 +775,10 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
             member.tlt_adpv_eqp_cd, member.xfer_adpv_eqp_cd,
         ]
         for val in equip_fields:
-            if val.strip():
-                return "Yes"
-        return "No"
+            stripped = val.strip()
+            if stripped and stripped != "000":
+                return self.OPTION_YES
+        return self.OPTION_NO
 
     def _determine_overnight_care_needed(self, member: DetailRecord) -> str:
         """
@@ -587,8 +786,8 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         Code 000 = No overnight care needed.
         """
         if member.onght_care_spvs_cd.strip() in ("001", "002"):
-            return "Yes"
-        return "No"
+            return self.OPTION_YES
+        return self.OPTION_NO
 
     def _determine_health_services_needed(self, member: DetailRecord) -> str:
         """
@@ -626,19 +825,19 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         for val in standard_fields:
             code = val.strip()
             if code and code != "000":
-                return "Yes"
+                return self.OPTION_YES
 
         # CHR_BED_POSN_CD: special — only 005 or 006 contribute
         chr_bed = member.chr_bed_posn_cd.strip()
         if chr_bed in ("005", "006"):
-            return "Yes"
+            return self.OPTION_YES
 
         # SKL_THRP_CD: special — only 001 or 002 contribute
         skl_thrp = member.skl_thrp_cd.strip()
         if skl_thrp in ("001", "002"):
-            return "Yes"
+            return self.OPTION_YES
 
-        return "No"
+        return self.OPTION_NO
 
     def _get_health_service_checkboxes(self, member: DetailRecord) -> List[tuple]:
         """
@@ -741,6 +940,159 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         "009": "No response or no preference from guardian or family",
     }
 
+    # ADL Help level display names (shared by bath, dres, eat, mbl, tlt, xfer)
+    _ADL_HELP_DISPLAY: Dict[str, str] = {
+        "000": "Independent in completing the activity safely",
+        "001": "Help needed - helper need NOT be present",
+        "002": "Help needed - helper MUST be present",
+    }
+
+    # IADL display names
+    _MEAL_PREP_HELP_DISPLAY: Dict[str, str] = {
+        "000": "Independent",
+        "001": "Needs help weekly or less",
+        "002": "Needs help 2-7 times/week",
+        "003": "Needs help with every meal",
+    }
+
+    _MED_MGT_HELP_DISPLAY: Dict[str, str] = {
+        "001": "NA - Has no medications",
+        "002": "Independent",
+        "003": "Needs help 1-2 days a week or less",
+        "005": "Needs help at least 1x/day 3-7 days a week - can direct",
+        "006": "Needs help at least 1x/day 3-7 days a week - cannot direct",
+    }
+
+    _MONY_MGT_HELP_DISPLAY: Dict[str, str] = {
+        "000": "Independent",
+        "001": "Can only complete small transactions",
+        "002": "Needs help from another person with all transactions",
+    }
+
+    _LDRY_CHOR_HELP_DISPLAY: Dict[str, str] = {
+        "000": "Independent",
+        "001": "Needs help weekly or less",
+        "002": "Needs help more than once a week",
+    }
+
+    _PHN_USE_ABTY_DISPLAY: Dict[str, str] = {
+        "001": "Independent - has cognitive and physical abilities",
+        "002": "Lacks cognitive or physical abilities to use phone",
+    }
+
+    _PHN_ACS_DISPLAY: Dict[str, str] = {
+        "001": "Currently has working telephone or access",
+        "002": "Has no phone and no access to phone",
+    }
+
+    _TRNSP_DRV_DISPLAY: Dict[str, str] = {
+        "001": "Drives regular vehicle",
+        "002": "Drives adapted vehicle",
+        "003": "Drives regular vehicle with serious safety concerns",
+        "004": "Drives adapted vehicle with serious safety concerns",
+        "005": "Cannot drive due to physical/psychiatric/cognitive impairment",
+        "006": "Does not drive due to other reasons",
+    }
+
+    _ONGHT_CARE_SPVS_DISPLAY: Dict[str, str] = {
+        "000": "No",
+        "001": "Yes - caregiver can get at least 6 hours uninterrupted sleep",
+        "002": "Yes - caregiver cannot get at least 6 hours uninterrupted sleep",
+    }
+
+    _EMPL_ASST_DISPLAY: Dict[str, str] = {
+        "000": "Independent",
+        "001": "Needs help weekly or less",
+        "002": "Needs help every day but not continuous presence",
+        "003": "Needs continuous presence of another person",
+        "004": "Not applicable",
+    }
+
+    # Health Related Services frequency (with Independent option)
+    _HLTH_SRVC_DISPLAY: Dict[str, str] = {
+        "000": "Independent",
+        "001": "1-3/Month",
+        "002": "Weekly",
+        "003": "2-6/Week",
+        "004": "1-2/Day",
+        "005": "3-4/Day",
+        "006": "5+/Day",
+    }
+
+    # Health Related Services frequency (no Independent option)
+    _HLTH_SRVC_NO_INDEP_DISPLAY: Dict[str, str] = {
+        "001": "1-3/Month",
+        "002": "Weekly",
+        "003": "2-6/Week",
+        "004": "1-2/Day",
+        "005": "3-4/Day",
+        "006": "5+/Day",
+    }
+
+    # Chair/Bed Positioning (only high-frequency)
+    _CHR_BED_POSN_DISPLAY: Dict[str, str] = {
+        "005": "3-4/Day",
+        "006": "5+/Day",
+    }
+
+    # Skilled Therapy
+    _SKL_THRP_DISPLAY: Dict[str, str] = {
+        "001": "1-4 sessions/week",
+        "002": "5+ sessions/week",
+    }
+
+    # Communication
+    _COMM_DISPLAY: Dict[str, str] = {
+        "000": "Can fully communicate with no or minor impairment",
+        "001": "Can fully communicate with assistive device",
+        "002": "Can communicate ONLY BASIC needs",
+        "003": "No effective communication",
+    }
+
+    # Daily Decision Making
+    _DLY_DCSN_MAKE_DISPLAY: Dict[str, str] = {
+        "000": "Makes decisions consistent with own lifestyle/values/goals",
+        "001": "Makes safe familiar/routine decisions but not in new situations",
+        "002": "Needs help with reminding, planning, or adjusting routine",
+        "003": "Needs help from another person most or all of the time",
+    }
+
+    # Physically Resistive to Care
+    _PHY_RSIST_CARE_DISPLAY: Dict[str, str] = {
+        "000": "No",
+        "001": "Yes, physically resistive due to cognitive impairment",
+    }
+
+    # Wandering
+    _WNDR_DISPLAY: Dict[str, str] = {
+        "000": "Does not wander",
+        "001": "Daytime wandering, but sleeps nights",
+        "002": "Wanders during the night, or during both day and night",
+    }
+
+    # Self-Injurious Behaviors
+    _SELF_INJR_BHV_DISPLAY: Dict[str, str] = {
+        "000": "No injurious behaviors demonstrated",
+        "001": "Some self-injurious behaviors require interventions weekly or less",
+        "002": "Self-injurious behaviors require interventions 2-6 times/week or 1-2 times/day",
+        "003": "Self-injurious behaviors require intensive 1-on-1 interventions more than twice each day",
+    }
+
+    # Offensive Behavior
+    _OFNS_BHV_DISPLAY: Dict[str, str] = {
+        "000": "No offensive or violent behaviors demonstrated",
+        "001": "Some offensive or violent behaviors require occasional interventions weekly or less",
+        "002": "Offensive or violent behaviors require interventions 2-6 times/week or 1-2 times/day",
+        "003": "Offensive or violent behaviors require intensive 1-on-1 interventions more than twice each day",
+    }
+
+    # Mental Health Needs
+    _MNTL_HLTH_NEED_DISPLAY: Dict[str, str] = {
+        "000": "No mental health problems or needs evident",
+        "001": "No current diagnosis - person may be at risk",
+        "002": "Person has a current diagnosis of mental illness",
+    }
+
     # ADL Adaptive Equipment code → display name mappings
     _BATH_EQUIPMENT_DISPLAY: Dict[str, str] = {
         "005": "Uses Adaptive Equipment",
@@ -776,13 +1128,50 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
             if display:
                 return display
         # Static fallback for known lookup types
-        if lookup_name == "empl_stat" and code in self._EMPL_STAT_DISPLAY:
-            return self._EMPL_STAT_DISPLAY[code]
-        if lookup_name == "pref_live" and code in self._PREF_LIVE_DISPLAY:
-            return self._PREF_LIVE_DISPLAY[code]
-        if lookup_name == "gard_pref_live" and code in self._GARD_PREF_LIVE_DISPLAY:
-            return self._GARD_PREF_LIVE_DISPLAY[code]
+        fallback_map = self._VOCAB_FALLBACKS.get(lookup_name)
+        if fallback_map and code in fallback_map:
+            return fallback_map[code]
         return code
+
+    # Consolidated vocab fallback map (lookup_name → display dict)
+    _VOCAB_FALLBACKS: Dict[str, Dict[str, str]] = {}
+
+    @classmethod
+    def _init_vocab_fallbacks(cls):
+        """Initialize the consolidated vocab fallback map."""
+        if cls._VOCAB_FALLBACKS:
+            return
+        cls._VOCAB_FALLBACKS = {
+            "empl_stat": cls._EMPL_STAT_DISPLAY,
+            "pref_live": cls._PREF_LIVE_DISPLAY,
+            "gard_pref_live": cls._GARD_PREF_LIVE_DISPLAY,
+            "bath_help": cls._ADL_HELP_DISPLAY,
+            "dres_help": cls._ADL_HELP_DISPLAY,
+            "eat_help": cls._ADL_HELP_DISPLAY,
+            "mbl_help": cls._ADL_HELP_DISPLAY,
+            "tlt_help": cls._ADL_HELP_DISPLAY,
+            "xfer_help": cls._ADL_HELP_DISPLAY,
+            "meal_prep": cls._MEAL_PREP_HELP_DISPLAY,
+            "med_mgt": cls._MED_MGT_HELP_DISPLAY,
+            "mony_mgt": cls._MONY_MGT_HELP_DISPLAY,
+            "ldry_chor": cls._LDRY_CHOR_HELP_DISPLAY,
+            "phn_use_abty": cls._PHN_USE_ABTY_DISPLAY,
+            "phn_acs": cls._PHN_ACS_DISPLAY,
+            "trnsp_drv": cls._TRNSP_DRV_DISPLAY,
+            "onght_care": cls._ONGHT_CARE_SPVS_DISPLAY,
+            "empl_asst": cls._EMPL_ASST_DISPLAY,
+            "hlth_srvc": cls._HLTH_SRVC_DISPLAY,
+            "hlth_srvc_no_indep": cls._HLTH_SRVC_NO_INDEP_DISPLAY,
+            "chr_bed_posn": cls._CHR_BED_POSN_DISPLAY,
+            "skl_thrp": cls._SKL_THRP_DISPLAY,
+            "comm": cls._COMM_DISPLAY,
+            "dly_dcsn_make": cls._DLY_DCSN_MAKE_DISPLAY,
+            "phy_rsist_care": cls._PHY_RSIST_CARE_DISPLAY,
+            "wndr": cls._WNDR_DISPLAY,
+            "self_injr_bhv": cls._SELF_INJR_BHV_DISPLAY,
+            "ofns_bhv": cls._OFNS_BHV_DISPLAY,
+            "mntl_hlth_need": cls._MNTL_HLTH_NEED_DISPLAY,
+        }
 
     def _resolve_adl_equipment(self, adl_type: str, code: str) -> str:
         """Resolve an ADL adaptive equipment code to its display name."""
@@ -817,7 +1206,15 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
     def _row(entity_id: str, target_table: str, target_column: str,
              row_key: str, expected_value: str, vocab_used: str = None,
              business_rule: str = None) -> Dict:
-        """Build a standard expected state row dict."""
+        """Build a standard expected state row dict.
+        
+        Automatically resolves the CustomFormElementDefinitionBaseKey from the
+        row_key prefix (part before the first '|') using the FIELD_DEFINITION_KEYS mapping.
+        """
+        # Extract the semantic name from row_key (e.g., "PersonalCare" from "PersonalCare|4774443560")
+        row_key_prefix = row_key.split("|")[0] if "|" in row_key else row_key
+        field_def_key = FIELD_DEFINITION_KEYS.get(row_key_prefix)
+
         return {
             "entity_id": entity_id,
             "record_type": "DTL",
@@ -827,4 +1224,5 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
             "expected_value": expected_value,
             "vocab_used": vocab_used,
             "business_rule": business_rule,
+            "field_definition_key": field_def_key,
         }

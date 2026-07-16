@@ -347,6 +347,9 @@ class IcdD12Comparator(BaseComparator):
         For ICD-D12, data flows directly from Stage 2 to Stage 4 (no Stage 3).
         Stage 4 targets CustomFormModule.CustomFormInstance (linked via
         CustomFormDefinitionKey) and associated FieldAnswer tables.
+
+        Uses CustomFormElementDefinitionBaseKey (when available in expected rows)
+        to precisely match each answer to its corresponding form field.
         """
         result = ComparatorResult()
 
@@ -366,6 +369,7 @@ class IcdD12Comparator(BaseComparator):
         for (medicaid_id, table_name, row_key), columns in logical_rows.items():
             expected_cols: Dict[str, str] = {}
             metadata: Dict[str, Dict] = {}
+            field_definition_key: Optional[str] = None
             for exp in columns:
                 col_name = exp["target_column"]
                 expected_cols[col_name] = exp["expected_value"] or ""
@@ -373,6 +377,9 @@ class IcdD12Comparator(BaseComparator):
                     "business_rule": exp.get("business_rule"),
                     "vocab_used": exp.get("vocab_used"),
                 }
+                # Use the field_definition_key from expected state (if available)
+                if exp.get("field_definition_key"):
+                    field_definition_key = exp["field_definition_key"]
 
             # Split schema.table for mismatch reporting
             if "." in table_name:
@@ -382,6 +389,19 @@ class IcdD12Comparator(BaseComparator):
 
             all_actual = actual_cache.get(table_name, [])
             member_rows = self._filter_member_rows(all_actual, medicaid_id)
+
+            # Further filter by CustomFormElementDefinitionBaseKey if available
+            # This ensures we match the correct form field for answer tables
+            if field_definition_key and member_rows:
+                field_filtered = [
+                    r for r in member_rows
+                    if str(r.get("CustomFormElementDefinitionBaseKey", "")).strip().upper()
+                    == field_definition_key.upper()
+                ]
+                # Only use field-filtered results if we found any; otherwise fall back
+                # to member_rows for backward compatibility
+                if field_filtered:
+                    member_rows = field_filtered
 
             if not member_rows:
                 for col_name, exp_val in expected_cols.items():
@@ -518,7 +538,7 @@ class IcdD12Comparator(BaseComparator):
                 )
             # For FieldAnswerBase and answer tables, join through CustomFormInstance
             # Include MedicaidId via the same chain
-            elif table in ("FieldAnswerBase", "SimpleSingleSelectFieldAnswer", "DateFieldAnswer"):
+            elif table in ("FieldAnswerBase", "SimpleSingleSelectFieldAnswer", "DateFieldAnswer", "TextFieldAnswer"):
                 if table == "FieldAnswerBase":
                     return db.execute_query(
                         DatabaseManager.CARITY,
@@ -536,10 +556,14 @@ class IcdD12Comparator(BaseComparator):
                         (self.custom_form_definition_key,),
                     )
                 else:
-                    # SimpleSingleSelectFieldAnswer / DateFieldAnswer join via FieldAnswerBase
+                    # SimpleSingleSelectFieldAnswer / DateFieldAnswer / TextFieldAnswer
+                    # join via FieldAnswerBase — include CustomFormElementDefinitionBaseKey
+                    # so we can match answers to specific form fields
                     return db.execute_query(
                         DatabaseManager.CARITY,
-                        f"""SELECT ans.*, pl.ActiveMedicaidNumber AS MedicaidId
+                        f"""SELECT ans.*,
+                                   fab.CustomFormElementDefinitionBaseKey,
+                                   pl.ActiveMedicaidNumber AS MedicaidId
                             FROM [{schema}].[{table}] ans
                             INNER JOIN [{schema}].[FieldAnswerBase] fab
                                 ON ans.FieldAnswerBaseKey = fab.FieldAnswerBaseKey
@@ -563,6 +587,30 @@ class IcdD12Comparator(BaseComparator):
                         INNER JOIN [PersonModule].[PersonLookup] pl
                             ON t.PersonKey = pl.PersonKey
                         WHERE pl.ActiveMedicaidNumber IS NOT NULL""",
+                )
+            # For SimpleMultiSelectFieldAnswerAnswers, join through the chain to get MedicaidId
+            # and CustomFormElementDefinitionBaseKey for field identification
+            elif table == "SimpleMultiSelectFieldAnswerAnswers":
+                return db.execute_query(
+                    DatabaseManager.CARITY,
+                    f"""SELECT msfaa.*,
+                               fab.CustomFormElementDefinitionBaseKey,
+                               pl.ActiveMedicaidNumber AS MedicaidId
+                        FROM [{schema}].[{table}] msfaa
+                        INNER JOIN [{schema}].[SimpleMultiSelectFieldAnswer] msfa
+                            ON msfaa.SimpleMultiSelectFieldAnswerKey = msfa.FieldAnswerBaseKey
+                        INNER JOIN [{schema}].[FieldAnswerBase] fab
+                            ON msfa.FieldAnswerBaseKey = fab.FieldAnswerBaseKey
+                        INNER JOIN [{schema}].[CustomFormInstance] cfi
+                            ON fab.CustomFormInstanceKey = cfi.CustomFormInstanceKey
+                        INNER JOIN [{schema}].[CaseCustomFormInstance] ccfi
+                            ON cfi.CustomFormInstanceKey = ccfi.CustomFormInstanceKey
+                        INNER JOIN [CaseModule].[Case] c
+                            ON ccfi.CaseKey = c.CaseKey
+                        INNER JOIN [PersonModule].[PersonLookup] pl
+                            ON c.PersonKey = pl.PersonKey
+                        WHERE cfi.CustomFormDefinitionKey = ?""",
+                    (self.custom_form_definition_key,),
                 )
             else:
                 return db.execute_query(
