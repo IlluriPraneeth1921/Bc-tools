@@ -8,7 +8,7 @@ Stage 1: [CustomerInterfaceModule].[LongTermCareFunctionalScreenFormRaw] — raw
 Stage 2: [CustomerInterfaceModule].[LongTermCareFunctionalScreenForm] — parsed fields
 Stage 3: SKIPPED — no intermediate transformation in Interface DB
 Stage 4: [CustomFormModule] tables in Carity DB — form instances & field answers
-         (CustomFormDefinitionKey: 964B0DFB-ED99-4F5A-8449-B43C013B9062, Version 55)
+         (CustomFormDefinitionKey: 8D435D5E-B605-4DF6-8B1C-B47B012FDB34, Version 55)
 """
 from typing import List, Dict, Any, Optional
 
@@ -25,7 +25,7 @@ class IcdD12Comparator(BaseComparator):
     """
 
     # Default from settings — can be overridden at construction time
-    DEFAULT_FORM_DEFINITION_KEY = "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+    DEFAULT_FORM_DEFINITION_KEY = "8D435D5E-B605-4DF6-8B1C-B47B012FDB34"
 
     def __init__(self, entity_id_prefix: str = None, custom_form_definition_key: str = None):
         self.entity_id_prefix = entity_id_prefix or "9999999"

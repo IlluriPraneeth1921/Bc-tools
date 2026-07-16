@@ -19,7 +19,7 @@ class IcdD12Plugin(InterfacePlugin):
     """ICD-D12: FSIA (Functional Screen / Initial Assessment) File interface plugin."""
 
     # Default — overridden at runtime from settings (D12_CUSTOM_FORM_DEFINITION_KEY env var)
-    CUSTOM_FORM_DEFINITION_KEY_DEFAULT = "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+    CUSTOM_FORM_DEFINITION_KEY_DEFAULT = "8D435D5E-B605-4DF6-8B1C-B47B012FDB34"
     CUSTOM_FORM_DEFINITION_VERSION = 55
 
     @property

@@ -31,7 +31,7 @@ class Settings(BaseSettings):
     DEFAULT_INTERFACE_TYPE: str = "icd_d06"
 
     # ICD-D12: CustomFormDefinitionKey for FSIA forms in Carity DB
-    D12_CUSTOM_FORM_DEFINITION_KEY: str = "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+    D12_CUSTOM_FORM_DEFINITION_KEY: str = "8D435D5E-B605-4DF6-8B1C-B47B012FDB34"
 
     # ODBC Driver version (18 in container, 17 or 18 locally)
     ODBC_DRIVER: str = "ODBC Driver 18 for SQL Server"

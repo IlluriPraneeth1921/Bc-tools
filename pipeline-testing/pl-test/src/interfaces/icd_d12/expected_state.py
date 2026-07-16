@@ -6,7 +6,7 @@ Stage 1: Raw ingestion into LongTermCareFunctionalScreenFormRaw (one row per sou
 Stage 2: Parsed into LongTermCareFunctionalScreenForm table (one row per detail record)
 Stage 3: SKIPPED — no intermediate transformation in Interface DB
 Stage 4: CustomFormModule tables in Carity DB (form instances, field answers)
-         CustomFormDefinitionKey: 964B0DFB-ED99-4F5A-8449-B43C013B9062 (Version 55)
+         CustomFormDefinitionKey: 8D435D5E-B605-4DF6-8B1C-B47B012FDB34 (Version 55)
 """
 from typing import List, Dict, Any, Optional
 
@@ -131,6 +131,7 @@ FIELD_DEFINITION_KEYS: Dict[str, str] = {
     # Health Related Services — composite Yes/No
     "HealthRelatedServices": "7C3A1ECD-9BD8-4082-81D6-B43C013B915E",
     # Behavioral/Mental Health section
+    "BehaviorSupport": "04813AE6-1398-4608-8A86-B43C013B91A0",
     "Wandering": "04813AE6-1398-4608-8A86-B43C013B91A0",
     "SelfInjuriousBehavior": "04813AE6-1398-4608-8A86-B43C013B91A0",
     "OffensiveBehavior": "04813AE6-1398-4608-8A86-B43C013B91A0",
@@ -421,8 +422,8 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
             # The pipeline DOES create this record with DateTime = ELG_CALC_DT.
             elg_dt = member.elg_calc_dt.strip()
             if elg_dt and len(elg_dt) == 8:
-                # Format as ISO date for comparison (YYYYMMDD → YYYY-MM-DD)
-                iso_date = f"{elg_dt[0:4]}-{elg_dt[4:6]}-{elg_dt[6:8]}"
+                # Format to match DB DateTime column output (YYYY-MM-DD HH:MM:SS)
+                iso_date = f"{elg_dt[0:4]}-{elg_dt[4:6]}-{elg_dt[6:8]} 00:00:00"
                 expected_rows.append(self._row(
                     medicaid_id, "CustomFormModule.DateFieldAnswer",
                     "DateTime", f"ElgCalcDt|{medicaid_id}",
@@ -510,53 +511,18 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                 health_services_needed, business_rule="BR-D12-HRS",
             ))
 
-            # --- Behavior/Mental Health individual Yes/No fields ---
-            # WNDR_CD: 001→Yes (wanders), 000→No
-            wndr_val = member.wndr_cd.strip()
-            if wndr_val and wndr_val != "000":
-                expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"Wandering|{medicaid_id}",
-                    self.OPTION_YES, business_rule="BR-D12-BHV",
-                ))
-            elif wndr_val == "000":
-                expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"Wandering|{medicaid_id}",
-                    self.OPTION_NO, business_rule="BR-D12-BHV",
-                ))
+            # --- Behavior Support Yes/No (composite of wandering + self-injurious + offensive) ---
+            # DB field: Needforbehaviorsupport
+            # "Yes" if any of WNDR_CD, SELF_INJR_BHV_CD, OFNS_BHV_TO_OTHR_CD is non-000
+            behavior_support_needed = self._determine_behavior_support_needed(member)
+            expected_rows.append(self._row(
+                medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
+                "OptionDisplayName", f"BehaviorSupport|{medicaid_id}",
+                behavior_support_needed, business_rule="BR-D12-BHV",
+            ))
 
-            # SELF_INJR_BHV_CD: 001→Yes (self-injurious behavior), 000→No
-            self_injr_val = member.self_injr_bhv_cd.strip()
-            if self_injr_val and self_injr_val != "000":
-                expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"SelfInjuriousBehavior|{medicaid_id}",
-                    self.OPTION_YES, business_rule="BR-D12-BHV",
-                ))
-            elif self_injr_val == "000":
-                expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"SelfInjuriousBehavior|{medicaid_id}",
-                    self.OPTION_NO, business_rule="BR-D12-BHV",
-                ))
-
-            # OFNS_BHV_TO_OTHR_CD: 001→Yes (offensive behavior), 000→No
-            ofns_val = member.ofns_bhv_to_othr_cd.strip()
-            if ofns_val and ofns_val != "000":
-                expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"OffensiveBehavior|{medicaid_id}",
-                    self.OPTION_YES, business_rule="BR-D12-BHV",
-                ))
-            elif ofns_val == "000":
-                expected_rows.append(self._row(
-                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
-                    "OptionDisplayName", f"OffensiveBehavior|{medicaid_id}",
-                    self.OPTION_NO, business_rule="BR-D12-BHV",
-                ))
-
-            # MNTL_HLTH_NEED_CD: 001→Yes (mental health need), 000→No
+            # --- Mental Health Services Yes/No ---
+            # DB field: NeedforMentalHealthServices
             mntl_val = member.mntl_hlth_need_cd.strip()
             if mntl_val and mntl_val != "000":
                 expected_rows.append(self._row(
@@ -571,7 +537,8 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                     self.OPTION_NO, business_rule="BR-D12-BHV",
                 ))
 
-            # SBTNC_ABUS_CUR_FLG: Y→Yes (current substance abuse), N→No
+            # --- Substance Abuse Yes/No ---
+            # DB field: SubstanceAbuseneeds
             sbtnc_cur_val = member.sbtnc_abus_cur_flg.strip()
             if sbtnc_cur_val == "Y":
                 expected_rows.append(self._row(
@@ -584,6 +551,72 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
                     medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
                     "OptionDisplayName", f"SubstanceAbuse|{medicaid_id}",
                     self.OPTION_NO, business_rule="BR-D12-BHV",
+                ))
+
+            # =================================================================
+            # Non-FSIA Form Fields (NULL SimpleSingleSelectFieldAnswer rows)
+            # =================================================================
+            # The pipeline creates the full form skeleton. Fields NOT populated
+            # by FSIA are stored with OptionCode=NULL, OptionDisplayName=NULL.
+            # We verify they exist as NULL to ensure form integrity.
+            # =================================================================
+            null_ssfa_fields = [
+                "ArethereEgressRelatedNeeds",
+                "ArethereEnvironmentalHazards",
+                "MedicalproviderNeeds",
+                "NeedforDayProgramServices",
+                "NeedforFallRiskPrevention",
+                "NeedforPERS",
+                "NeedforRespiteServices",
+                "NeedforSchoolServices",
+                # Funding Source fields
+                "PersonalCareServicesFundingSource",
+                "SupportiveHomeCareFundingSource",
+                "MedicationAdministrationNeedFundingSource",
+                "MoneyManagemenetServiceNeedFundingSource",
+                "TransportationSeviceNeedFundingSource",
+                "HealthRelatedFundingSource",
+                "MedEquipSuppliesFundingSource",
+                "NeedforOvernightCareFundingSource",
+                "EmploymentServiceNeedsFundingSource",
+                "BehaviorSupportFundingSource",
+                "Behavioral/MentalHealthFundingSource",
+                "SubstanceAbuseFundingSource",
+                "EgressRelatedNeedsFundingSource",
+                "EnvironmentalHazardsFundingSource",
+                "FallRiskNeedsFundingSource",
+                "MedProviderNeedsFundingSource",
+                "RespiteServicesFundingSource",
+                "DayProgramFundingSource",
+                "PERSNeedsFundingSource",
+                "SchoolNeedsFundingSource",
+                # "How is X being addressed" fields
+                "HowPersonalCareServiceNeedBeingAddressed",
+                "HowSupportiveHomeCareNeedBeingAddressed",
+                "HowMedicationAdministrationNeedBeingAddressed",
+                "HowMoneyManagementServiceNeedBeingAddressed",
+                "HowTranspServiceNeedBeingAddressed",
+                "HowHealthRelatedServicesBeingAddressed",
+                "HowMedicalEquipmentsSuppliesBeingAddressed",
+                "HowOvernightCareNeedBeingAddressed",
+                "HowEmploymentServicesBeingAddressed",
+                "HowBehaviorSupportBeingAddressed",
+                "HowMentalHealthServicesBeingAddressed",
+                "HowSubstanceAbuseServicesBeingAddressed",
+                "HowEgressRelatedNeedsBeingAddressed",
+                "HowEnvironmentalHazardsBeingAddressed",
+                "HowFallRiskPreventionBeingAddressed",
+                "HowMedicalProviderNeedBeingAddressed",
+                "HowRespiteServicesBeingAddressed",
+                "HowDayProgramServicesBeingAddressed",
+                "HowPERSBeingAddressed",
+                "HowSchoolServicesBeingAddressed",
+            ]
+            for field_code in null_ssfa_fields:
+                expected_rows.append(self._row(
+                    medicaid_id, "CustomFormModule.SimpleSingleSelectFieldAnswer",
+                    "OptionDisplayName", f"{field_code}|{medicaid_id}",
+                    "",  # NULL/empty — not populated by FSIA
                 ))
 
             # =================================================================
@@ -837,6 +870,21 @@ class IcdD12ExpectedStateGenerator(BaseExpectedStateGenerator):
         if skl_thrp in ("001", "002"):
             return self.OPTION_YES
 
+        return self.OPTION_NO
+
+    def _determine_behavior_support_needed(self, member: DetailRecord) -> str:
+        """
+        Set "Yes" if any behavior code indicates need for behavior support.
+        DB field: Needforbehaviorsupport
+        Fields: WNDR_CD, SELF_INJR_BHV_CD, OFNS_BHV_TO_OTHR_CD
+        Any non-000 value → Yes
+        """
+        if member.wndr_cd.strip() not in ("", "000"):
+            return self.OPTION_YES
+        if member.self_injr_bhv_cd.strip() not in ("", "000"):
+            return self.OPTION_YES
+        if member.ofns_bhv_to_othr_cd.strip() not in ("", "000"):
+            return self.OPTION_YES
         return self.OPTION_NO
 
     def _get_health_service_checkboxes(self, member: DetailRecord) -> List[tuple]:

@@ -250,7 +250,7 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         pc = next(r for r in stage4 if r["row_key"] == "PersonalCare|9999999001")
-        assert pc["expected_value"] == "Yes"
+        assert pc["expected_value"] == "Yes, there is an identified need"
 
     def test_stage4_personal_care_no(self, parsed_baseline):
         """Member 3 has all ADL codes 000 → personal care = No."""
@@ -258,7 +258,7 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         pc = next(r for r in stage4 if r["row_key"] == "PersonalCare|9999999003")
-        assert pc["expected_value"] == "No"
+        assert pc["expected_value"] == "No, there is not an identified need"
 
     def test_stage4_med_admin_yes(self, parsed_baseline):
         """Member 1 has med_mgt=003 → med admin = Yes."""
@@ -266,7 +266,7 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         ma = next(r for r in stage4 if r["row_key"] == "MedAdmin|9999999001")
-        assert ma["expected_value"] == "Yes"
+        assert ma["expected_value"] == "Yes, there is an identified need"
 
     def test_stage4_med_admin_no(self, parsed_baseline):
         """Member 3 has med_mgt=002 (Independent) → med admin = No."""
@@ -274,7 +274,7 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         ma = next(r for r in stage4 if r["row_key"] == "MedAdmin|9999999003")
-        assert ma["expected_value"] == "No"
+        assert ma["expected_value"] == "No, there is not an identified need"
 
     def test_stage4_transport_yes(self, parsed_baseline):
         """Member 1 has trnsp=005 → transport = Yes."""
@@ -282,7 +282,7 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         t = next(r for r in stage4 if r["row_key"] == "Transportation|9999999001")
-        assert t["expected_value"] == "Yes"
+        assert t["expected_value"] == "Yes, there is an identified need"
 
     def test_stage4_transport_no(self, parsed_baseline):
         """Member 3 has trnsp=001 (drives regular) → transport = No."""
@@ -290,7 +290,7 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         t = next(r for r in stage4 if r["row_key"] == "Transportation|9999999003")
-        assert t["expected_value"] == "No"
+        assert t["expected_value"] == "No, there is not an identified need"
 
     def test_stage4_dme_yes(self, parsed_baseline):
         """Member 1 has adaptive equipment → DME = Yes."""
@@ -298,7 +298,7 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         d = next(r for r in stage4 if r["row_key"] == "DME|9999999001")
-        assert d["expected_value"] == "Yes"
+        assert d["expected_value"] == "Yes, there is an identified need"
 
     def test_stage4_dme_no(self, parsed_baseline):
         """Member 3 has no adaptive equipment → DME = No."""
@@ -306,15 +306,18 @@ class TestExpectedStateGenerator:
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         d = next(r for r in stage4 if r["row_key"] == "DME|9999999003")
-        assert d["expected_value"] == "No"
+        assert d["expected_value"] == "No, there is not an identified need"
 
-    def test_stage4_eligibility_date_not_stored(self, parsed_baseline):
-        """Per v2.0, ELG_CALC_DT is NOT stored as a form field — no DateFieldAnswer row."""
+    def test_stage4_eligibility_date_stored(self, parsed_baseline):
+        """ELG_CALC_DT IS stored as a DateFieldAnswer (Screening Completion Date)."""
         from src.interfaces.icd_d12.expected_state import IcdD12ExpectedStateGenerator
         gen = IcdD12ExpectedStateGenerator(parsed_baseline)
         stage4 = gen.generate_stage4()
         elg_rows = [r for r in stage4 if "ElgCalcDt" in r.get("row_key", "")]
-        assert len(elg_rows) == 0
+        assert len(elg_rows) == 3  # One per member
+        for row in elg_rows:
+            assert row["target_table"] == "CustomFormModule.DateFieldAnswer"
+            assert row["target_column"] == "DateTime"
 
     def test_stage3_returns_empty(self, parsed_baseline):
         """Stage 3 is skipped for D12 — returns empty list."""
@@ -330,7 +333,7 @@ class TestExpectedStateGenerator:
         fi = next(r for r in stage4 if r["row_key"] == "FormInstance|9999999001")
         assert fi["target_table"] == "CustomFormModule.CustomFormInstance"
         assert fi["target_column"] == "CustomFormDefinitionKey"
-        assert fi["expected_value"] == "964B0DFB-ED99-4F5A-8449-B43C013B9062"
+        assert fi["expected_value"] == "8D435D5E-B605-4DF6-8B1C-B47B012FDB34"
 
 
 class TestPluginRegistry:
