@@ -71,13 +71,13 @@ export class PlTestStack extends cdk.Stack {
     });
 
     // =========================================================================
-    // Task Definition — ARM64 (Graviton)
+    // Task Definition — X86_64
     // =========================================================================
     const taskDef = new ecs.FargateTaskDefinition(this, 'TaskDef', {
       memoryLimitMiB: 1024,
       cpu: 512,
       runtimePlatform: {
-        cpuArchitecture: ecs.CpuArchitecture.ARM64,
+        cpuArchitecture: ecs.CpuArchitecture.X86_64,
         operatingSystemFamily: ecs.OperatingSystemFamily.LINUX,
       },
     });
@@ -104,7 +104,7 @@ export class PlTestStack extends cdk.Stack {
         )
       : ecs.ContainerImage.fromAsset(workspaceRoot, {
           file: 'deploy/Dockerfile',
-          platform: ecr_assets.Platform.LINUX_ARM64,
+          platform: ecr_assets.Platform.LINUX_AMD64,
           // Exclude heavy directories to speed up CDK asset fingerprinting
           exclude: ['.venv', '.git', 'node_modules', '__pycache__', 'deploy/cdk/node_modules', 'deploy/cdk/cdk.out', '.kiro', 'cdk.out', '.cdk.out', '*.pyc', 'tests'],
         });

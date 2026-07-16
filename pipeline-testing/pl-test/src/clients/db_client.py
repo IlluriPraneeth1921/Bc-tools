@@ -70,12 +70,14 @@ class DatabaseClient:
 
     def _build_connection_string(self, target: str) -> str:
         """Build an ODBC connection string for the specified database target."""
+        import os
         config = self._connection_configs.get(target)
         if config is None:
             raise DatabaseClientError(f"Unknown database target: {target}")
 
+        driver = os.environ.get("ODBC_DRIVER", "ODBC Driver 18 for SQL Server")
         return (
-            f"DRIVER={{ODBC Driver 18 for SQL Server}};"
+            f"DRIVER={{{driver}}};"
             f"SERVER={config['host']},{config['port']};"
             f"DATABASE={config['database']};"
             f"UID={config['user']};"
